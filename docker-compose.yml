@@ -1,0 +1,49 @@
+services:
+  app:
+    build: .
+    ports:
+      - '8080:3000'
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOST=0.0.0.0
+      - FRONTEND_URL=http://localhost/economy
+      # Discord OAuth callback must include the subpath when served under /economy
+      - DISCORD_REDIRECT_URI=http://localhost/economy/auth/discord/callback
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=starfinance
+      - PG_USER=postgres
+      - PG_PASSWORD=postgres
+    volumes:
+      - ./backend/data:/app/backend/data
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: starfinance
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/ssl/certs
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  pgdata:

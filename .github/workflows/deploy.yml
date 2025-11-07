@@ -1,0 +1,34 @@
+name: Deploy Economy App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.PORT }}
+        script: |
+          set -e
+          cd /var/www/economy
+          echo ">>> Pulling latest code..."
+          git pull origin main || git clone ${{ github.server_url }}/${{ github.repository }}.git .
+
+          echo ">>> Rebuilding and restarting Docker container..."
+          docker-compose down
+          docker-compose build
+          docker-compose up -d
+
+          echo ">>> Pruning old Docker images..."
+          docker image prune -f
+          echo ">>> ✅ Deployment successful!"

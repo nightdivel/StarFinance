@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- Dark theme overrides to remove any white rows/headers from index.css --- */
+.dark-theme .ant-table .ant-table-thead > tr > th { background: #1e293b !important; color: #ffffff !important; }
+.dark-theme .ant-table .ant-table-tbody > tr { background-color: #0b1220 !important; }
+.dark-theme .ant-table .ant-table-tbody > tr:nth-child(even) { background-color: #0f172a !important; }
+.dark-theme .ant-table .ant-table-tbody > tr > td { background-color: inherit !important; color: #ffffff !important; }
+.dark-theme .ant-table .ant-table-cell-scrollbar { background-color: #0b1220 !important; }
+
+/* Hover в тёмной теме: тёмно‑синий фон */
+.dark-theme .ant-table .ant-table-tbody > tr > td:hover { background: #0f172a !important; }
+.dark-theme .ant-table .ant-table-tbody > tr:hover > td { background: #0f172a !important; }
+
+#root {
+  min-height: 100vh;
+}
+
+/* Table styles */
+.ant-table {
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+/* Light theme-specific visual styles */
+.light-theme .ant-table {
+  /* Headers */
+  .ant-table-thead > tr > th {
+    background: #fafafa;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 10px 12px;
+    .ant-table-column-sorters { padding: 4px 0; }
+    .ant-table-filter-trigger { color: #1890ff; margin-left: 4px; &:hover { color: #40a9ff; } }
+  }
+
+  /* Cells */
+  .ant-table-tbody > tr > td {
+    padding: 10px 12px;
+    transition: background 0.3s;
+  }
+
+  /* Hover & zebra (only in light theme) */
+  .ant-table-tbody > tr {
+    transition: all 0.3s;
+    &:hover > td { background: #f5f5f5; }
+    &:nth-child(even) { background-color: #f9f9f9; }
+  }
+
+  /* Pagination */
+  .ant-pagination { margin: 16px 0 0 0; padding: 8px 16px; display: flex; justify-content: flex-end; }
+}
+
+/* Shared paddings to avoid text touching edges */
+.ant-table .ant-table-tbody > tr > td:first-child,
+.ant-table .ant-table-thead > tr > th:first-child { padding-left: 16px; }
+.ant-table .ant-table-tbody > tr > td:last-child,
+.ant-table .ant-table-thead > tr > th:last-child { padding-right: 16px; }
+
+/* Table wrapper */
+.ant-table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Table layout */
+.ant-table {
+  table-layout: fixed;
+  width: 100%;
+  
+  /* Responsive table cells */
+  .ant-table-cell {
+    white-space: normal;
+    word-break: break-word;
+    
+    /* Ellipsis for long text */
+    .ant-table-cell-ellipsis {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}
+
+.ant-menu-dark {
+  background: #001529;
+}
+
+.ant-layout-sider {
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Loading animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* Currency formatting */
+.currency-positive {
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.currency-negative {
+  color: #f5222d;
+  font-weight: 500;
+}
+
+/* Status badges */
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-active {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  color: #52c41a;
+}
+
+.status-inactive {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  color: #ff4d4f;
+}
+
+.status-pending {
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  color: #faad14;
+}
