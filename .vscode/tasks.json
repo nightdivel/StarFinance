@@ -1,0 +1,124 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "PG: Install (native)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/pg/install-postgres.ps1"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "PG: Install (docker)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/pg/install-postgres.ps1",
+        "-UseDocker"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "PG: Init DB (local)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/pg/init-db.ps1",
+        "-Host",
+        "${input:pgHost}",
+        "-Port",
+        "${input:pgPort}",
+        "-Database",
+        "${input:pgDb}",
+        "-User",
+        "${input:pgUser}",
+        "-Password",
+        "${input:pgPassword}",
+        "-SqlFile",
+        "scripts/pg/init-db.sql"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "PG: Init DB (docker)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/pg/init-db.ps1",
+        "-UseDocker",
+        "-ContainerName",
+        "starfinance-postgres",
+        "-Database",
+        "starfinance",
+        "-User",
+        "postgres",
+        "-Password",
+        "postgres",
+        "-SqlFile",
+        "scripts/pg/init-db.sql"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "App: Dev",
+      "type": "npm",
+      "script": "dev",
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Build",
+      "type": "npm",
+      "script": "docker:build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Up",
+      "type": "npm",
+      "script": "docker:up",
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Down",
+      "type": "npm",
+      "script": "docker:down",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "pgHost",
+      "type": "promptString",
+      "description": "Postgres host",
+      "default": "localhost"
+    },
+    { "id": "pgPort", "type": "promptString", "description": "Postgres port", "default": "5432" },
+    {
+      "id": "pgDb",
+      "type": "promptString",
+      "description": "Database name",
+      "default": "starfinance"
+    },
+    { "id": "pgUser", "type": "promptString", "description": "User", "default": "postgres" },
+    {
+      "id": "pgPassword",
+      "type": "promptString",
+      "description": "Password",
+      "password": true,
+      "default": "postgres"
+    }
+  ]
+}

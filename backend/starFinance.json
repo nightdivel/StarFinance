@@ -1,0 +1,51 @@
+{
+  "system": {
+    "port": 3000,
+    "baseUrl": "http://localhost:3000",
+    "discord": {
+      "clientId": "",
+      "clientSecret": "",
+      "redirectUri": ""
+    }
+  },
+  "currencies": ["aUEC", "КП"],
+  "baseCurrency": "aUEC",
+  "rates": { "aUEC": 1, "КП": 0.9 },
+  "warehouse": [
+    {
+      "id": 42,
+      "name": "Золото 250 SCU",
+      "type": "Товар",
+      "quantity": 100,
+      "cost": 400000,
+      "currency": "aUEC",
+      "showcaseStatus": "На витрине",
+      "displayCurrencies": ["aUEC"]
+    }
+  ],
+  "users": [
+    {
+      "id": "discord_123456789",
+      "username": "DiscordUser",
+      "email": "user@discord.com",
+      "authType": "discord",
+      "accountType": "Пользователь",
+      "permissions": {
+        "finance": "read",
+        "warehouse": "read",
+        "users": "none",
+        "directories": "none",
+        "requests": "none"
+      },
+      "isActive": true,
+      "discordData": {}
+    }
+  ],
+  "directories": {
+    "types": ["Услуга", "Товар"],
+    "statuses": ["На витрине", "Скрыт"],
+    "locations": ["Склад А", "Склад Б"]
+  },
+  "transactions": [],
+  "nextId": 52
+}

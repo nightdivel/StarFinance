@@ -1,0 +1,47 @@
+{
+  "users": [
+    {
+      "id": "discord_542364844339232799",
+      "email": "hitsnruns@gmail.com",
+      "authType": "discord",
+      "isActive": true,
+      "username": "happy3704",
+      "createdAt": "2025-09-22T06:50:54.718Z",
+      "discordId": "542364844339232799",
+      "lastLogin": "2025-09-22T07:52:33.256Z",
+      "accountType": "Гость",
+      "discordData": {
+        "id": "542364844339232799",
+        "clan": null,
+        "email": "hitsnruns@gmail.com",
+        "flags": 0,
+        "avatar": "b05187d2eb1530b10d2554137ca4feed",
+        "banner": null,
+        "locale": "ru",
+        "username": "happy3704",
+        "verified": true,
+        "global_name": "Nightdivel",
+        "mfa_enabled": false,
+        "accent_color": null,
+        "banner_color": null,
+        "collectibles": null,
+        "premium_type": 0,
+        "public_flags": 0,
+        "discriminator": "0",
+        "primary_guild": null,
+        "display_name_styles": null,
+        "avatar_decoration_data": null
+      },
+      "permissions": {
+        "users": "none",
+        "finance": "read",
+        "settings": "none",
+        "warehouse": "read",
+        "directories": "none",
+        "requests": "read"
+      }
+    }
+  ],
+  "system": {},
+  "directories": {}
+}

@@ -1,0 +1,32 @@
+{
+  "name": "star-finance-backend",
+  "version": "1.0.0",
+  "description": "Backend for Star Finance system",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "migrate:stage1": "node scripts/migrate_stage1.js",
+    "migrate:all": "node scripts/migrate_all.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.2",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "pg": "^8.11.3",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "finance",
+    "warehouse",
+    "management"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

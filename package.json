@@ -1,0 +1,34 @@
+{
+  "name": "star-finance",
+  "version": "1.0.0",
+  "description": "Star Finance - система управления финансами и складом",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:db": "docker-compose up -d postgres",
+    "dev:stop:db": "docker-compose stop postgres",
+    "dev:down": "docker-compose down",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "start": "cd backend && npm start",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "lint": "eslint \"frontend/src/**/*.{js,jsx}\" \"backend/**/*.js\"",
+    "lint:fix": "eslint --fix \"frontend/src/**/*.{js,jsx}\" \"backend/**/*.js\"",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "prettier": "^3.0.3"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.2",
+    "@tanstack/react-query-devtools": "^5.90.2",
+    "socket.io-client": "^4.8.1"
+  }
+}

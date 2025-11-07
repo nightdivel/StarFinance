@@ -1,0 +1,20 @@
+/* Global unified medium button size */
+.ant-btn {
+  height: 32px !important;
+  line-height: 32px !important;
+  min-width: 80px;
+  padding: 0 12px !important;
+  font-size: 14px;
+  border-radius: 6px;
+}
+
+/* Ensure icon alignment */
+.ant-btn .anticon {
+  line-height: 32px;
+  font-size: 14px;
+}
+
+/* Ensure text aligns vertically */
+.ant-btn > span {
+  line-height: 32px;
+}
