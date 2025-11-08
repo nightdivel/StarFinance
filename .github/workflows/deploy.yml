@@ -3,7 +3,7 @@ name: Deploy Economy App
 on:
   push:
     branches:
-      - main
+      - main # или любая другая ветка для деплоя
 
 jobs:
   deploy:
@@ -11,33 +11,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Deploy to server
+    - name: Add server to known_hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -p ${{ secrets.PORT }} -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+
+    - name: Execute deployment script on server
       uses: appleboy/ssh-action@v1.0.3
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        port: 22
-        envs: GITHUB_TOKEN
-        script: |
-          set -e
-          mkdir -p /var/www/economy && cd /var/www/economy
-          echo ">>> Pulling latest code..."
-          if [ -d .git ]; then
-            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
-            git fetch origin
-            git checkout -B main origin/main
-          else
-            git clone https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git .
-          fi
-
-          echo ">>> Rebuilding and restarting Docker container..."
-          docker compose down
-          docker compose build
-          docker compose up -d
-
-          echo ">>> Pruning old Docker images..."
-          docker image prune -f
-          echo ">>> ✅ Deployment successful!"
+        port: ${{ secrets.PORT }}
+        
+        script: /usr/local/bin/deploy_economy.sh
