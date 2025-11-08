@@ -7,9 +7,9 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - HOST=0.0.0.0
-      - FRONTEND_URL=http://localhost/economy
+      - FRONTEND_URL=https://korjeek.ru/economy
       # Discord OAuth callback must include the subpath when served under /economy
-      - DISCORD_REDIRECT_URI=http://localhost/economy/auth/discord/callback
+      - DISCORD_REDIRECT_URI=https://korjeek.ru/economy/auth/discord/callback
       - PG_HOST=postgres
       - PG_PORT=5432
       - PG_DATABASE=starfinance
