@@ -13,21 +13,30 @@ jobs:
     steps:
     - name: Deploy to server
       uses: appleboy/ssh-action@v1.0.3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        port: ${{ secrets.PORT }}
+        port: 22
+        envs: GITHUB_TOKEN
         script: |
           set -e
-          cd /var/www/economy
+          mkdir -p /var/www/economy && cd /var/www/economy
           echo ">>> Pulling latest code..."
-          git pull origin main || git clone ${{ github.server_url }}/${{ github.repository }}.git .
+          if [ -d .git ]; then
+            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
+            git fetch origin
+            git checkout -B main origin/main
+          else
+            git clone https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git .
+          fi
 
           echo ">>> Rebuilding and restarting Docker container..."
-          docker-compose down
-          docker-compose build
-          docker-compose up -d
+          docker compose down
+          docker compose build
+          docker compose up -d
 
           echo ">>> Pruning old Docker images..."
           docker image prune -f
