@@ -3,7 +3,9 @@ param(
   [string]$ServerUser = "korjeek",
   [int]$Port = 22,
   [string]$RepoUrl = "https://github.com/nightdivel/StarFinance.git",
-  [string]$AppDir = "/var/www/economy"
+  [string]$AppDir = "/var/www/economy",
+  [string]$KeyPath = "",
+  [string]$StrictHostKeyChecking = "no"
 )
 
 Write-Host "Deploying to $($ServerUser)@$($ServerHost):$Port" -ForegroundColor Cyan
@@ -47,12 +49,17 @@ fi
 echo ">>> Pruning old Docker images..."
 docker image prune -f || true
 
-echo ">>> ✅ Deployment successful!"
+echo ">>> Deployment successful!"
 "@
 
 # Pipe the script into ssh and execute via bash -s
 try {
-  $remoteScript | ssh -p $Port "$ServerUser@$ServerHost" 'bash -s' 2>$null
+  $sshArgs = @()
+  $sshArgs += @("-p", $Port)
+  if ($StrictHostKeyChecking) { $sshArgs += @("-o", "StrictHostKeyChecking=$StrictHostKeyChecking") }
+  if ($KeyPath) { $sshArgs += @("-i", $KeyPath) }
+  $sshArgs += @("$ServerUser@$ServerHost", "bash -s")
+  $remoteScript | ssh @sshArgs
   if ($LASTEXITCODE -ne 0) { throw "Remote deploy failed with exit code $LASTEXITCODE" }
   Write-Host "Done." -ForegroundColor Green
 }
