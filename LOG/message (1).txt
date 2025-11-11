@@ -1,0 +1,292 @@
+/var/www/economy$ sudo docker cp /var/www/economy/migrations economy-postgres-1:/tmp/migrations
+Successfully copied 32.8kB to economy-postgres-1:/tmp/migrations
+korjeek@korjeek:/var/www/economy$ sudo docker exec -it economy-postgres-1 bash -c 'for f in $(ls /tmp/migrations/*.sql | sort); do echo ">>> Применяю миг                                                                                                                                                                рацию $f ..."; psql -U postgres -d starfinance -f "$f"; done'
+>>> Применяю миграцию /tmp/migrations/000_all.sql ...
+psql:/tmp/migrations/000_all.sql:9: NOTICE:  relation "account_types" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:16: NOTICE:  relation "account_type_permissions" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:31: NOTICE:  relation "users" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:37: NOTICE:  relation "settings" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:46: NOTICE:  relation "discord_settings" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:51: NOTICE:  relation "discord_attr_mappings" already exists, skipping
+CREATE TABLE
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:61: NOTICE:  relation "product_types" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:65: NOTICE:  relation "showcase_statuses" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:69: NOTICE:  relation "warehouse_locations" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:75: NOTICE:  relation "product_names" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:80: NOTICE:  relation "currencies" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:87: NOTICE:  relation "currency_rates" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:102: NOTICE:  relation "warehouse_items" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:114: NOTICE:  relation "showcase_items" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/000_all.sql:127: NOTICE:  relation "transactions" already exists, skipping
+CREATE TABLE
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 0
+INSERT 0 0
+psql:/tmp/migrations/000_all.sql:203: NOTICE:  extension "pgcrypto" already exists, skipping
+CREATE EXTENSION
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 1
+INSERT 0 1
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+INSERT 0 0
+>>> Применяю миграцию /tmp/migrations/001_stage1.sql ...
+psql:/tmp/migrations/001_stage1.sql:5: NOTICE:  relation "account_types" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/001_stage1.sql:12: NOTICE:  relation "account_type_permissions" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/001_stage1.sql:27: NOTICE:  relation "users" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/001_stage1.sql:33: NOTICE:  relation "settings" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/001_stage1.sql:43: NOTICE:  relation "discord_settings" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/001_stage1.sql:53: NOTICE:  relation "discord_attr_mappings" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/001_stage1.sql:58: NOTICE:  relation "discord_guild_mappings" already exists, skipping
+CREATE TABLE
+>>> Применяю миграцию /tmp/migrations/002_drop_guild_mappings.sql ...
+DROP TABLE
+>>> Применяю миграцию /tmp/migrations/002_stage2.sql ...
+psql:/tmp/migrations/002_stage2.sql:5: NOTICE:  relation "product_types" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/002_stage2.sql:9: NOTICE:  relation "showcase_statuses" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/002_stage2.sql:13: NOTICE:  relation "warehouse_locations" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/002_stage2.sql:18: NOTICE:  relation "currencies" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/002_stage2.sql:25: NOTICE:  relation "currency_rates" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/002_stage2.sql:40: NOTICE:  relation "warehouse_items" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/002_stage2.sql:52: NOTICE:  relation "showcase_items" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/002_stage2.sql:65: NOTICE:  relation "transactions" already exists, skipping
+CREATE TABLE
+>>> Применяю миграцию /tmp/migrations/003_add_theme_preference.sql ...
+psql:/tmp/migrations/003_add_theme_preference.sql:3: NOTICE:  column "theme_preference" of relation "users" already exists, skipping
+ALTER TABLE
+UPDATE 0
+>>> Применяю миграцию /tmp/migrations/003_showcase_and_warehouse.sql ...
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+psql:/tmp/migrations/003_showcase_and_warehouse.sql:19: NOTICE:  relation "warehouse_types" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/003_showcase_and_warehouse.sql:22: NOTICE:  column "warehouse_type" of relation "warehouse_items" already exists, skipping
+ALTER TABLE
+psql:/tmp/migrations/003_showcase_and_warehouse.sql:23: NOTICE:  column "owner_login" of relation "warehouse_items" already exists, skipping
+ALTER TABLE
+>>> Применяю миграцию /tmp/migrations/004_user_layouts_and_discord_scopes.sql ...
+psql:/tmp/migrations/004_user_layouts_and_discord_scopes.sql:6: NOTICE:  relation "discord_scopes" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/004_user_layouts_and_discord_scopes.sql:14: NOTICE:  relation "discord_scope_mappings" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/004_user_layouts_and_discord_scopes.sql:23: NOTICE:  relation "user_layouts" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/004_user_layouts_and_discord_scopes.sql:26: NOTICE:  relation "idx_user_layouts_user" already exists, skipping
+CREATE INDEX
+>>> Применяю миграцию /tmp/migrations/005_add_position_to_discord_scope_mappings.sql ...
+psql:/tmp/migrations/005_add_position_to_discord_scope_mappings.sql:4: NOTICE:  column "position" of relation "discord_scope_mappings" already exists, sk                                                                                                                                                                ipping
+ALTER TABLE
+UPDATE 0
+>>> Применяю миграцию /tmp/migrations/005_purchase_requests.sql ...
+psql:/tmp/migrations/005_purchase_requests.sql:5: NOTICE:  column "reserved" of relation "warehouse_items" already exists, skipping
+ALTER TABLE
+psql:/tmp/migrations/005_purchase_requests.sql:18: NOTICE:  relation "purchase_requests" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/005_purchase_requests.sql:28: NOTICE:  relation "purchase_request_logs" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/005_purchase_requests.sql:31: NOTICE:  relation "idx_purchase_requests_buyer" already exists, skipping
+CREATE INDEX
+psql:/tmp/migrations/005_purchase_requests.sql:32: NOTICE:  relation "idx_purchase_requests_status" already exists, skipping
+CREATE INDEX
+psql:/tmp/migrations/005_purchase_requests.sql:33: NOTICE:  relation "idx_purchase_requests_item" already exists, skipping
+CREATE INDEX
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+>>> Применяю миграцию /tmp/migrations/006_account_type_warehouse_access.sql ...
+psql:/tmp/migrations/006_account_type_warehouse_access.sql:7: NOTICE:  relation "account_type_warehouse_types" already exists, skipping
+CREATE TABLE
+>>> Применяю миграцию /tmp/migrations/006_requests_status_processing.sql ...
+DO
+ALTER TABLE
+>>> Применяю миграцию /tmp/migrations/007_finance_requests.sql ...
+psql:/tmp/migrations/007_finance_requests.sql:12: NOTICE:  relation "finance_requests" already exists, skipping
+CREATE TABLE
+psql:/tmp/migrations/007_finance_requests.sql:14: NOTICE:  relation "idx_finance_requests_to_user" already exists, skipping
+CREATE INDEX
+psql:/tmp/migrations/007_finance_requests.sql:15: NOTICE:  relation "idx_finance_requests_status" already exists, skipping
+CREATE INDEX
+korjeek@korjeek:/var/www/economy$ \dt
+-bash: dt: command not found
+korjeek@korjeek:/var/www/economy$ sudo docker exec -it economy-postgres-1 psql -U postgres -d starfinance
+psql (15.14 (Debian 15.14-1.pgdg13+1))
+Type "help" for help.
+
+starfinance=# \dt
+                    List of relations
+ Schema |             Name             | Type  |  Owner
+--------+------------------------------+-------+----------
+ public | account_type_permissions     | table | postgres
+ public | account_type_warehouse_types | table | postgres
+ public | account_types                | table | postgres
+ public | currencies                   | table | postgres
+ public | currency_rates               | table | postgres
+ public | discord_attr_mappings        | table | postgres
+ public | discord_scope_mappings       | table | postgres
+ public | discord_scopes               | table | postgres
+ public | discord_settings             | table | postgres
+ public | finance_requests             | table | postgres
+ public | product_names                | table | postgres
+ public | product_types                | table | postgres
+ public | purchase_request_logs        | table | postgres
+ public | purchase_requests            | table | postgres
+ public | schema_migrations            | table | postgres
+ public | settings                     | table | postgres
+ public | showcase_items               | table | postgres
+ public | showcase_statuses            | table | postgres
+ public | transactions                 | table | postgres
+ public | user_layouts                 | table | postgres
+ public | users                        | table | postgres
+ public | warehouse_items              | table | postgres
+ public | warehouse_locations          | table | postgres
+ public | warehouse_types              | table | postgres
+(24 rows)
+
+starfinance=# \q
+korjeek@korjeek:/var/www/economy$ sudo docker restart economy-economy-1
+economy-economy-1
+korjeek@korjeek:/var/www/economy$ sudo docker logs economy-economy-1
+
+> star-finance@1.0.0 start
+> cd backend && npm start
+
+
+> star-finance-backend@1.0.0 start
+> node server.js
+
+[migrate] Applying 000_all.sql ...
+Не удалось добавить колонку users.nickname: relation "users" does not exist
+⚠️ Предупреждения инициализации:
+ - Таблица отсутствует или недоступна: users
+ - Таблица отсутствует или недоступна: account_types
+ - Таблица отсутствует или недоступна: account_type_permissions
+ - Таблица отсутствует или недоступна: product_types
+ - Таблица отсутствует или недоступна: showcase_statuses
+ - Таблица отсутствует или недоступна: warehouse_locations
+ - Таблица отсутствует или недоступна: currencies
+ - Таблица отсутствует или недоступна: currency_rates
+ - Таблица отсутствует или недоступна: warehouse_items
+ - Таблица отсутствует или недоступна: showcase_items
+ - Таблица отсутствует или недоступна: transactions
+ - Таблица отсутствует или недоступна: settings
+ - Таблица отсутствует или недоступна: discord_settings
+ - В БД нет пользователей. Будет недоступен вход (local).
+ - Справочник типов учетных записей пуст. Права будут дефолтными (минимальными).
+ - Таблица валют пуста: используйте Settings -> Валюты чтобы инициализировать.
+ - Не заданы курсы валют для базовой валюты (aUEC).
+🚀 Server running on http://0.0.0.0:3000
+🌐 Frontend: https://korjeek.ru/economy
+[migrate] Applied 000_all.sql
+[migrate] Applying 001_stage1.sql ...
+[migrate] Applied 001_stage1.sql
+[migrate] Applying 002_drop_guild_mappings.sql ...
+[migrate] Applied 002_drop_guild_mappings.sql
+[migrate] Applying 002_stage2.sql ...
+[migrate] Applied 002_stage2.sql
+[migrate] Applying 003_add_theme_preference.sql ...
+[migrate] Applied 003_add_theme_preference.sql
+[migrate] Applying 003_showcase_and_warehouse.sql ...
+[migrate] Applied 003_showcase_and_warehouse.sql
+[migrate] Applying 004_user_layouts_and_discord_scopes.sql ...
+[migrate] Applied 004_user_layouts_and_discord_scopes.sql
+[migrate] Applying 005_add_position_to_discord_scope_mappings.sql ...
+[migrate] Applied 005_add_position_to_discord_scope_mappings.sql
+[migrate] Applying 005_purchase_requests.sql ...
+[migrate] Applied 005_purchase_requests.sql
+[migrate] Applying 006_account_type_warehouse_access.sql ...
+[migrate] Applied 006_account_type_warehouse_access.sql
+[migrate] Applying 006_requests_status_processing.sql ...
+[migrate] Applied 006_requests_status_processing.sql
+[migrate] Applying 007_finance_requests.sql ...
+[migrate] Applied 007_finance_requests.sql
+[init] users.theme_preference ensured
+[init] purchase_requests ensured
+npm error path /app
+npm error command failed
+npm error signal SIGTERM
+npm error command sh -c cd backend && npm start
+npm error A complete log of this run can be found in: /root/.npm/_logs/2025-11-11T16_03_09_202Z-debug-0.log
+
+> star-finance@1.0.0 start
+> cd backend && npm start
+
+
+> star-finance-backend@1.0.0 start
+> node server.js
+
+[init] users.theme_preference ensured
+[init] purchase_requests ensured
+✅ Проверка БД: ок
+🚀 Server running on http://0.0.0.0:3000
+🌐 Frontend: https://korjeek.ru/economy
+korjeek@korjeek:/var/www/economy$ sudo nano /etc/nginx/sites-available/default
+korjeek@korjeek:/var/www/economy$ sudo nginx -t
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+korjeek@korjeek:/var/www/economy$ sudo systemctl reload nginx
+korjeek@korjeek:/var/www/economy$
