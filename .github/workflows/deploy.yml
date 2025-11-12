@@ -1,21 +1,21 @@
+# .github/workflows/deploy.yml
 name: Build and Deploy Economy App
 
 on:
   push:
     branches:
-      - main # или любая другая ветка для деплоя
+      - main
 
+# Имя образа в Docker Hub. Замени DOCKERHUB_USERNAME на логин твоего друга.
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/economy-app
 
 jobs:
   build_and_push:
-    name: Build and Push Docker Image
+    name: Build and Push to Docker Hub
     runs-on: ubuntu-latest
 
     steps:
-<<<<<<< HEAD
-=======
     - name: Checkout repository
       uses: actions/checkout@v4
 
@@ -34,22 +34,23 @@ jobs:
         context: .
         push: true
         tags: ${{ env.IMAGE_NAME }}:latest
+        # Включаем кэширование для ускорения последующих сборок
         cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:latest
         cache-to: type=inline
 
   deploy:
     name: Deploy to Server
     runs-on: ubuntu-latest
+    # Запускаем деплой только после успешной сборки и загрузки образа
     needs: build_and_push
 
     steps:
->>>>>>> 6adda7e06325e29d9e8ebf6d0637da2755e1f4bd
     - name: Add server to known_hosts
       run: |
         mkdir -p ~/.ssh
         ssh-keyscan -p ${{ secrets.PORT }} -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
 
-    - name: Pull and restart containers on server
+    - name: Execute deployment script on server
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.HOST }}
@@ -59,3 +60,4 @@ jobs:
         
         # Запускаем единственный разрешенный, упрощенный скрипт на сервере
         script: /usr/local/bin/deploy_economy.sh
+        
