@@ -1,53 +1,49 @@
-version: '3.8'
-
 services:
-  economy:
-    image: popovef/economy-app:latest
-    restart: always
-    # Пробрасываем порт ТОЛЬКО на localhost — так безопаснее
+  app:
+    build: .
     ports:
-      - "127.0.0.1:8081:3000"
+      - '8080:3000'
     environment:
-      NODE_ENV: production
-      PORT: 3000
-      HOST: 0.0.0.0
-      FRONTEND_URL: https://korjeek.ru/economy
-      DISCORD_REDIRECT_URI: https://korjeek.ru/economy/auth/discord/callback
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_DATABASE: starfinance
-      PG_USER: postgres
-      PG_PASSWORD: postgres
+      - NODE_ENV=production
+      - PORT=3000
+      - HOST=0.0.0.0
+      - FRONTEND_URL=http://korjeek.ru/economy
+      # Discord OAuth callback must include the subpath when served under /economy
+      - DISCORD_REDIRECT_URI=https://korjeek.ru/economy/auth/discord/callback
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=starfinance
+      - PG_USER=postgres
+      - PG_PASSWORD=postgres
+    volumes:
+      - ./backend/data:/app/backend/data
     depends_on:
-      postgres:
-        condition: service_healthy
-    # Проверка здоровья приложения (требует, чтобы в /health был эндпоинт)
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+      - postgres
+    restart: unless-stopped
 
   postgres:
     image: postgres:15
-    restart: unless-stopped
     environment:
       POSTGRES_DB: starfinance
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      TZ: Europe/Moscow
+    ports:
+      - '5433:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # Проверка готовности PostgreSQL
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d starfinance"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/ssl/certs
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  pgdata:
