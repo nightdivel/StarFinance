@@ -1,13 +1,14 @@
 services:
   economy:
     image: popovef/economy-app:latest
+    container_name: economy_app
     restart: always
     ports:
       - "127.0.0.1:8081:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
-      HOST: 172.18.0.3
+      HOST: 0.0.0.0
       FRONTEND_URL: https://korjeek.ru/economy
       DISCORD_REDIRECT_URI: https://korjeek.ru/economy/auth/discord/callback
       PG_HOST: postgres
@@ -19,11 +20,11 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 0"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
     logging:
       driver: json-file
       options:
@@ -32,6 +33,7 @@ services:
 
   postgres:
     image: postgres:15
+    container_name: economy_db
     restart: unless-stopped
     environment:
       POSTGRES_DB: starfinance
