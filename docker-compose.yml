@@ -3,10 +3,12 @@ version: '3.8'
 services:
   economy:
     image: popovef/economy-app:latest
+    container_name: economy_app
     restart: always
-    # Пробрасываем порт ТОЛЬКО на localhost — так безопаснее
+
     ports:
       - "127.0.0.1:8081:3000"
+
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -18,16 +20,18 @@ services:
       PG_DATABASE: starfinance
       PG_USER: postgres
       PG_PASSWORD: postgres
+
     depends_on:
       postgres:
         condition: service_healthy
-    # Проверка здоровья приложения (требует, чтобы в /health был эндпоинт)
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
     logging:
       driver: json-file
       options:
@@ -36,18 +40,24 @@ services:
 
   postgres:
     image: postgres:15
+    container_name: economy_db
     restart: unless-stopped
+
     environment:
       POSTGRES_DB: starfinance
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       TZ: Europe/Moscow
+
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # Проверка готовности PostgreSQL
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d starfinance"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 40s
+
+volumes:
+  pgdata:
