@@ -3,8 +3,6 @@ services:
     image: popovef/economy-app:latest
     container_name: economy_app
     restart: always
-    ports:
-      - "127.0.0.1:8081:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
