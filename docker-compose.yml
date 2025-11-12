@@ -47,6 +47,17 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+  nginx:
+    image: nginx:alpine
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/ssl/certs
+    depends_on:
+      - app
+    restart: unless-stopped
 
 volumes:
   pgdata:
