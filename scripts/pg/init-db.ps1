@@ -3,11 +3,24 @@ param(
   [int]$DbPort = 5432,
   [string]$Database = "starfinance",
   [string]$DbUser = "postgres",
-  [string]$DbPassword = "postgres",
+  [System.Security.SecureString]$DbPassword,
   [string]$SqlFile = "scripts/pg/init-db.sql",
   [switch]$UseDocker,
   [string]$ContainerName = "starfinance-postgres"
 )
+
+function Get-PlainText {
+  param([Parameter(Mandatory=$true)][System.Security.SecureString]$Secure)
+  $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Secure)
+  try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) }
+  finally {
+    if ($bstr -ne [System.IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+  }
+}
+
+if (-not $DbPassword) {
+  $DbPassword = Read-Host "Введите пароль пользователя $DbUser" -AsSecureString
+}
 
 # Apply init SQL to PostgreSQL either via local psql or via docker exec
 
@@ -26,7 +39,9 @@ if ($UseDocker) {
   $escapedPath = (Resolve-Path $SqlFile).Path
   # Копируем файл внутрь контейнера и применяем
   docker cp $escapedPath "${ContainerName}:/init-db.sql" | Out-Null
-  docker exec -e PGPASSWORD=$DbPassword $ContainerName psql -h 127.0.0.1 -U $DbUser -d $Database -f /init-db.sql | Out-Host
+  $plain = Get-PlainText -Secure $DbPassword
+  docker exec -e PGPASSWORD=$plain $ContainerName psql -h 127.0.0.1 -U $DbUser -d $Database -f /init-db.sql | Out-Host
+  $plain = $null
 } else {
   $psql = Get-Command psql -ErrorAction SilentlyContinue
   if (-not $psql) {
@@ -34,9 +49,11 @@ if ($UseDocker) {
     exit 1
   }
   Write-Host "Применяю SQL через локальный psql..."
-  $env:PGPASSWORD = $DbPassword
+  $plain = Get-PlainText -Secure $DbPassword
+  $env:PGPASSWORD = $plain
   & psql -h $DbHost -p $DbPort -U $DbUser -d $Database -f $SqlFile | Out-Host
   Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
+  $plain = $null
 }
 
 Write-Host "Done."

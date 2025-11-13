@@ -1,7 +1,6 @@
 param(
   [switch]$NoSeed,
   [string]$PgUser = "postgres",
-  [string]$PgPassword = "postgres",
   [string]$PgDatabase = "starfinance",
   [string]$ComposeFile = "docker-compose.yml"
 )
