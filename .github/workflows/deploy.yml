@@ -57,7 +57,17 @@ jobs:
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.PORT }}
-        
-        # Запускаем единственный разрешенный, упрощенный скрипт на сервере
-        script: /usr/local/bin/deploy_economy.sh
+        script: |
+          set -e
+          PROJECT_DIR="${SERVER_PROJECT_DIR:-${HOME}/StarFinance_v2}"
+          echo "[INFO] Using project dir: ${PROJECT_DIR}"
+          cd "${PROJECT_DIR}"
+          docker compose version
+          echo "--- Executing LIGHTWEIGHT economy deployment (inline) ---"
+          echo ">>> Pulling latest image via compose service name 'economy'..."
+          docker compose pull economy || true
+          echo ">>> Starting/updating services..."
+          docker compose up -d --remove-orphans
+          echo ">>> Pruning dangling images..."
+          docker image prune -f
         
