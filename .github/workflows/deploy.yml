@@ -87,6 +87,9 @@ jobs:
           echo ">>> Recent postgres logs (last 100 lines):"
           docker compose logs postgres --tail=100 || true
 
+          # Pack logs into a single tarball to simplify download
+          tar -czf /tmp/economy-deploy-logs.tar.gz -C /tmp economy-deploy-logs || true
+
     - name: Download deploy logs from server
       if: always()
       uses: appleboy/scp-action@v0.1.7
@@ -95,13 +98,13 @@ jobs:
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.PORT }}
-        source: "/tmp/economy-deploy-logs/*"
-        target: "./deploy-logs"
+        source: "/tmp/economy-deploy-logs.tar.gz"
+        target: "./."
 
     - name: Upload deploy logs artifact
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: economy-deploy-logs
-        path: deploy-logs
+        path: economy-deploy-logs.tar.gz
         
