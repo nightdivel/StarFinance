@@ -1,6 +1,6 @@
 services:
   economy:
-    image: popovef/economy-app:latest
+    build: .
     container_name: economy_app
     restart: always
     ports:
