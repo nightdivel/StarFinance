@@ -8,8 +8,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      FRONTEND_URL: https://korjeek.ru/economy
-      DISCORD_REDIRECT_URI: https://korjeek.ru/economy/auth/discord/callback
+      FRONTEND_URL: http://77.37.200.234
+      DISCORD_REDIRECT_URI: http://77.37.200.234/economy/auth/discord/callback
       PG_HOST: postgres
       PG_PORT: 5432
       PG_DATABASE: starfinance
