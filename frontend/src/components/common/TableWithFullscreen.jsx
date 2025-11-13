@@ -42,6 +42,7 @@ const TableWithFullscreen = ({
     <div style={{ display: 'flex', gap: 8 }}>
       {extra}
       <Button
+        type="primary"
         size="small"
         icon={open ? <CompressOutlined /> : <ExpandAltOutlined />}
         onClick={() => setOpen(true)}
@@ -64,10 +65,9 @@ const TableWithFullscreen = ({
       >
         <Table
           {...{
-            size: 'middle',
             bordered: false,
             sticky: tableProps?.sticky ?? false,
-            scroll: { x: 'max-content', ...(tableProps?.scroll || {}) },
+            scroll: { x: '100%', ...(tableProps?.scroll || {}) },
             pagination: false,
             ...tableProps,
             dataSource: slicedData,
@@ -88,16 +88,15 @@ const TableWithFullscreen = ({
         title={title}
       >
         <div style={{ marginBottom: 12, textAlign: 'right' }}>
-          <Button icon={<CompressOutlined />} onClick={() => setOpen(false)}>
+          <Button type="primary" icon={<CompressOutlined />} onClick={() => setOpen(false)}>
             Свернуть
           </Button>
         </div>
         <Table
           {...{
-            size: 'middle',
             bordered: false,
             sticky: tableProps?.sticky ?? false,
-            scroll: { y: 'calc(100vh - 140px)', x: 'max-content', ...(tableProps?.scroll || {}) },
+            scroll: { y: 'calc(100vh - 140px)', x: '100%', ...(tableProps?.scroll || {}) },
             pagination: false,
             ...tableProps,
             dataSource: slicedData,

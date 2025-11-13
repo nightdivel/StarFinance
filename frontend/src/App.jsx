@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ConfigProvider, theme } from 'antd';
 import Auth from './components/Auth/Auth.jsx';
 import MainLayout from './components/MainLayout.jsx';
 import './App.css';
@@ -8,7 +9,9 @@ import { API_BASE_URL } from './config';
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userData, setUserData] = useState(null);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    try { return localStorage.getItem('theme.dark') === 'true'; } catch (_) { return false; }
+  });
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
 
   const applyThemeClasses = (isDark) => {
@@ -129,7 +132,7 @@ function App() {
       const token = localStorage.getItem('authToken');
       if (!token) return;
 
-      await fetch(`/api/user/theme`, {
+      await fetch(`${API_BASE_URL ? API_BASE_URL : ''}/api/user/theme`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -211,19 +214,58 @@ function App() {
   };
 
   return (
-    <div className={`App ${darkMode ? 'dark-theme' : 'light-theme'}`}>
-      {isAuthenticated ? (
-        <MainLayout
-          userData={userData}
-          onLogout={handleLogout}
-          onUpdateUser={handleUpdateUser}
-          darkMode={darkMode}
-          onToggleTheme={handleToggleTheme}
-        />
-      ) : (
-        <Auth onLogin={handleLogin} />
-      )}
-    </div>
+    <ConfigProvider
+      theme={{
+        algorithm: [theme.compactAlgorithm, darkMode ? theme.darkAlgorithm : theme.defaultAlgorithm],
+        token: {
+          fontSize: 14,
+          paddingXS: 6,
+          paddingSM: 8,
+          padding: 12,
+          borderRadius: 4,
+        },
+        components: {
+          Table: {
+            cellPaddingBlock: 4,
+            cellPaddingInline: 8,
+            fontSize: 12,
+            headerSplitColor: 'transparent',
+          },
+          Form: {
+            itemMarginBottom: 8,
+            verticalLabelPadding: 0,
+          },
+          Card: {
+            padding: 12,
+            headerHeight: 36,
+          },
+          Button: {
+            controlHeight: 28,
+          },
+          Input: {
+            controlHeight: 28,
+          },
+          Select: {
+            controlHeight: 28,
+          },
+        },
+      }}
+      componentSize="small"
+    >
+      <div className={`App ${darkMode ? 'dark-theme' : 'light-theme'}`}>
+        {isAuthenticated ? (
+          <MainLayout
+            userData={userData}
+            onLogout={handleLogout}
+            onUpdateUser={handleUpdateUser}
+            darkMode={darkMode}
+            onToggleTheme={handleToggleTheme}
+          />
+        ) : (
+          <Auth onLogin={handleLogin} />
+        )}
+      </div>
+    </ConfigProvider>
   );
 }
 

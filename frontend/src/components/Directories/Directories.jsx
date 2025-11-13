@@ -294,7 +294,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
       key: 'actions',
       width: 100,
       render: (_, record) => (
-        <Button size="small" onClick={() => setCurrentDirectory(record)}>
+        <Button type="primary" size="small" onClick={() => setCurrentDirectory(record)}>
           Просмотреть
         </Button>
       ),
@@ -309,7 +309,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
           dataSource={directoryData}
           rowKey="key"
           pagination={false}
-          scroll={{ x: 600 }}
+          scroll={{ x: '100%' }}
         />
       </Card>
 
@@ -498,7 +498,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                       dataSource: filtered,
                       rowKey: 'key',
                       pagination: false,
-                      scroll: { x: 600 },
+                      scroll: { x: '100%' },
                       size: 'small',
                     }}
                     cardProps={{ bodyStyle: { paddingTop: 8 } }}

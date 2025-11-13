@@ -545,8 +545,8 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
   return (
     <div style={{ padding: 4 }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <Button icon={<ReloadOutlined />} onClick={handleResetLayout} size="small">
-          Сбросить раскладку
+        <Button type="primary" icon={<ReloadOutlined />} onClick={handleResetLayout} size="small">
+          Сбросить расположение
         </Button>
       </div>
       <ResponsiveGridLayout
@@ -616,7 +616,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
                 return vals.some((v) => String(v || '').toLowerCase().includes(q));
               }),
               rowKey: "id",
-              scroll: { x: 'max-content' },
+              scroll: { x: '100%' },
               pagination: {
                 pageSize: 20,
                 showSizeChanger: true,

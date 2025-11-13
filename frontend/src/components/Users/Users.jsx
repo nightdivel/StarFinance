@@ -416,7 +416,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
   return (
     <div style={{ padding: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <Button onClick={handleResetLayout}>Сбросить раскладку</Button>
+        <Button type="primary" onClick={handleResetLayout}>Сбросить расположение</Button>
       </div>
       <ResponsiveGridLayout
         className="users-grid"
@@ -452,7 +452,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
                 onChange={(e) => setUsersSearch(e.target.value)}
                 style={{ width: 260 }}
               />
-              <Button type="default" onClick={() => setManageOpen(true)} disabled={!authService.hasPermission('users', 'write')}>
+              <Button type="primary" onClick={() => setManageOpen(true)} disabled={!authService.hasPermission('users', 'write')}>
                 Управление пользователями
               </Button>
             </Space>
@@ -478,7 +478,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
                   }),
                 rowKey: 'id',
                 pagination: { pageSize: 20 },
-                scroll: { x: 'max-content' },
+                scroll: { x: '100%' },
               }}
             />
           </Card>
@@ -607,7 +607,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
               return vals.some((v) => String(v || '').toLowerCase().includes(q));
             }),
             rowKey: 'id',
-            scroll: { x: 'max-content' },
+            scroll: { x: '100%' },
             pagination: { pageSize: 20 },
           }}
           extra={

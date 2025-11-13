@@ -279,7 +279,7 @@ const Showcase = ({ data, userData }) => {
   return (
     <div style={{ padding: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <Button onClick={handleResetLayout}>Сбросить раскладку</Button>
+        <Button type="primary" onClick={handleResetLayout}>Сбросить расположение</Button>
       </div>
       <ResponsiveGridLayout
         className="showcase-grid"
@@ -347,7 +347,7 @@ const Showcase = ({ data, userData }) => {
                 return vals.some((v) => String(v || '').toLowerCase().includes(q));
               }),
               rowKey: 'id',
-              scroll: { x: 'max-content' },
+              scroll: { x: '100%' },
               pagination: false,
             }}
           />

@@ -274,7 +274,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
       <Sider trigger={null} collapsible collapsed={collapsed} theme={darkMode ? 'dark' : 'light'} style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column' }}>
         <div
           style={{
-            padding: '12px 16px',
+            padding: collapsed ? '12px 8px' : '12px 16px',
             textAlign: 'center',
             borderBottom: '1px solid #f0f0f0',
           }}
@@ -287,7 +287,8 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
               type="text"
               icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => setCollapsed(!collapsed)}
-              style={{ fontSize: '16px', width: 48, height: 36 }}
+              shape={collapsed ? 'circle' : undefined}
+              style={{ fontSize: '16px', width: collapsed ? 36 : 48, height: 36, margin: '0 auto', display: 'block' }}
             />
           </div>
         </div>
@@ -300,7 +301,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
           items={menuItems.map((mi) => ({
             ...mi,
             label: (
-              <span style={{ fontWeight: mi.key === selectedKey ? 600 : 500 }}>
+              <span style={{ fontWeight: mi.key === selectedKey ? 600 : 500, fontSize: 16 }}>
                 {mi.label}
               </span>
             ),

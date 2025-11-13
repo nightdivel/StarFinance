@@ -123,7 +123,11 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
     (async () => {
       try {
         const meta = await apiService.getAuthBackgroundMeta();
-        setAuthBgUrl(meta?.url || null);
+        const url = meta?.url;
+        const normalized = typeof url === 'string' && url.startsWith('/')
+          ? apiService.buildUrl(url)
+          : (url || null);
+        setAuthBgUrl(normalized);
       } catch (_) {}
     })();
     // Загрузим справочник scopes и существующие маппинги
@@ -556,7 +560,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={4}>
-                    <Button onClick={addCurrency} style={{ width: '100%' }} disabled={!canWrite}>
+                    <Button type="primary" onClick={addCurrency} style={{ width: '100%' }} disabled={!canWrite}>
                       Добавить
                     </Button>
                   </Col>
@@ -676,7 +680,11 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                       });
                       await apiService.setAuthBackground(String(dataUrl));
                       const meta = await apiService.getAuthBackgroundMeta();
-                      setAuthBgUrl(meta?.url || null);
+                      const url = meta?.url;
+                      const normalized = typeof url === 'string' && url.startsWith('/')
+                        ? apiService.buildUrl(url)
+                        : (url || null);
+                      setAuthBgUrl(normalized);
                       message.success('Фон обновлён');
                     } catch (err) {
                       message.error('Не удалось загрузить фон');
@@ -707,7 +715,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                 {authBgUrl && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <img src={authBgUrl} alt="Auth background" style={{ maxWidth: 220, maxHeight: 120, objectFit: 'cover', borderRadius: 8, border: '1px solid #eee' }} />
-                    <Button size="small" onClick={() => window.open(authBgUrl, '_blank')}>Открыть</Button>
+                    <Button type="primary" size="small" onClick={() => window.open(authBgUrl, '_blank')}>Открыть</Button>
                   </div>
                 )}
               </div>
@@ -749,7 +757,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                   <Form.Item name="baseUrl" label="Base URL (Discord OAuth)" tooltip="Адрес авторизации Discord OAuth. Можно отредактировать вручную или оставить пустым для авто-генерации.">
                     <Input
                       addonAfter={
-                        <Button size="small" onClick={() => {
+                        <Button type="primary" size="small" onClick={() => {
                           const v = form.getFieldValue('baseUrl') || '';
                           if (v) navigator.clipboard.writeText(v);
                         }}>Копировать</Button>
@@ -880,7 +888,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                   dataSource={scopeMappings}
                   pagination={{ pageSize: 10, showSizeChanger: true }}
                 />
-                <Button type="dashed" style={{ marginTop: 8 }} onClick={() => { setScopeEditingIndex(null); setScopeModalOpen(true); }} disabled={!canWrite}>Добавить правило</Button>
+                <Button type="primary" style={{ marginTop: 8 }} onClick={() => { setScopeEditingIndex(null); setScopeModalOpen(true); }} disabled={!canWrite}>Добавить правило</Button>
                 <Modal
                   title={scopeEditingIndex !== null ? 'Редактирование scope-правила' : 'Добавление scope-правила'}
                   open={scopeModalOpen}

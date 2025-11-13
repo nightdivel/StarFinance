@@ -32,7 +32,11 @@ const Auth = ({ onLogin }) => {
       // Получим фон формы авторизации (публичные метаданные)
       try {
         const meta = await apiService.getAuthBackgroundMeta();
-        setAuthBgUrl(meta?.url || null);
+        const url = meta?.url;
+        const normalized = typeof url === 'string' && url.startsWith('/')
+          ? apiService.buildUrl(url)
+          : (url || null);
+        setAuthBgUrl(normalized);
       } catch (_) {}
     })();
   }, []);

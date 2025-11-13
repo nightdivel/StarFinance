@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Tag, Button, Space, Popconfirm, message, Input } from 'antd';
+import { Card, Table, Tag, Button, Space, Popconfirm, message, Input, Tooltip } from 'antd';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import { apiService } from '../../services/apiService';
 import { authService } from '../../services/authService';
@@ -133,7 +133,21 @@ const Requests = () => {
   };
 
   const columns = [
-    { title: 'Товар', dataIndex: 'itemName', key: 'itemName' },
+    {
+      title: 'Товар',
+      dataIndex: 'itemName',
+      key: 'itemName',
+      width: 240,
+      ellipsis: true,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
+      render: (text) => (
+        <Tooltip title={text}>
+          <span style={{ display: 'inline-block', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {text}
+          </span>
+        </Tooltip>
+      ),
+    },
     { title: 'Кол-во', dataIndex: 'quantity', key: 'quantity', width: 100, align: 'right' },
     { title: 'Покупатель', dataIndex: 'buyerUsername', key: 'buyerUsername', width: 160 },
     { title: 'Продавец', dataIndex: 'ownerLogin', key: 'ownerLogin', width: 160 },
@@ -221,7 +235,7 @@ const Requests = () => {
             rowKey: 'id',
             loading,
             pagination: { pageSize: 20 },
-            scroll: { x: 'max-content' },
+            scroll: { x: '100%' },
           }}
         />
       </Card>
@@ -258,7 +272,7 @@ const Requests = () => {
             rowKey: 'id',
             loading,
             pagination: { pageSize: 20 },
-            scroll: { x: 'max-content' },
+            scroll: { x: '100%' },
           }}
         />
       </Card>

@@ -470,8 +470,8 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
   return (
     <div style={{ padding: 4 }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <Button onClick={handleResetLayout}>
-          Сбросить раскладку
+        <Button type="primary" onClick={handleResetLayout}>
+          Сбросить расположение
         </Button>
       </div>
       <ResponsiveGridLayout
@@ -550,7 +550,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                 return vals.some((v) => String(v || '').toLowerCase().includes(q));
               }).slice().sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0)),
               rowKey: 'id',
-              scroll: { x: 'max-content' },
+              scroll: { x: '100%' },
               pagination: false,
             }}
           />

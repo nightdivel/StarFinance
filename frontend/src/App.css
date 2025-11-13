@@ -157,6 +157,9 @@
   background: #1e293b !important; /* Темный цвет для заголовков */
   color: #ffffff !important;
   border-bottom: 1px solid #334155 !important;
+  padding: 6px 8px !important; /* compact header */
+  white-space: nowrap !important; /* keep titles on one line */
+  line-height: 1.2 !important;
 }
 
 .dark-theme .ant-table-column-sorter-up.active,
@@ -449,6 +452,9 @@
 .ant-table-thead > tr > th {
   background: #fafafa;
   font-weight: 600;
+  padding: 6px 8px; /* compact header */
+  white-space: nowrap; /* keep titles on one line */
+  line-height: 1.2;
 }
 
 .ant-table-tbody > tr:hover > td {
