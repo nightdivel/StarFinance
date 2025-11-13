@@ -33,7 +33,7 @@ import { getSocket } from '../lib/realtime/socket';
 const { Header, Sider, Content, Footer } = Layout;
 const { Title } = Typography;
 
-const MainLayout = ({ userData, onLogout, offlineMode, onUpdateUser, darkMode, onToggleTheme }) => {
+const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [selectedKey, setSelectedKey] = useState('finance');
   const queryClient = useQueryClient();
@@ -198,7 +198,6 @@ const MainLayout = ({ userData, onLogout, offlineMode, onUpdateUser, darkMode, o
             onDataUpdate={onDataUpdate}
             onRefresh={refreshData}
             userData={userData}
-            offlineMode={offlineMode}
           />
         );
       case 'directories':
@@ -208,7 +207,6 @@ const MainLayout = ({ userData, onLogout, offlineMode, onUpdateUser, darkMode, o
             onDataUpdate={onDataUpdate}
             onRefresh={refreshData}
             userData={userData}
-            offlineMode={offlineMode}
             onUpdateUser={onUpdateUser}
           />
         );
@@ -219,7 +217,6 @@ const MainLayout = ({ userData, onLogout, offlineMode, onUpdateUser, darkMode, o
             onDataUpdate={onDataUpdate}
             onRefresh={refreshData}
             userData={userData}
-            offlineMode={offlineMode}
           />
         );
       case 'warehouse':
@@ -229,7 +226,6 @@ const MainLayout = ({ userData, onLogout, offlineMode, onUpdateUser, darkMode, o
             onDataUpdate={onDataUpdate}
             onRefresh={refreshData}
             userData={userData}
-            offlineMode={offlineMode}
           />
         );
       case 'showcase':
@@ -238,7 +234,6 @@ const MainLayout = ({ userData, onLogout, offlineMode, onUpdateUser, darkMode, o
             data={data}
             onRefresh={refreshData}
             userData={userData}
-            offlineMode={offlineMode}
           />
         );
       case 'requests':
@@ -252,7 +247,6 @@ const MainLayout = ({ userData, onLogout, offlineMode, onUpdateUser, darkMode, o
             onDataUpdate={onDataUpdate}
             onRefresh={refreshData}
             userData={userData}
-            offlineMode={offlineMode}
           />
         );
       case 'profile':
@@ -272,7 +266,6 @@ const MainLayout = ({ userData, onLogout, offlineMode, onUpdateUser, darkMode, o
             data={data}
             onDataUpdate={onDataUpdate}
             userData={userData}
-            offlineMode={offlineMode}
           />
         );
     }
@@ -338,7 +331,6 @@ const MainLayout = ({ userData, onLogout, offlineMode, onUpdateUser, darkMode, o
             ))}
           </div>
           <Space>
-            
             <Tooltip title={darkMode ? 'Темная тема' : 'Светлая тема'}>
               <Button
                 type="text"
@@ -352,17 +344,6 @@ const MainLayout = ({ userData, onLogout, offlineMode, onUpdateUser, darkMode, o
                 }}
               />
             </Tooltip>
-            {offlineMode && (
-              <span
-                style={{
-                  color: '#faad14',
-                  fontWeight: 'bold',
-                  marginRight: 16,
-                }}
-              >
-                Офлайн режим
-              </span>
-            )}
             <Dropdown
               menu={{
                 items: userMenuItems,

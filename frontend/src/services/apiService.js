@@ -1,12 +1,8 @@
-import OfflineService from './offlineService';
 import { API_BASE_URL } from '../config';
 
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
-    this.offlineService = new OfflineService();
-    this.isOnline = false;
-    this.checkConnection();
   }
 
   buildUrl(path) {
@@ -15,25 +11,7 @@ class ApiService {
     return base + (rel.startsWith('/') ? rel : '/' + rel);
   }
 
-  async checkConnection() {
-    try {
-      // Use relative path to go through nginx and keep same-origin
-      const response = await fetch(this.buildUrl('/health'), {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      this.isOnline = response.ok;
-    } catch (error) {
-      this.isOnline = false;
-    }
-  }
-
   async request(endpoint, options = {}) {
-    // Если оффлайн режим, используем оффлайн сервис
-    if (!this.isOnline) {
-      return this.handleOfflineRequest(endpoint, options);
-    }
-
     try {
       // Use relative path to go through nginx and keep same-origin
       const url = this.buildUrl(endpoint);
@@ -58,34 +36,7 @@ class ApiService {
 
       return await response.json();
     } catch (error) {
-      // Network failure toggles offline; HTTP errors should surface to UI
-      const isNetworkError = error && error.name === 'TypeError';
-      if (isNetworkError) {
-        console.error('API Request failed, switching to offline mode:', error);
-        this.isOnline = false;
-        return this.handleOfflineRequest(endpoint, options);
-      }
       throw error;
-    }
-  }
-
-  async handleOfflineRequest(endpoint, options) {
-    switch (endpoint) {
-      case '/auth/login':
-        if (options.method === 'POST') {
-          const body = JSON.parse(options.body);
-          return this.offlineService.loginLocal(body.username, body.password);
-        }
-        break;
-
-      case '/api/data':
-        if (options.method === 'GET') {
-          return this.offlineService.getDemoData();
-        }
-        break;
-
-      default:
-        throw new Error(`Оффлайн режим: endpoint ${endpoint} не поддерживается`);
     }
   }
 

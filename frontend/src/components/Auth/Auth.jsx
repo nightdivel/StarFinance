@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, Card, Alert, Typography, message } from 'antd';
-import { UserOutlined, LockOutlined, WifiOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import AuthService from '../../services/authService';
 import './Auth.css';
 
@@ -10,7 +10,7 @@ import { apiService } from '../../services/apiService';
 
 const Auth = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
-  const [offlineMode, setOfflineMode] = useState(false);
+  
   const [serverDiscordEnabled, setServerDiscordEnabled] = useState(false);
   const [discordLoginUrl, setDiscordLoginUrl] = useState('');
   const [authBgUrl, setAuthBgUrl] = useState(null);
@@ -18,20 +18,16 @@ const Auth = ({ onLogin }) => {
   const authService = new AuthService();
 
   useEffect(() => {
-    // Проверяем соединение при загрузке
-    checkConnection();
     // Подтянем эффективные настройки Discord с сервера (если доступен)
     (async () => {
       try {
-        const token = localStorage.getItem('authToken');
-        if (token) {
-          const headers = { Authorization: `Bearer ${token}` };
-          const resp = await fetch(`${API_BASE_URL}/api/system/discord`, { headers });
-          if (resp.ok) {
-            const data = await resp.json();
-            setServerDiscordEnabled(!!data.enable);
-            if (data.baseUrl) setDiscordLoginUrl(data.baseUrl);
-          }
+        const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const resp = await fetch(`${API_BASE_URL}/api/system/discord`, { headers });
+        if (resp.ok) {
+          const data = await resp.json();
+          setServerDiscordEnabled(!!data.enable);
+          if (data.baseUrl) setDiscordLoginUrl(data.baseUrl);
         }
       } catch (_) {}
       // Публичный флаг (без авторизации) — запасной вариант
@@ -52,24 +48,12 @@ const Auth = ({ onLogin }) => {
     })();
   }, []);
 
-  const checkConnection = async () => {
-    try {
-      // same-origin via nginx proxy
-      await fetch(`${API_BASE_URL}/health`);
-      setOfflineMode(false);
-    } catch (error) {
-      setOfflineMode(true);
-    }
-  };
+  
 
   const handleLocalLogin = async (values) => {
     setLoading(true);
     try {
       const response = await authService.loginLocal(values.username, values.password);
-
-      if (response.offline) {
-        setOfflineMode(true);
-      }
 
       onLogin(response);
     } catch (error) {
@@ -87,15 +71,7 @@ const Auth = ({ onLogin }) => {
           <Text type="secondary">Система управления финансами и складом</Text>
         </div>
 
-        {offlineMode && (
-          <Alert
-            message="Оффлайн режим"
-            description="Сервер недоступен. Работаем с демо-данными."
-            type="warning"
-            showIcon
-            className="offline-alert"
-          />
-        )}
+        
 
         <Form
           form={form}
@@ -138,7 +114,6 @@ const Auth = ({ onLogin }) => {
               size="large"
               loading={loading}
               block
-              icon={offlineMode ? <DisconnectOutlined /> : <WifiOutlined />}
             >
               {loading ? 'Вход...' : 'Войти в систему'}
             </Button>

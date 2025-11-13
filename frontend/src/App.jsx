@@ -8,7 +8,6 @@ import { API_BASE_URL } from './config';
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userData, setUserData] = useState(null);
-  const [offlineMode, setOfflineMode] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
 
@@ -53,7 +52,7 @@ function App() {
           };
           setIsAuthenticated(true);
           setUserData(user);
-          setOfflineMode(false);
+          
           try { localStorage.setItem('userData', JSON.stringify(user)); } catch (_) {}
         })
         .catch(() => { /* ignore */ })
@@ -70,7 +69,7 @@ function App() {
         const user = JSON.parse(savedUserData);
         setIsAuthenticated(true);
         setUserData(user);
-        setOfflineMode(user.offline || false);
+        
       }
     }
   }, [API_BASE_URL]);
@@ -94,7 +93,6 @@ function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUserData(null);
-    setOfflineMode(false);
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     try { localStorage.removeItem('theme.dark'); } catch (_) {}
@@ -109,9 +107,9 @@ function App() {
       username: loginData.username,
       accountType: loginData.accountType,
       permissions: loginData.permissions || {},
-      offline: loginData.offline || false,
+      
     });
-    setOfflineMode(loginData.offline || false);
+    
     // Immediately load and apply server theme after login
     const before = !!darkMode;
     const applied = await loadUserTheme();
@@ -218,7 +216,6 @@ function App() {
         <MainLayout
           userData={userData}
           onLogout={handleLogout}
-          offlineMode={offlineMode}
           onUpdateUser={handleUpdateUser}
           darkMode={darkMode}
           onToggleTheme={handleToggleTheme}
