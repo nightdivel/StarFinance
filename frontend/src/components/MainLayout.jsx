@@ -101,10 +101,8 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
     { key: 'finance', icon: <DollarOutlined />, label: 'Финансы', section: 'finance' },
     { key: 'warehouse', icon: <AppstoreOutlined />, label: 'Склад', section: 'warehouse' },
     { key: 'showcase', icon: <ShopOutlined />, label: 'Витрина', section: 'showcase' },
-    // Заявки: только для администраторов (users:write)
-    ...(authService.hasPermission('users', 'write')
-      ? [{ key: 'requests', icon: <AppstoreOutlined />, label: 'Заявки', section: 'users' }]
-      : []),
+    // Заявки: показывается, если есть права на раздел requests (фильтруется ниже)
+    { key: 'requests', icon: <AppstoreOutlined />, label: 'Заявки', section: 'requests' },
     { key: 'users', icon: <TeamOutlined />, label: 'Пользователи', section: 'users' },          
     { key: 'directories', icon: <FolderOutlined />, label: 'Справочники', section: 'directories' },  
     { key: 'settings', icon: <SettingOutlined />, label: 'Настройки', section: 'settings' },

@@ -18,6 +18,7 @@ import {
   Table,
   Modal,
   Upload,
+  Checkbox,
 } from 'antd';
 
 import { SettingOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -269,7 +270,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
       }
       await apiService.request('/api/system/discord', {
         method: 'PUT',
-        headers,
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       discordSaved = true;
@@ -327,6 +328,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
           rates: nextRates,
           discord: {
             ...(data.system.discord || {}),
+            enable: !!values.enableDiscordAuth,
             attributeMappings: Array.isArray(values.discordAttributeMappings)
               ? values.discordAttributeMappings.filter((m) => m && m.source && m.key)
               : [],
@@ -716,11 +718,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     label="Авторизация через Discord"
                     valuePropName="checked"
                   >
-                    <Switch
-                      checkedChildren="Включено"
-                      unCheckedChildren="Выключено"
-                      disabled={!canWrite}
-                    />
+                    <Checkbox disabled={!canWrite}>Включить</Checkbox>
                   </Form.Item>
                 </Col>
               </Row>

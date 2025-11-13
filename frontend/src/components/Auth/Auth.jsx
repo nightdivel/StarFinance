@@ -18,25 +18,14 @@ const Auth = ({ onLogin }) => {
   const authService = new AuthService();
 
   useEffect(() => {
-    // Подтянем эффективные настройки Discord с сервера (если доступен)
+    // Узнаем публичный флаг включения Discord-авторизации (без авторизации)
     (async () => {
-      try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const resp = await fetch(`${API_BASE_URL}/api/system/discord`, { headers });
-        if (resp.ok) {
-          const data = await resp.json();
-          setServerDiscordEnabled(!!data.enable);
-          if (data.baseUrl) setDiscordLoginUrl(data.baseUrl);
-        }
-      } catch (_) {}
-      // Публичный флаг (без авторизации) — запасной вариант
       try {
         const respPublic = await fetch(`${API_BASE_URL}/public/discord-enabled`);
         if (respPublic.ok) {
           const d = await respPublic.json();
           if (typeof d.enable === 'boolean') {
-            setServerDiscordEnabled((prev) => prev || d.enable);
+            setServerDiscordEnabled(!!d.enable);
           }
         }
       } catch (_) {}
@@ -119,8 +108,6 @@ const Auth = ({ onLogin }) => {
             </Button>
           </Form.Item>
         </Form>
-
-        {/* Блок демо-доступа удален по требованию */}
 
         {serverDiscordEnabled && (
           <div style={{ marginTop: 16 }}>

@@ -2960,18 +2960,20 @@ app.get('/health', (req, res) => {
 // Public: only whether Discord auth is enabled (no secrets)
 app.get('/public/discord-enabled', async (req, res) => {
   try {
-    let enable = false;
     try {
       const r = await query('SELECT enable FROM discord_settings WHERE id = 1');
-      if (r.rows[0] && typeof r.rows[0].enable === 'boolean') enable = r.rows[0].enable;
+      if (r && r.rowCount > 0) {
+        // Если запись существует, строго уважаем значение из БД
+        const enable = !!r.rows[0].enable;
+        return res.json({ enable });
+      }
     } catch (_) {}
-    if (enable === false) {
-      enable = !!(DISCORD_CONFIG.CLIENT_ID && DISCORD_CONFIG.REDIRECT_URI);
-    }
-    res.json({ enable });
+    // Если записи нет, определяем включенность по наличию конфигурации в окружении
+    const enable = !!(DISCORD_CONFIG.CLIENT_ID && DISCORD_CONFIG.REDIRECT_URI);
+    return res.json({ enable });
   } catch (e) {
     // В случае ошибки — не раскрываем ничего, просто false
-    res.json({ enable: false });
+    return res.json({ enable: false });
   }
 });
 
