@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS account_type_permissions (
   PRIMARY KEY (account_type, resource)
 );
 
+
 -- Users
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
@@ -30,29 +31,38 @@ CREATE TABLE IF NOT EXISTS users (
   last_login TIMESTAMPTZ
 );
 
+-- Additional user preferences
+ALTER TABLE users 
+  ADD COLUMN IF NOT EXISTS theme_preference VARCHAR(10) DEFAULT 'light';
+-- Optional profile fields
+ALTER TABLE users 
+  ADD COLUMN IF NOT EXISTS nickname TEXT;
+UPDATE users SET theme_preference = COALESCE(theme_preference, 'light');
+
 -- Settings (generic key-value JSONB)
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value JSONB NOT NULL
 );
 
--- Discord config
+-- Discord config (final schema)
 CREATE TABLE IF NOT EXISTS discord_settings (
   id SMALLINT PRIMARY KEY DEFAULT 1,
   enable BOOLEAN NOT NULL DEFAULT FALSE,
   client_id TEXT,
   client_secret TEXT,
-  redirect_uri TEXT
+  redirect_uri TEXT,
+  default_account_type TEXT REFERENCES account_types(name)
 );
 
 CREATE TABLE IF NOT EXISTS discord_attr_mappings (
   id SERIAL PRIMARY KEY,
-  rule JSONB NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS discord_guild_mappings (
-  id SERIAL PRIMARY KEY,
-  rule JSONB NOT NULL
+  source TEXT NOT NULL CHECK (source IN ('user','member')),
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  account_type TEXT REFERENCES account_types(name),
+  guild_id TEXT,
+  set JSONB
 );
 
 -- Directories
@@ -101,6 +111,38 @@ CREATE TABLE IF NOT EXISTS warehouse_items (
   updated_at TIMESTAMPTZ
 );
 
+-- Warehouse extensions
+CREATE TABLE IF NOT EXISTS warehouse_types (
+  name TEXT PRIMARY KEY
+);
+-- Seed some default warehouse types (idempotent)
+INSERT INTO warehouse_types(name) VALUES
+  ('Основной'),
+  ('Орбитальный'),
+  ('Региональный')
+ON CONFLICT DO NOTHING;
+ALTER TABLE warehouse_items 
+  ADD COLUMN IF NOT EXISTS warehouse_type TEXT REFERENCES warehouse_types(name);
+ALTER TABLE warehouse_items 
+  ADD COLUMN IF NOT EXISTS owner_login TEXT REFERENCES users(username);
+ALTER TABLE warehouse_items 
+  ADD COLUMN IF NOT EXISTS reserved NUMERIC(18,3) NOT NULL DEFAULT 0;
+
+-- Access matrix: which account types can use which warehouse types
+CREATE TABLE IF NOT EXISTS account_type_warehouse_types (
+  account_type TEXT NOT NULL REFERENCES account_types(name) ON DELETE CASCADE,
+  warehouse_type TEXT NOT NULL REFERENCES warehouse_types(name) ON DELETE CASCADE,
+  PRIMARY KEY (account_type, warehouse_type)
+);
+
+-- Seed default allowed warehouse types per account type (idempotent)
+INSERT INTO account_type_warehouse_types(account_type, warehouse_type) VALUES
+  ('Администратор','Основной'),
+  ('Администратор','Орбитальный'),
+  ('Администратор','Региональный'),
+  ('Пользователь','Основной')
+ON CONFLICT DO NOTHING;
+
 -- Showcase
 CREATE TABLE IF NOT EXISTS showcase_items (
   id TEXT PRIMARY KEY,
@@ -125,6 +167,73 @@ CREATE TABLE IF NOT EXISTS transactions (
   meta JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Purchase requests and logs
+CREATE TABLE IF NOT EXISTS purchase_requests (
+  id TEXT PRIMARY KEY,
+  warehouse_item_id TEXT NOT NULL REFERENCES warehouse_items(id) ON DELETE CASCADE,
+  buyer_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  buyer_username TEXT,
+  quantity NUMERIC(18,3) NOT NULL CHECK (quantity > 0),
+  price_per_unit NUMERIC(18,2),
+  currency TEXT,
+  status TEXT NOT NULL CHECK (status IN ('В обработке','Заявка отправлена','Выполнено','Отменена')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ
+);
+
+-- If table existed with older constraint, ensure it matches final list
+DO $$
+DECLARE c RECORD;
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_name = 'purchase_requests' AND table_schema = 'public'
+  ) THEN
+    FOR c IN (
+      SELECT conname
+      FROM pg_constraint con
+      JOIN pg_class cls ON cls.oid = con.conrelid
+      JOIN pg_namespace nsp ON nsp.oid = cls.relnamespace
+      WHERE cls.relname = 'purchase_requests' AND con.contype = 'c'
+    ) LOOP
+      EXECUTE format('ALTER TABLE purchase_requests DROP CONSTRAINT %I', c.conname);
+    END LOOP;
+    BEGIN
+      EXECUTE 'ALTER TABLE purchase_requests
+               ADD CONSTRAINT purchase_requests_status_check
+               CHECK (status IN (''В обработке'',''Заявка отправлена'',''Выполнено'',''Отменена''))';
+    EXCEPTION WHEN duplicate_object THEN
+      -- already recreated
+    END;
+  END IF;
+END$$;
+
+CREATE TABLE IF NOT EXISTS purchase_request_logs (
+  id BIGSERIAL PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES purchase_requests(id) ON DELETE CASCADE,
+  action TEXT NOT NULL,
+  actor_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  details JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_purchase_requests_buyer ON purchase_requests(buyer_user_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_requests_status ON purchase_requests(status);
+CREATE INDEX IF NOT EXISTS idx_purchase_requests_item ON purchase_requests(warehouse_item_id);
+
+-- Finance requests flow
+CREATE TABLE IF NOT EXISTS finance_requests (
+  id TEXT PRIMARY KEY,
+  transaction_id TEXT NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+  from_user TEXT REFERENCES users(id) ON DELETE SET NULL,
+  to_user TEXT REFERENCES users(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'В обработке',
+  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITHOUT TIME ZONE
+);
+CREATE INDEX IF NOT EXISTS idx_finance_requests_to_user ON finance_requests(to_user);
+CREATE INDEX IF NOT EXISTS idx_finance_requests_status ON finance_requests(status);
 
 -- Seed defaults (idempotent)
 -- Account types
@@ -158,6 +267,28 @@ INSERT INTO account_type_permissions(account_type, resource, level) VALUES
 ('Гость','directories','none'),
 ('Гость','settings','none')
 ON CONFLICT DO NOTHING;
+
+-- Permissions for Showcase module
+INSERT INTO account_type_permissions(account_type, resource, level) VALUES
+('Администратор','showcase','write')
+ON CONFLICT (account_type, resource) DO UPDATE SET level = EXCLUDED.level;
+INSERT INTO account_type_permissions(account_type, resource, level) VALUES
+('Пользователь','showcase','read')
+ON CONFLICT (account_type, resource) DO UPDATE SET level = EXCLUDED.level;
+INSERT INTO account_type_permissions(account_type, resource, level) VALUES
+('Гость','showcase','read')
+ON CONFLICT (account_type, resource) DO UPDATE SET level = EXCLUDED.level;
+
+-- Permissions for Requests module
+INSERT INTO account_type_permissions(account_type, resource, level) VALUES
+('Администратор','requests','write')
+ON CONFLICT (account_type, resource) DO UPDATE SET level = EXCLUDED.level;
+INSERT INTO account_type_permissions(account_type, resource, level) VALUES
+('Пользователь','requests','read')
+ON CONFLICT (account_type, resource) DO UPDATE SET level = EXCLUDED.level;
+INSERT INTO account_type_permissions(account_type, resource, level) VALUES
+('Гость','requests','none')
+ON CONFLICT (account_type, resource) DO UPDATE SET level = EXCLUDED.level;
 
 -- Basic directories
 INSERT INTO product_types(name) VALUES ('Услуга') ON CONFLICT DO NOTHING;
@@ -213,67 +344,26 @@ VALUES ('u_demo_guest', 'guest', 'guest@starfinance.local', 'local',
         encode(digest('guest','sha256'),'hex'), 'Гость', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
--- Demo warehouse items
-INSERT INTO warehouse_items (id, name, type, quantity, cost, currency, location)
-VALUES ('w_item_001', 'Aurora LX Paint', 'Товар', 10, 2500, 'aUEC', 'Основной склад')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO warehouse_items (id, name, type, quantity, cost, currency, location)
-VALUES ('w_item_002', 'Cargo Crate 1SCU', 'Товар', 50, 1200, 'aUEC', 'Основной склад')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO warehouse_items (id, name, type, quantity, cost, currency, location)
-VALUES ('w_item_003', 'Delivery Service (microTech)', 'Услуга', 5, 5000, 'КП', 'Резервный склад')
-ON CONFLICT (id) DO NOTHING;
+-- Demo warehouse items removed
 
 -- Extend directories: more product types, currencies, and warehouses
 INSERT INTO product_types(name) VALUES ('Комплект') ON CONFLICT DO NOTHING;
 INSERT INTO product_types(name) VALUES ('Материал') ON CONFLICT DO NOTHING;
 INSERT INTO product_types(name) VALUES ('Запчасть') ON CONFLICT DO NOTHING;
 
-INSERT INTO currencies(code) VALUES ('UEC') ON CONFLICT DO NOTHING;
-INSERT INTO currencies(code) VALUES ('REC') ON CONFLICT DO NOTHING;
-INSERT INTO currency_rates(base_code, code, rate) VALUES ('aUEC','UEC',1)
-ON CONFLICT (base_code, code) DO UPDATE SET rate = EXCLUDED.rate;
-INSERT INTO currency_rates(base_code, code, rate) VALUES ('aUEC','REC',2.5)
-ON CONFLICT (base_code, code) DO UPDATE SET rate = EXCLUDED.rate;
+-- Remove deprecated currencies if present (idempotent cleanup)
+DELETE FROM currency_rates WHERE code IN ('UEC','REC') OR base_code IN ('UEC','REC');
+DELETE FROM currencies WHERE code IN ('UEC','REC');
 
 INSERT INTO warehouse_locations(name) VALUES ('Орбитальный склад') ON CONFLICT DO NOTHING;
 INSERT INTO warehouse_locations(name) VALUES ('Склад New Babbage') ON CONFLICT DO NOTHING;
 
--- Additional warehouse demo items
-INSERT INTO warehouse_items (id, name, type, quantity, cost, currency, location)
-VALUES ('w_item_004', 'Component: Power Plant (S2)', 'Запчасть', 8, 7500, 'aUEC', 'Орбитальный склад')
-ON CONFLICT (id) DO NOTHING;
-INSERT INTO warehouse_items (id, name, type, quantity, cost, currency, location)
-VALUES ('w_item_005', 'Materials: Titanium Ore (stack)', 'Материал', 20, 3200, 'aUEC', 'Склад New Babbage')
-ON CONFLICT (id) DO NOTHING;
-INSERT INTO warehouse_items (id, name, type, quantity, cost, currency, location)
-VALUES ('w_item_006', 'Starter Kit: Courier Pack', 'Комплект', 3, 15000, 'UEC', 'Основной склад')
-ON CONFLICT (id) DO NOTHING;
+-- Additional warehouse demo items removed
 
--- Showcase demo items (link to warehouse items)
-INSERT INTO showcase_items (id, warehouse_item_id, status, price, currency)
-VALUES ('s_item_001', 'w_item_001', 'На витрине', 3500, 'aUEC')
-ON CONFLICT (id) DO NOTHING;
-INSERT INTO showcase_items (id, warehouse_item_id, status, price, currency)
-VALUES ('s_item_002', 'w_item_002', 'На витрине', 1800, 'aUEC')
-ON CONFLICT (id) DO NOTHING;
-INSERT INTO showcase_items (id, warehouse_item_id, status, price, currency)
-VALUES ('s_item_003', 'w_item_006', 'На витрине', 18000, 'UEC')
-ON CONFLICT (id) DO NOTHING;
+-- Showcase demo items removed
 
--- Sample transactions
--- Purchase items, transfers, income/expense examples
-INSERT INTO transactions (id, type, amount, currency, from_user, to_user, item_id, meta)
-VALUES ('t_001', 'sale', 3500, 'aUEC', 'u_demo_user', 'admin_1', 'w_item_001', '{"note":"Покупка Aurora LX Paint"}')
-ON CONFLICT (id) DO NOTHING;
-INSERT INTO transactions (id, type, amount, currency, from_user, to_user, item_id, meta)
-VALUES ('t_002', 'sale', 1800, 'aUEC', 'u_demo_user', 'admin_1', 'w_item_002', '{"note":"Покупка Cargo Crate 1SCU"}')
-ON CONFLICT (id) DO NOTHING;
-INSERT INTO transactions (id, type, amount, currency, from_user, to_user, item_id, meta)
-VALUES ('t_003', 'service', 5000, 'КП', 'u_demo_guest', 'admin_1', 'w_item_003', '{"note":"Доставка microTech"}')
-ON CONFLICT (id) DO NOTHING;
-INSERT INTO transactions (id, type, amount, currency, from_user, to_user, item_id, meta)
-VALUES ('t_004', 'transfer', 10000, 'aUEC', 'admin_1', 'u_demo_user', NULL, '{"note":"Пополнение баланса пользователя"}')
-ON CONFLICT (id) DO NOTHING;
+-- Ensure previously seeded rows referencing UEC are normalized to aUEC
+UPDATE warehouse_items SET currency = 'aUEC' WHERE currency = 'UEC';
+UPDATE showcase_items SET currency = 'aUEC' WHERE currency = 'UEC';
+
+-- Sample transactions removed

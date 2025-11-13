@@ -41,6 +41,8 @@ services:
       TZ: Europe/Moscow
     volumes:
       - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d starfinance"]
       interval: 30s
