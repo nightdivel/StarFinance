@@ -1,4 +1,4 @@
-# Star Finance — продакшн-развёртывание и инструкция
+# Star Finance — прод-развёртывание и инструкция
 
 Веб-приложение управления финансами и складом (React + Ant Design + Node.js/Express). Поддерживает локальную авторизацию и OAuth2 через Discord с маппингом ролей гильдии.
 
@@ -97,8 +97,8 @@ npm run dev
 - Публичный адрес приложения: `https://korjeek.ru/economy/` (публикация под поддиректорией `/economy`).
   - В `docker-compose.yml` проброс портов `8080:3000` для сервиса `app`.
   - В `backend/.env` или `docker-compose.yml` установите `FRONTEND_URL=https://korjeek.ru/economy`.
-   - В `docker-compose.yml` проброс портов `8080:3000` для сервиса `app`.
-   - В `backend/.env` или `docker-compose.yml` установите `FRONTEND_URL=https://korjeek.ru/economy`.
+  - В `docker-compose.yml` проброс портов `8080:3000` для сервиса `app`.
+  - В `backend/.env` или `docker-compose.yml` установите `FRONTEND_URL=https://korjeek.ru/economy`.
 
 2. Собрать и поднять:
 
@@ -111,12 +111,11 @@ npm run docker:up
 
 - `app` — Node.js-приложение (порт 3000 внутри контейнера).
 - `nginx` — реверс-прокси (порт 80/443 на хосте).
- - Публикация под путём `/economy` на домене `korjeek.ru` (см. `nginx.conf`).
+- Публикация под путём `/economy` на домене `korjeek.ru` (см. `nginx.conf`).
 
 3. Пробросить домен:
 
 - Настройте DNS A-запись на ваш сервер.
-
 - `000_all.sql` — базовая схема и сиды (учётные записи, справочники, валюты, финансы, настройки).
 - `001_stage1.sql` — нормализация (учётные записи, настройки, Discord таблицы v1).
 - `002_stage2.sql` — справочники и сущности склада/витрины/финансов.
