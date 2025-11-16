@@ -45,17 +45,29 @@ const io = new Server(server, {
 // CORS configuration (apply only to API/auth/public/health, not to static assets)
 const corsOptions = {
   origin: function (origin, callback) {
+    // Разрешаем запросы без Origin (например, curl, server-to-server)
     if (!origin) return callback(null, true);
+
+    // Разрешаем localhost на любом порту для разработки
     if (origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
       return callback(null, true);
     }
-    const allowedOrigins = [
-      'http://localhost',
-      'https://korjeek.ru',
-    ];
-    if (allowedOrigins.includes(origin)) {
+
+    const allowed = SERVER_CONFIG.FRONTEND_URL;
+    const isLocalhost = !!(
+      origin && /^https?:\/\/(localhost|127\.0\.0\.1)(:\\d+)?$/i.test(origin)
+    );
+
+    // Если FRONTEND_URL не задан или равен '*', не ограничиваем origin
+    if (!allowed || allowed === '*') {
       return callback(null, true);
     }
+
+    // Основной боевой фронт (в твоём случае http://77.37.200.234)
+    if (origin === allowed || isLocalhost) {
+      return callback(null, true);
+    }
+
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
