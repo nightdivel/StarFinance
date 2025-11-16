@@ -2469,6 +2469,25 @@ function getDiscordCallbackPathFromRedirect(redirectUri) {
   }
 }
 
+// Helper: derive frontend base URL (where we send user after auth) from Redirect URI
+function getDiscordFrontendBaseFromRedirect(redirectUri) {
+  try {
+    if (!redirectUri || typeof redirectUri !== 'string') {
+      return SERVER_CONFIG.FRONTEND_URL;
+    }
+    const url = new URL(redirectUri);
+    // Обрежем суффикс /auth/discord/callback (и всё, что после него) из pathname
+    url.pathname = url.pathname.replace(/\/auth\/discord\/callback.*$/, '');
+    url.search = '';
+    url.hash = '';
+    // Уберём лишний завершающий слэш
+    const s = url.toString();
+    return s.endsWith('/') ? s.slice(0, -1) : s;
+  } catch {
+    return SERVER_CONFIG.FRONTEND_URL;
+  }
+}
+
 // Register Discord callback route based on Redirect URI from system settings
 (async () => {
   try {
@@ -2490,6 +2509,7 @@ function getDiscordCallbackPathFromRedirect(redirectUri) {
         const clientId = eff.clientId || DISCORD_CONFIG.CLIENT_ID;
         const clientSecret = eff.clientSecret || DISCORD_CONFIG.CLIENT_SECRET;
         const redirectUri = eff.redirectUri || DISCORD_CONFIG.REDIRECT_URI;
+        const frontendBase = getDiscordFrontendBaseFromRedirect(redirectUri);
 
         const tokenResponse = await axios.post(
           'https://discord.com/api/oauth2/token',
@@ -2706,7 +2726,7 @@ function getDiscordCallbackPathFromRedirect(redirectUri) {
         const token = generateToken(userRow.id);
 
         res.redirect(
-          `${SERVER_CONFIG.FRONTEND_URL}/?token=${token}&auth=success&newUser=${isNewUser}`
+          `${frontendBase}/?token=${token}&auth=success&newUser=${isNewUser}`
         );
       } catch (error) {
         console.error('Discord OAuth error:', error.response?.data || error.message);
