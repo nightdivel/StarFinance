@@ -3259,9 +3259,16 @@ const startServer = async () => {
         scope text NOT NULL,
         value text,
         account_type text NOT NULL,
+        position integer,
         PRIMARY KEY(scope, value)
       )`
     );
+    // Backward compatibility: ensure column exists if table was created earlier without it
+    try {
+      await query('ALTER TABLE discord_scope_mappings ADD COLUMN IF NOT EXISTS position integer');
+    } catch (e) {
+      // ignore
+    }
     // Seed defaults if empty
     const existing = await query('SELECT COUNT(1) AS c FROM discord_scopes');
     if (Number(existing.rows[0]?.c || 0) === 0) {
