@@ -2598,6 +2598,81 @@ function getDiscordFrontendBaseFromRedirect(redirectUri) {
               discordUser.connections = connResp.data;
             }
           }
+
+          // Scope-based account type mapping with priority by position
+          try {
+            const scopeRows = (
+              await query(
+                'SELECT scope, value, account_type, position FROM discord_scope_mappings ORDER BY (position IS NULL), position, scope, value'
+              )
+            ).rows;
+            if (Array.isArray(scopeRows)) {
+              for (const r of scopeRows) {
+                const scopeName = String(r.scope || '').trim();
+                if (!scopeName) continue;
+                if (!grantedScopes.has(scopeName)) continue;
+
+                const ruleValue = r.value == null ? null : String(r.value);
+                let match = false;
+
+                if (scopeName === 'email') {
+                  const email = discordUser?.email;
+                  if (typeof email === 'string') {
+                    if (!ruleValue || String(email) === ruleValue) match = true;
+                  }
+                } else if (scopeName === 'guilds') {
+                  const guilds = Array.isArray(discordUser.guilds)
+                    ? discordUser.guilds
+                    : [];
+                  if (guilds.length) {
+                    if (!ruleValue) {
+                      match = true;
+                    } else {
+                      match = guilds.some((g) => String(g.id) === ruleValue);
+                    }
+                  }
+                } else if (scopeName === 'connections') {
+                  const connections = Array.isArray(discordUser.connections)
+                    ? discordUser.connections
+                    : [];
+                  if (connections.length) {
+                    if (!ruleValue) {
+                      match = true;
+                    } else {
+                      match = connections.some(
+                        (c) =>
+                          String(c.id) === ruleValue ||
+                          String(c.name) === ruleValue ||
+                          String(c.type) === ruleValue
+                      );
+                    }
+                  }
+                } else {
+                  const val = discordUser?.[scopeName];
+                  if (Array.isArray(val)) {
+                    if (!ruleValue) {
+                      match = true;
+                    } else {
+                      match = val.map((v) => String(v)).includes(ruleValue);
+                    }
+                  } else if (
+                    typeof val === 'string' ||
+                    typeof val === 'number' ||
+                    typeof val === 'boolean'
+                  ) {
+                    if (!ruleValue || String(val) === ruleValue) match = true;
+                  }
+                }
+
+                if (match) {
+                  // Берём тип учётной записи из последнего успешно сработавшего правила
+                  if (r.account_type) {
+                    resolvedAccountType = r.account_type;
+                  }
+                }
+              }
+            }
+          } catch (_) {}
         } catch (_) {}
 
         const attrMappings = Array.isArray(discordSettings.attributeMappings)
