@@ -2412,20 +2412,16 @@ const readDiscordEffective = async () => {
   }
 };
 
-// Discord OAuth routes
 app.get('/auth/discord', async (req, res) => {
   try {
-    // Load dynamic settings from data file if available
     const eff = await readDiscordEffective();
-    // If explicit base URL stored in DB — use it directly
     if (eff.baseUrl && typeof eff.baseUrl === 'string' && eff.baseUrl.startsWith('http')) {
       return res.redirect(eff.baseUrl);
     }
-    let clientId = eff.clientId || DISCORD_CONFIG.CLIENT_ID;
-    let redirectUri = eff.redirectUri || DISCORD_CONFIG.REDIRECT_URI;
-    // Determine scopes strictly from scope-mappings only
 
-    // Валидация: если нет clientId или redirectUri — сообщим об ошибке
+    const clientId = eff.clientId || DISCORD_CONFIG.CLIENT_ID;
+    const redirectUri = eff.redirectUri || DISCORD_CONFIG.REDIRECT_URI;
+
     if (!clientId || !redirectUri) {
       return res.status(400).json({
         error:
@@ -2433,19 +2429,21 @@ app.get('/auth/discord', async (req, res) => {
       });
     }
 
-    // Build scopes: only those present in scope-mappings; if none — standard 'identify' only
     const scopes = ['identify'];
     try {
       const sm = await query('SELECT DISTINCT scope FROM discord_scope_mappings');
       const mapped = sm.rows.map((r) => String(r.scope || '').trim()).filter(Boolean);
-      if (mapped.length > 0) {
-        for (const s of mapped) {
-          if (s && !scopes.includes(s)) scopes.push(s);
-        }
+      for (const s of mapped) {
+        if (s && !scopes.includes(s)) scopes.push(s);
       }
     } catch (_) {}
+
     const scope = encodeURIComponent(scopes.join(' '));
-    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}`;
+    const discordAuthUrl =
+      `https://discord.com/api/oauth2/authorize?client_id=${clientId}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&response_type=code&scope=${scope}`;
+
     res.redirect(discordAuthUrl);
   } catch (e) {
     console.error('Error building Discord auth URL', e);
@@ -2453,306 +2451,267 @@ app.get('/auth/discord', async (req, res) => {
   }
 });
 
-app.get('/auth/discord/callback', async (req, res) => {
+// Helper: derive callback route path from configured Redirect URI
+function getDiscordCallbackPathFromRedirect(redirectUri) {
   try {
-    const { code } = req.query;
+    if (!redirectUri || typeof redirectUri !== 'string') return '/auth/discord/callback';
+    const url = new URL(redirectUri);
+    return url.pathname || '/auth/discord/callback';
+  } catch {
+    return '/auth/discord/callback';
+  }
+}
 
-    if (!code) {
-      return res.redirect(`${SERVER_CONFIG.FRONTEND_URL}/?auth=error&message=No code provided`);
-    }
+// Register Discord callback route based on Redirect URI from system settings
+(async () => {
+  try {
+    const effInit = await readDiscordEffective().catch(() => ({}));
+    const redirectUriInit = effInit.redirectUri || DISCORD_CONFIG.REDIRECT_URI;
+    const callbackPath = getDiscordCallbackPathFromRedirect(redirectUriInit);
 
-    // Exchange code for token
-    // Load dynamic settings (fallback to env)
-    const eff = await readDiscordEffective();
-    const clientId = eff.clientId || DISCORD_CONFIG.CLIENT_ID;
-    const clientSecret = eff.clientSecret || DISCORD_CONFIG.CLIENT_SECRET;
-    const redirectUri = eff.redirectUri || DISCORD_CONFIG.REDIRECT_URI;
-
-    const tokenResponse = await axios.post(
-      'https://discord.com/api/oauth2/token',
-      new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        grant_type: 'authorization_code',
-        code: code,
-        redirect_uri: redirectUri,
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept-Encoding': 'application/json',
-        },
-      }
-    );
-
-    // Get user info from Discord
-    const userResponse = await axios.get('https://discord.com/api/users/@me', {
-      headers: {
-        Authorization: `Bearer ${tokenResponse.data.access_token}`,
-        'Accept-Encoding': 'application/json',
-      },
-    });
-
-    const discordUser = userResponse.data;
-
-    // TEMP LOGGING (for debugging): granted scopes and email
-    try {
-      console.log('Discord OAuth callback — granted scopes:', tokenResponse?.data?.scope);
-      console.log('Discord OAuth callback — user email:', discordUser?.email);
-    } catch (_) {}
-
-    // Read discord settings and account types from DB
-    const discordSettings = eff;
-
-    // Decide account type by default, then attribute mappings, then guild mappings
-    let resolvedAccountType = discordSettings.defaultAccountType || 'Гость';
-    // Optionally collect additional field overrides from matched rule
-    let matchedSetPayload = null;
-
-    // Parse granted scopes from token (space-delimited)
-    const grantedScopes = new Set(
-      typeof tokenResponse?.data?.scope === 'string'
-        ? tokenResponse.data.scope.split(/\s+/).filter(Boolean)
-        : []
-    );
-
-    // Fetch minimal additional data based on mapped scopes only
-    try {
-      // Read mapped scopes to restrict data fetching
-      let mappedScopes = new Set();
+    app.get(callbackPath, async (req, res) => {
       try {
-        const sm2 = await query('SELECT DISTINCT scope FROM discord_scope_mappings');
-        mappedScopes = new Set(sm2.rows.map((r) => String(r.scope || '').trim()).filter(Boolean));
-      } catch (_) {}
+        const { code } = req.query;
 
-      // Save scopes for auditing/debugging
-      try {
-        discordUser._scopes = Array.from(grantedScopes);
-        discordUser._scopes_mapped = Array.from(grantedScopes).filter((s) => mappedScopes.has(s));
-      } catch (_) {}
+        if (!code) {
+          return res.redirect(
+            `${SERVER_CONFIG.FRONTEND_URL}/?auth=error&message=No code provided`
+          );
+        }
 
-      // Fetch extra data for mapped+granted scopes
-      // 1) Guilds list
-      if (grantedScopes.has('guilds') && mappedScopes.has('guilds')) {
-        const guildsResp = await axios.get('https://discord.com/api/users/@me/guilds', {
+        const eff = await readDiscordEffective();
+        const clientId = eff.clientId || DISCORD_CONFIG.CLIENT_ID;
+        const clientSecret = eff.clientSecret || DISCORD_CONFIG.CLIENT_SECRET;
+        const redirectUri = eff.redirectUri || DISCORD_CONFIG.REDIRECT_URI;
+
+        const tokenResponse = await axios.post(
+          'https://discord.com/api/oauth2/token',
+          new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            grant_type: 'authorization_code',
+            code,
+            redirect_uri: redirectUri,
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Accept-Encoding': 'application/json',
+            },
+          }
+        );
+
+        const userResponse = await axios.get('https://discord.com/api/users/@me', {
           headers: {
             Authorization: `Bearer ${tokenResponse.data.access_token}`,
             'Accept-Encoding': 'application/json',
           },
         });
-        if (Array.isArray(guildsResp?.data)) {
-          discordUser.guilds = guildsResp.data;
-        }
-      }
 
-      // 2) Connections
-      if (grantedScopes.has('connections') && mappedScopes.has('connections')) {
-        const connResp = await axios.get('https://discord.com/api/users/@me/connections', {
-          headers: {
-            Authorization: `Bearer ${tokenResponse.data.access_token}`,
-            'Accept-Encoding': 'application/json',
-          },
-        });
-        if (Array.isArray(connResp?.data)) {
-          discordUser.connections = connResp.data;
-        }
-      }
-    } catch (_) {
-      // ignore optional data retrieval failures
-    }
+        const discordUser = userResponse.data;
+        const discordSettings = eff;
 
-    // 1) Attribute-based mappings
-    const attrMappings = Array.isArray(discordSettings.attributeMappings)
-      ? discordSettings.attributeMappings
-      : [];
-    for (const rule of attrMappings) {
-      if (!rule || !rule.source || !rule.key || !rule.accountType) continue;
-      try {
-        if (rule.source === 'user') {
-          const val = discordUser?.[rule.key];
-          if (Array.isArray(val) && val.includes(rule.value)) {
-            resolvedAccountType = rule.accountType;
-            matchedSetPayload = rule.set && typeof rule.set === 'object' ? rule.set : null;
-            break;
-          }
-          if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
-            if (String(val) === String(rule.value)) {
-              resolvedAccountType = rule.accountType;
-              matchedSetPayload = rule.set && typeof rule.set === 'object' ? rule.set : null;
-              break;
-            }
-          }
-        } else if (rule.source === 'member' && rule.guildId) {
-          const memberResp = await axios.get(
-            `https://discord.com/api/users/@me/guilds/${rule.guildId}/member`,
-            {
+        let resolvedAccountType = discordSettings.defaultAccountType || 'Гость';
+        let matchedSetPayload = null;
+
+        const grantedScopes = new Set(
+          typeof tokenResponse?.data?.scope === 'string'
+            ? tokenResponse.data.scope.split(/\s+/).filter(Boolean)
+            : []
+        );
+
+        try {
+          let mappedScopes = new Set();
+          try {
+            const sm2 = await query('SELECT DISTINCT scope FROM discord_scope_mappings');
+            mappedScopes = new Set(
+              sm2.rows.map((r) => String(r.scope || '').trim()).filter(Boolean)
+            );
+          } catch (_) {}
+
+          try {
+            discordUser._scopes = Array.from(grantedScopes);
+            discordUser._scopes_mapped = Array.from(grantedScopes).filter((s) =>
+              mappedScopes.has(s)
+            );
+          } catch (_) {}
+
+          if (grantedScopes.has('guilds') && mappedScopes.has('guilds')) {
+            const guildsResp = await axios.get('https://discord.com/api/users/@me/guilds', {
               headers: {
                 Authorization: `Bearer ${tokenResponse.data.access_token}`,
                 'Accept-Encoding': 'application/json',
               },
+            });
+            if (Array.isArray(guildsResp?.data)) {
+              discordUser.guilds = guildsResp.data;
             }
-          );
-          if (memberResp && memberResp.status === 200) {
-            const member = memberResp.data;
-            const v = member?.[rule.key];
-            if (Array.isArray(v) && v.includes(rule.value)) {
-              resolvedAccountType = rule.accountType;
-              matchedSetPayload = rule.set && typeof rule.set === 'object' ? rule.set : null;
-              break;
+          }
+
+          if (grantedScopes.has('connections') && mappedScopes.has('connections')) {
+            const connResp = await axios.get('https://discord.com/api/users/@me/connections', {
+              headers: {
+                Authorization: `Bearer ${tokenResponse.data.access_token}`,
+                'Accept-Encoding': 'application/json',
+              },
+            });
+            if (Array.isArray(connResp?.data)) {
+              discordUser.connections = connResp.data;
             }
-            if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
-              if (String(v) === String(rule.value)) {
+          }
+        } catch (_) {}
+
+        const attrMappings = Array.isArray(discordSettings.attributeMappings)
+          ? discordSettings.attributeMappings
+          : [];
+        for (const rule of attrMappings) {
+          if (!rule || !rule.source || !rule.key || !rule.accountType) continue;
+          try {
+            if (rule.source === 'user') {
+              const val = discordUser?.[rule.key];
+              if (Array.isArray(val) && val.includes(rule.value)) {
                 resolvedAccountType = rule.accountType;
-                matchedSetPayload = rule.set && typeof rule.set === 'object' ? rule.set : null;
+                matchedSetPayload =
+                  rule.set && typeof rule.set === 'object' ? rule.set : null;
                 break;
               }
-            }
-          }
-        }
-      } catch (_) {
-        // ignore failed attribute checks
-      }
-    }
-
-    // Auto-register granted scopes into dictionary
-    try {
-      for (const s of grantedScopes) {
-        await query('INSERT INTO discord_scopes(name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [s]);
-      }
-    } catch (_) {}
-
-    // 2) Scope-based mappings (presence and optional value checks)
-    try {
-      // Приоритет: сначала по явному порядку (position), потом значения (value), затем стабильная сортировка по scope
-      const sm = await query(
-        'SELECT scope, value, account_type FROM discord_scope_mappings ORDER BY (position IS NULL), position, (value IS NULL), scope'
-      );
-      for (const r of sm.rows) {
-        if (!r || !r.scope) continue;
-        const scopeName = String(r.scope);
-        if (!grantedScopes.has(scopeName)) continue;
-        let matched = false;
-        if (r.value == null) {
-          // presence-only mapping
-          matched = true;
-        } else {
-          // value-aware mappings for known scopes
-          if (scopeName === 'email') {
-            const userEmail = discordUser?.email ? String(discordUser.email).trim().toLowerCase() : null;
-            const expected = r?.value != null ? String(r.value).trim().toLowerCase() : null;
-            if (userEmail && expected && userEmail === expected) matched = true;
-          }
-          if (scopeName === 'guilds') {
-            try {
-              const guildIdExpected = String(r.value).trim();
-              const list = Array.isArray(discordUser?.guilds) ? discordUser.guilds : [];
-              if (guildIdExpected && list.some((g) => String(g?.id) === guildIdExpected)) {
-                matched = true;
-              }
-            } catch (_) {}
-          }
-          if (scopeName === 'connections') {
-            try {
-              const expectedType = String(r.value).trim().toLowerCase();
-              const list = Array.isArray(discordUser?.connections) ? discordUser.connections : [];
               if (
-                expectedType &&
-                list.some((c) => String(c?.type || '').trim().toLowerCase() === expectedType)
+                typeof val === 'string' ||
+                typeof val === 'number' ||
+                typeof val === 'boolean'
               ) {
-                matched = true;
+                if (String(val) === String(rule.value)) {
+                  resolvedAccountType = rule.accountType;
+                  matchedSetPayload =
+                    rule.set && typeof rule.set === 'object' ? rule.set : null;
+                  break;
+                }
               }
-            } catch (_) {}
+            } else if (rule.source === 'member' && rule.guildId) {
+              const memberResp = await axios.get(
+                `https://discord.com/api/users/@me/guilds/${rule.guildId}/member`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${tokenResponse.data.access_token}`,
+                    'Accept-Encoding': 'application/json',
+                  },
+                }
+              );
+              if (memberResp && memberResp.status === 200) {
+                const member = memberResp.data;
+                const v = member?.[rule.key];
+                if (Array.isArray(v) && v.includes(rule.value)) {
+                  resolvedAccountType = rule.accountType;
+                  matchedSetPayload =
+                    rule.set && typeof rule.set === 'object' ? rule.set : null;
+                  break;
+                }
+                if (
+                  typeof v === 'string' ||
+                  typeof v === 'number' ||
+                  typeof v === 'boolean'
+                ) {
+                  if (String(v) === String(rule.value)) {
+                    resolvedAccountType = rule.accountType;
+                    matchedSetPayload =
+                      rule.set && typeof rule.set === 'object' ? rule.set : null;
+                    break;
+                  }
+                }
+              }
+            }
+          } catch (_) {}
+        }
+
+        // (Removed) Guild membership mappings
+
+        // Find or create user in DB
+        let userRow = (await query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]))
+          .rows[0];
+        const isNewUser = !userRow;
+
+        // Determine final account type and active flag with mapping overrides
+        let targetAccountType = resolvedAccountType;
+        let targetIsActive = true;
+        if (matchedSetPayload && typeof matchedSetPayload === 'object') {
+          if (
+            typeof matchedSetPayload.accountType === 'string' &&
+            matchedSetPayload.accountType.trim() !== ''
+          ) {
+            targetAccountType = matchedSetPayload.accountType.trim();
           }
-          // можно расширить при необходимости для других скопов
+          if (Object.prototype.hasOwnProperty.call(matchedSetPayload, 'isActive')) {
+            targetIsActive = !!matchedSetPayload.isActive;
+          }
+          // permissions из set не храним на пользователе, права подтянутся по типу
         }
-        if (matched) {
-          resolvedAccountType = r.account_type;
-          break;
+
+        // Helper to ensure unique username across DB
+        const ensureUniqueUsernameDb = async (baseName) => {
+          let name = baseName || 'discord_user';
+          const exists = async (candidate) =>
+            (await query('SELECT 1 FROM users WHERE username = $1 LIMIT 1', [candidate])).rowCount > 0;
+          if (!(await exists(name))) return name;
+          if (discordUser && discordUser.discriminator && discordUser.discriminator !== '0') {
+            const withDisc = `${discordUser.username}#${discordUser.discriminator}`;
+            if (!(await exists(withDisc))) return withDisc;
+          }
+          const tail =
+            String(discordUser?.id || '')?.slice(-4) ||
+            String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+          let candidate = `${baseName}_${tail}`;
+          if (!(await exists(candidate))) return candidate;
+          let i = 2;
+          while (await exists(`${candidate}_${i}`)) i++;
+          return `${candidate}_${i}`;
+        };
+
+        if (!userRow) {
+          const uniqueUsername = await ensureUniqueUsernameDb(discordUser.username);
+          await query(
+            `INSERT INTO users (id, username, email, auth_type, account_type, is_active, password_hash, discord_id, discord_data, created_at, last_login)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+            [
+              `discord_${discordUser.id}`,
+              uniqueUsername,
+              discordUser.email || null,
+              'discord',
+              targetAccountType,
+              targetIsActive,
+              null,
+              discordUser.id,
+              JSON.stringify(discordUser),
+              new Date(),
+              new Date(),
+            ]
+          );
+          userRow = (await query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]))
+            .rows[0];
+        } else {
+          await query(
+            `UPDATE users SET last_login = $1, discord_data = $2, account_type = $3, is_active = $4 WHERE id = $5`,
+            [new Date(), JSON.stringify(discordUser), targetAccountType, targetIsActive, userRow.id]
+          );
+          userRow = (await query('SELECT * FROM users WHERE id = $1', [userRow.id])).rows[0];
         }
+
+        // Generate JWT token
+        const token = generateToken(userRow.id);
+
+        res.redirect(
+          `${SERVER_CONFIG.FRONTEND_URL}/?token=${token}&auth=success&newUser=${isNewUser}`
+        );
+      } catch (error) {
+        console.error('Discord OAuth error:', error.response?.data || error.message);
+        res.redirect(
+          `${SERVER_CONFIG.FRONTEND_URL}/?auth=error&message=Authentication failed`
+        );
       }
-    } catch (_) {}
-
-    // (Removed) Guild membership mappings
-
-    // Find or create user in DB
-    let userRow = (await query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]))
-      .rows[0];
-    const isNewUser = !userRow;
-
-    // Determine final account type and active flag with mapping overrides
-    let targetAccountType = resolvedAccountType;
-    let targetIsActive = true;
-    if (matchedSetPayload && typeof matchedSetPayload === 'object') {
-      if (
-        typeof matchedSetPayload.accountType === 'string' &&
-        matchedSetPayload.accountType.trim() !== ''
-      ) {
-        targetAccountType = matchedSetPayload.accountType.trim();
-      }
-      if (Object.prototype.hasOwnProperty.call(matchedSetPayload, 'isActive')) {
-        targetIsActive = !!matchedSetPayload.isActive;
-      }
-      // permissions из set не храним на пользователе, права подтянутся по типу
-    }
-
-    // Helper to ensure unique username across DB
-    const ensureUniqueUsernameDb = async (baseName) => {
-      let name = baseName || 'discord_user';
-      const exists = async (candidate) =>
-        (await query('SELECT 1 FROM users WHERE username = $1 LIMIT 1', [candidate])).rowCount > 0;
-      if (!(await exists(name))) return name;
-      if (discordUser && discordUser.discriminator && discordUser.discriminator !== '0') {
-        const withDisc = `${discordUser.username}#${discordUser.discriminator}`;
-        if (!(await exists(withDisc))) return withDisc;
-      }
-      const tail =
-        String(discordUser?.id || '')?.slice(-4) ||
-        String(Math.floor(Math.random() * 10000)).padStart(4, '0');
-      let candidate = `${baseName}_${tail}`;
-      if (!(await exists(candidate))) return candidate;
-      let i = 2;
-      while (await exists(`${candidate}_${i}`)) i++;
-      return `${candidate}_${i}`;
-    };
-
-    if (!userRow) {
-      const uniqueUsername = await ensureUniqueUsernameDb(discordUser.username);
-      await query(
-        `INSERT INTO users (id, username, email, auth_type, account_type, is_active, password_hash, discord_id, discord_data, created_at, last_login)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-        [
-          `discord_${discordUser.id}`,
-          uniqueUsername,
-          discordUser.email || null,
-          'discord',
-          targetAccountType,
-          targetIsActive,
-          null,
-          discordUser.id,
-          JSON.stringify(discordUser),
-          new Date(),
-          new Date(),
-        ]
-      );
-      userRow = (await query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]))
-        .rows[0];
-    } else {
-      await query(
-        `UPDATE users SET last_login = $1, discord_data = $2, account_type = $3, is_active = $4 WHERE id = $5`,
-        [new Date(), JSON.stringify(discordUser), targetAccountType, targetIsActive, userRow.id]
-      );
-      userRow = (await query('SELECT * FROM users WHERE id = $1', [userRow.id])).rows[0];
-    }
-
-    // Generate JWT token
-    const token = generateToken(userRow.id);
-
-    res.redirect(`${SERVER_CONFIG.FRONTEND_URL}/?token=${token}&auth=success&newUser=${isNewUser}`);
-  } catch (error) {
-    console.error('Discord OAuth error:', error.response?.data || error.message);
-    res.redirect(`${SERVER_CONFIG.FRONTEND_URL}/?auth=error&message=Authentication failed`);
+    });
+  } catch (e) {
+    console.error('Failed to init Discord callback route:', e);
   }
-});
+})();
 
 // Local authentication
 app.post('/auth/login', async (req, res) => {
