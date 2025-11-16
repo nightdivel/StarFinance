@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { Card, Form, Input, Button, Typography, Divider, message, Row, Col, Tag } from 'antd';
 import { UserOutlined, MailOutlined, LockOutlined, SaveOutlined } from '@ant-design/icons';
+import { API_BASE_URL } from '../../config';
 
 const { Title, Text } = Typography;
 
@@ -24,15 +25,43 @@ const Profile = ({ userData, onUpdateUser, data, onDataUpdate }) => {
 
   const onFinish = async (values) => {
     try {
+      // Если указаны поля для смены пароля — пытаемся сменить пароль через API
+      if (values.currentPassword && values.newPassword) {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          message.error('Нет токена авторизации, войдите заново');
+          return;
+        }
+
+        const resp = await fetch(`${API_BASE_URL ? API_BASE_URL : ''}/api/change-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            currentPassword: values.currentPassword,
+            newPassword: values.newPassword,
+          }),
+        });
+
+        if (!resp.ok) {
+          let errMsg = 'Не удалось сменить пароль';
+          try {
+            const data = await resp.json();
+            if (data?.error) errMsg = data.error;
+          } catch (_) {}
+          message.error(errMsg);
+          return;
+        }
+      }
+
       // В оффлайн/демо режиме просто обновляем профиль локально
       const updatedUser = {
         ...userData,
         username: values.username,
         email: values.email || '',
       };
-
-      // Здесь могла бы быть реальная смена пароля через API
-      // if (values.currentPassword && values.newPassword) await api.changePassword(...)
 
       onUpdateUser(updatedUser);
 
