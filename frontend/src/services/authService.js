@@ -52,12 +52,12 @@ class AuthService {
       const user = this.getCurrentUser();
       if (!user) return false;
 
-      // Администратор: полный доступ
-      if (user.accountType === 'Администратор') return true;
-
       const perms = user.permissions || {};
       const p = perms[section];
-      if (!p) return false;
+      if (!p) {
+        // Нет явного права на ресурс — нет доступа (для всех типов, включая администратора)
+        return false;
+      }
 
       if (action === 'write') {
         return p === 'write';

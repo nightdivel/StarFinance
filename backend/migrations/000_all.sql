@@ -290,6 +290,17 @@ INSERT INTO account_type_permissions(account_type, resource, level) VALUES
 ('Гость','requests','none')
 ON CONFLICT (account_type, resource) DO UPDATE SET level = EXCLUDED.level;
 
+-- Permissions for UEX module
+INSERT INTO account_type_permissions(account_type, resource, level) VALUES
+('Администратор','uex','write')
+ON CONFLICT (account_type, resource) DO UPDATE SET level = EXCLUDED.level;
+INSERT INTO account_type_permissions(account_type, resource, level) VALUES
+('Пользователь','uex','read')
+ON CONFLICT (account_type, resource) DO UPDATE SET level = EXCLUDED.level;
+INSERT INTO account_type_permissions(account_type, resource, level) VALUES
+('Гость','uex','read')
+ON CONFLICT (account_type, resource) DO UPDATE SET level = EXCLUDED.level;
+
 -- Basic directories
 INSERT INTO product_types(name) VALUES ('Услуга') ON CONFLICT DO NOTHING;
 INSERT INTO product_types(name) VALUES ('Товар') ON CONFLICT DO NOTHING;

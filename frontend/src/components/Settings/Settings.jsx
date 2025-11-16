@@ -53,6 +53,19 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
     setCanWrite(authService.hasPermission('settings', 'write'));
   }, []);
 
+  // Reload scopes on opening the scope rule modal to ensure fresh list
+  useEffect(() => {
+    if (!scopeModalOpen) return;
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const scopesResp = await apiService.request('/api/discord/scopes', { method: 'GET', headers });
+        setDiscordScopes(Array.isArray(scopesResp) ? scopesResp : []);
+      } catch (_) {}
+    })();
+  }, [scopeModalOpen]);
+
   // Initialize form with current data
   React.useEffect(() => {
     if (data) {
@@ -888,7 +901,17 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                   dataSource={scopeMappings}
                   pagination={{ pageSize: 10, showSizeChanger: true }}
                 />
-                <Button type="primary" style={{ marginTop: 8 }} onClick={() => { setScopeEditingIndex(null); setScopeModalOpen(true); }} disabled={!canWrite}>Добавить правило</Button>
+                <Space style={{ marginTop: 8 }}>
+                  <Button onClick={async () => {
+                    try {
+                      const token = localStorage.getItem('authToken');
+                      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+                      const scopesResp = await apiService.request('/api/discord/scopes', { method: 'GET', headers });
+                      setDiscordScopes(Array.isArray(scopesResp) ? scopesResp : []);
+                    } catch (_) {}
+                  }}>Обновить Scopes</Button>
+                  <Button type="primary" onClick={() => { setScopeEditingIndex(null); setScopeModalOpen(true); }} disabled={!canWrite}>Добавить правило</Button>
+                </Space>
                 <Modal
                   title={scopeEditingIndex !== null ? 'Редактирование scope-правила' : 'Добавление scope-правила'}
                   open={scopeModalOpen}

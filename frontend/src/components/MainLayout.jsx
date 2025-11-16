@@ -24,6 +24,7 @@ import Settings from './Settings/Settings';
 import Profile from './Profile/Profile';
 import Cart from './Cart/Cart';
 import Requests from './Requests/Requests';
+import UEX from './UEX/UEX';
 import { apiService } from '../services/apiService';
 import { authService } from '../services/authService';
 import { useQueryClient } from '@tanstack/react-query';
@@ -105,10 +106,22 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
     { key: 'requests', icon: <AppstoreOutlined />, label: 'Заявки', section: 'requests' },
     { key: 'users', icon: <TeamOutlined />, label: 'Пользователи', section: 'users' },          
     { key: 'directories', icon: <FolderOutlined />, label: 'Справочники', section: 'directories' },  
+    { key: 'uex', icon: <BulbOutlined />, label: 'UEX API', section: 'uex' },
     { key: 'settings', icon: <SettingOutlined />, label: 'Настройки', section: 'settings' },
   ];
 
-  const menuItems = rawMenuItems.filter((item) => authService.hasPermission(item.section, 'read'));
+  const canRead = (section) => {
+    try {
+      const atName = userData?.accountType;
+      const ats = data?.directories?.accountTypes || [];
+      const meType = ats.find((t) => t?.name === atName);
+      const level = meType?.permissions?.[section];
+      if (level) return level === 'read' || level === 'write';
+    } catch (_) {}
+    return authService.hasPermission(section, 'read');
+  };
+
+  const menuItems = rawMenuItems.filter((item) => canRead(item.section));
 
   // Если текущий выбранный раздел недоступен, переключимся на первый доступный
   useEffect(() => {
@@ -237,6 +250,10 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
       case 'requests':
         return (
           <Requests />
+        );
+      case 'uex':
+        return (
+          <UEX />
         );
       case 'settings':
         return (

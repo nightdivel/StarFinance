@@ -48,6 +48,8 @@ function requirePermission(resource, level) {
     try {
       const { user, permissions } = await loadUserAndPermissions(req.user.id);
       if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+      // Администратор — всегда можно (серверный суперюзер)
+      if (user.account_type === 'Администратор') return next();
       const userPermission = permissions[resource];
       if (!userPermission) return res.status(403).json({ error: 'Доступ запрещен' });
       const permissionLevels = { none: 0, read: 1, write: 2 };
@@ -62,8 +64,30 @@ function requirePermission(resource, level) {
   };
 }
 
+function requireAnyPermission(resources, level) {
+  const permissionLevels = { none: 0, read: 1, write: 2 };
+  const requiredLevel = permissionLevels[level];
+  return async (req, res, next) => {
+    try {
+      const { user, permissions } = await loadUserAndPermissions(req.user.id);
+      if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+      // Администратор — всегда можно (серверный суперюзер)
+      if (user.account_type === 'Администратор') return next();
+      for (const r of resources) {
+        const userPermission = permissions[r];
+        const userLevel = permissionLevels[userPermission];
+        if ((userLevel ?? 0) >= requiredLevel) return next();
+      }
+      return res.status(403).json({ error: 'Недостаточно прав' });
+    } catch (error) {
+      res.status(500).json({ error: 'Ошибка проверки прав доступа' });
+    }
+  };
+}
+
 module.exports = {
   generateToken,
   authenticateToken,
   requirePermission,
+  requireAnyPermission,
 };
