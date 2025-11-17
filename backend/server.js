@@ -388,6 +388,33 @@ app.post(
         items = [];
       }
 
+      // 3) Если общий список items пустой, пробуем по категориям (id_category)
+      // На проде так исторически и работало (даёт ~180 позиций), поэтому оставляем
+      // это поведение как fallback, но ограничим количество категорий для безопасности.
+      if ((!Array.isArray(items) || items.length === 0) && Array.isArray(categories) && categories.length > 0) {
+        const byCat = [];
+        const MAX_CATEGORIES = 200; // защитный лимит
+        for (const cat of categories.slice(0, MAX_CATEGORIES)) {
+          const catId =
+            cat?.id != null
+              ? String(cat.id)
+              : cat?.uuid != null
+              ? String(cat.uuid)
+              : cat?.category_id != null
+              ? String(cat.category_id)
+              : null;
+          if (!catId) continue;
+          try {
+            const raw = await fetchUex('items', { id_category: catId }).catch(() => []);
+            const arr = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
+            if (Array.isArray(arr) && arr.length > 0) byCat.push(...arr);
+          } catch (_) {
+            // пропускаем категорию, если по ней ошибка
+          }
+        }
+        if (byCat.length > 0) items = byCat;
+      }
+
       const stats = await upsertUexDirectories({ categories, items });
 
       // Save sync state (simple timestamp + stats)
