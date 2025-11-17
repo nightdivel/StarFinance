@@ -433,7 +433,11 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                           <Button size="small" type="text" icon={<EditOutlined />} disabled={!canWrite}
                             onClick={() => {
                               setEditingItem({ directory: key, index, value: record.raw });
-                              form.setFieldsValue({ productName: record.name, productType: record.type });
+                              form.setFieldsValue({
+                                productName: record.name,
+                                productType: record.type,
+                                productCategoryId: record.raw?.uexCategoryId || null,
+                              });
                             }}
                           />
                           <Button size="small" type="text" danger icon={<DeleteOutlined />} disabled={!canWrite}
@@ -539,203 +543,213 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                   return Object.values(row).some((val) => String(val || '').toLowerCase().includes(q));
                 });
                 return (
-                  <TableWithFullscreen
-                    title={`Элементы: ${currentDirectory.name}`}
-                    infinite={true}
-                    batchSize={50}
-                    tableProps={{
-                      columns,
-                      dataSource: filtered,
-                      rowKey: 'key',
-                      pagination: false,
-                      scroll: { x: '100%' },
-                      size: 'small',
-                    }}
-                    cardProps={{ bodyStyle: { paddingTop: 8 } }}
-                  />
+                  <>
+                    {/* Add/Edit Item Form */}
+                    {editingItem && (
+                      <Card
+                        title={
+                          editingItem.index !== undefined
+                            ? 'Редактирование элемента'
+                            : 'Добавление элемента'
+                        }
+                        size="small"
+                        style={{
+                          marginBottom: 16,
+                          position: 'sticky',
+                          top: 0,
+                          zIndex: 2,
+                          background: 'transparent',
+                        }}
+                      >
+                        {editingItem.directory === 'accountTypes' ? (
+                          <Form
+                            form={form}
+                            layout="vertical"
+                            onFinish={(values) => {
+                              const newObj = {
+                                name: values.typeName,
+                                permissions: values.permissions || {},
+                                allowedWarehouseTypes: Array.isArray(values.allowedWarehouseTypes)
+                                  ? values.allowedWarehouseTypes
+                                  : [],
+                              };
+                              if (editingItem.index !== undefined) {
+                                editDirectoryItem(editingItem.directory, editingItem.index, newObj);
+                              } else {
+                                addDirectoryItem(editingItem.directory, newObj);
+                              }
+                            }}
+                          >
+                            <Form.Item
+                              name="typeName"
+                              label="Название типа"
+                              rules={[{ required: true, message: 'Введите название типа' }]}
+                            >
+                              <Input placeholder="Напр.: Администратор" />
+                            </Form.Item>
+
+                            <Row gutter={16}>
+                              {['finance', 'warehouse', 'showcase', 'users', 'directories', 'settings', 'requests', 'uex'].map((res) => (
+                                <Col xs={24} sm={12} key={res}>
+                                  <Form.Item name={["permissions", res]} label={`Права: ${res === 'uex' ? 'UEX_API' : res}`}>
+                                    <Select placeholder="Выберите права">
+                                      <Option value={PERMISSIONS.NONE}>Нет доступа</Option>
+                                      <Option value={PERMISSIONS.READ}>Только чтение</Option>
+                                      <Option value={PERMISSIONS.WRITE}>Чтение и запись</Option>
+                                    </Select>
+                                  </Form.Item>
+                                </Col>
+                              ))}
+                            </Row>
+
+                            <Form.Item name="allowedWarehouseTypes" label="Склад (разрешенные типы)">
+                              <Select mode="multiple" placeholder="Выберите типы склада">
+                                {(data.directories.warehouseTypes || []).map((t) => (
+                                  <Option key={t} value={t}>{t}</Option>
+                                ))}
+                              </Select>
+                            </Form.Item>
+
+                            <Form.Item>
+                              <Space>
+                                <Button type="primary" htmlType="submit">
+                                  {editingItem.index !== undefined ? 'Сохранить' : 'Добавить'}
+                                </Button>
+                                <Button onClick={() => setEditingItem(null)}>Отмена</Button>
+                              </Space>
+                            </Form.Item>
+                          </Form>
+                        ) : editingItem.directory === 'productNames' ? (
+                          <Form
+                            form={form}
+                            layout="vertical"
+                            onFinish={(values) => {
+                              const catId = values.productCategoryId || null;
+                              const cat = (data.directories.categories || []).find((c) => c.id === catId);
+                              const uexType = values.productType === 'Услуга' ? 'service' : 'item';
+                              const newObj = {
+                                name: values.productName,
+                                type: values.productType,
+                                section: cat?.section || null,
+                                uexType,
+                                uexCategoryId: cat?.id || null,
+                              };
+                              if (editingItem.index !== undefined) {
+                                editDirectoryItem(editingItem.directory, editingItem.index, newObj);
+                              } else {
+                                addDirectoryItem(editingItem.directory, newObj);
+                              }
+                            }}
+                          >
+                            <Row gutter={16}>
+                              <Col xs={24} sm={8}>
+                                <Form.Item
+                                  name="productType"
+                                  label="Тип товара"
+                                  rules={[{ required: true, message: 'Выберите тип товара' }]}
+                                >
+                                  <Select placeholder="Выберите тип">
+                                    {(data.directories.productTypes || []).map((t) => (
+                                      <Option key={t} value={t}>
+                                        {t}
+                                      </Option>
+                                    ))}
+                                  </Select>
+                                </Form.Item>
+                              </Col>
+                              <Col xs={24} sm={8}>
+                                <Form.Item
+                                  name="productCategoryId"
+                                  label="Категория (UEX)"
+                                >
+                                  <Select
+                                    allowClear
+                                    showSearch
+                                    placeholder="Выберите категорию"
+                                    optionFilterProp="label"
+                                  >
+                                    {(data.directories.categories || []).map((c) => (
+                                      <Option
+                                        key={c.id || c.name}
+                                        value={c.id}
+                                        label={`${c.section || ''} ${c.name || ''}`.trim()}
+                                      >
+                                        {c.section ? `${c.section} • ${c.name || c.id}` : (c.name || c.id)}
+                                      </Option>
+                                    ))}
+                                  </Select>
+                                </Form.Item>
+                              </Col>
+                              <Col xs={24} sm={8}>
+                                <Form.Item
+                                  name="productName"
+                                  label="Название"
+                                  rules={[{ required: true, message: 'Введите название' }]}
+                                >
+                                  <Input placeholder="Введите название товара" />
+                                </Form.Item>
+                              </Col>
+                            </Row>
+                            <Form.Item>
+                              <Space>
+                                <Button type="primary" htmlType="submit">
+                                  {editingItem.index !== undefined ? 'Сохранить' : 'Добавить'}
+                                </Button>
+                                <Button onClick={() => setEditingItem(null)}>Отмена</Button>
+                              </Space>
+                            </Form.Item>
+                          </Form>
+                        ) : (
+                          <Form
+                            form={form}
+                            layout="vertical"
+                            onFinish={(values) => {
+                              if (editingItem.index !== undefined) {
+                                editDirectoryItem(editingItem.directory, editingItem.index, values.newItem);
+                              } else {
+                                addDirectoryItem(editingItem.directory, values.newItem);
+                              }
+                            }}
+                          >
+                            <Form.Item
+                              name="newItem"
+                              label="Значение элемента"
+                              rules={[{ required: true, message: 'Введите значение' }]}
+                            >
+                              <Input placeholder="Введите значение элемента" />
+                            </Form.Item>
+
+                            <Form.Item>
+                              <Space>
+                                <Button type="primary" htmlType="submit">
+                                  {editingItem.index !== undefined ? 'Сохранить' : 'Добавить'}
+                                </Button>
+                                <Button onClick={() => setEditingItem(null)}>Отмена</Button>
+                              </Space>
+                            </Form.Item>
+                          </Form>
+                        )}
+                      </Card>
+                    )}
+
+                    <TableWithFullscreen
+                      title={`Элементы: ${currentDirectory.name}`}
+                      infinite={true}
+                      batchSize={50}
+                      tableProps={{
+                        columns,
+                        dataSource: filtered,
+                        rowKey: 'key',
+                        pagination: false,
+                        scroll: { x: '100%' },
+                        size: 'small',
+                      }}
+                      cardProps={{ bodyStyle: { paddingTop: 8 } }}
+                    />
+                  </>
                 );
               })()
             }
-
-            {/* Add/Edit Item Form */}
-            {editingItem && (
-              <Card
-                title={
-                  editingItem.index !== undefined
-                    ? 'Редактирование элемента'
-                    : 'Добавление элемента'
-                }
-                size="small"
-                style={{ marginTop: 16 }}
-              >
-                {editingItem.directory === 'accountTypes' ? (
-                  <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={(values) => {
-                      const newObj = {
-                        name: values.typeName,
-                        permissions: values.permissions || {},
-                        allowedWarehouseTypes: Array.isArray(values.allowedWarehouseTypes) ? values.allowedWarehouseTypes : [],
-                      };
-                      if (editingItem.index !== undefined) {
-                        editDirectoryItem(editingItem.directory, editingItem.index, newObj);
-                      } else {
-                        addDirectoryItem(editingItem.directory, newObj);
-                      }
-                    }}
-                  >
-                    <Form.Item
-                      name="typeName"
-                      label="Название типа"
-                      rules={[{ required: true, message: 'Введите название типа' }]}
-                    >
-                      <Input placeholder="Напр.: Администратор" />
-                    </Form.Item>
-
-                    <Row gutter={16}>
-                      {['finance', 'warehouse', 'showcase', 'users', 'directories', 'settings', 'requests', 'uex'].map((res) => (
-                        <Col xs={24} sm={12} key={res}>
-                          <Form.Item name={["permissions", res]} label={`Права: ${res === 'uex' ? 'UEX_API' : res}`}>
-                            <Select placeholder="Выберите права">
-                              <Option value={PERMISSIONS.NONE}>Нет доступа</Option>
-                              <Option value={PERMISSIONS.READ}>Только чтение</Option>
-                              <Option value={PERMISSIONS.WRITE}>Чтение и запись</Option>
-                            </Select>
-                          </Form.Item>
-                        </Col>
-                      ))}
-                    </Row>
-
-                    <Form.Item name="allowedWarehouseTypes" label="Склад (разрешенные типы)">
-                      <Select mode="multiple" placeholder="Выберите типы склада">
-                        {(data.directories.warehouseTypes || []).map((t) => (
-                          <Option key={t} value={t}>{t}</Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
-
-                    <Form.Item>
-                      <Space>
-                        <Button type="primary" htmlType="submit">
-                          {editingItem.index !== undefined ? 'Сохранить' : 'Добавить'}
-                        </Button>
-                        <Button onClick={() => setEditingItem(null)}>Отмена</Button>
-                      </Space>
-                    </Form.Item>
-                  </Form>
-                ) : editingItem.directory === 'productNames' ? (
-                  <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={(values) => {
-                      const catId = values.productCategoryId || null;
-                      const cat = (data.directories.categories || []).find((c) => c.id === catId);
-                      const uexType = values.productType === 'Услуга' ? 'service' : 'item';
-                      const newObj = {
-                        name: values.productName,
-                        type: values.productType,
-                        section: cat?.section || null,
-                        uexType,
-                        uexCategoryId: cat?.id || null,
-                      };
-                      if (editingItem.index !== undefined) {
-                        editDirectoryItem(editingItem.directory, editingItem.index, newObj);
-                      } else {
-                        addDirectoryItem(editingItem.directory, newObj);
-                      }
-                    }}
-                  >
-                    <Row gutter={16}>
-                      <Col xs={24} sm={8}>
-                        <Form.Item
-                          name="productType"
-                          label="Тип товара"
-                          rules={[{ required: true, message: 'Выберите тип товара' }]}
-                        >
-                          <Select placeholder="Выберите тип">
-                            {(data.directories.productTypes || []).map((t) => (
-                              <Option key={t} value={t}>
-                                {t}
-                              </Option>
-                            ))}
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} sm={8}>
-                        <Form.Item
-                          name="productCategoryId"
-                          label="Категория (UEX)"
-                        >
-                          <Select
-                            allowClear
-                            showSearch
-                            placeholder="Выберите категорию"
-                            optionFilterProp="label"
-                          >
-                            {(data.directories.categories || []).map((c) => (
-                              <Option
-                                key={c.id || c.name}
-                                value={c.id}
-                                label={`${c.section || ''} ${c.name || ''}`.trim()}
-                              >
-                                {c.section ? `${c.section} • ${c.name || c.id}` : (c.name || c.id)}
-                              </Option>
-                            ))}
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} sm={8}>
-                        <Form.Item
-                          name="productName"
-                          label="Название"
-                          rules={[{ required: true, message: 'Введите название' }]}
-                        >
-                          <Input placeholder="Введите название товара" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Form.Item>
-                      <Space>
-                        <Button type="primary" htmlType="submit">
-                          {editingItem.index !== undefined ? 'Сохранить' : 'Добавить'}
-                        </Button>
-                        <Button onClick={() => setEditingItem(null)}>Отмена</Button>
-                      </Space>
-                    </Form.Item>
-                  </Form>
-                ) : (
-                  <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={(values) => {
-                      if (editingItem.index !== undefined) {
-                        editDirectoryItem(editingItem.directory, editingItem.index, values.newItem);
-                      } else {
-                        addDirectoryItem(editingItem.directory, values.newItem);
-                      }
-                    }}
-                  >
-                    <Form.Item
-                      name="newItem"
-                      label="Значение элемента"
-                      rules={[{ required: true, message: 'Введите значение' }]}
-                    >
-                      <Input placeholder="Введите значение элемента" />
-                    </Form.Item>
-
-                    <Form.Item>
-                      <Space>
-                        <Button type="primary" htmlType="submit">
-                          {editingItem.index !== undefined ? 'Сохранить' : 'Добавить'}
-                        </Button>
-                        <Button onClick={() => setEditingItem(null)}>Отмена</Button>
-                      </Space>
-                    </Form.Item>
-                  </Form>
-                )}
-              </Card>
-            )}
           </div>
         )}
       </Modal>
