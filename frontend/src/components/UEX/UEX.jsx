@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Space, Form, Input, Button, Select, Typography, Alert, Divider } from 'antd';
+import { Card, Space, Form, Input, Button, Select, Typography, Alert, Divider, message } from 'antd';
 import { uexApi } from '../../services/uexApiService';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import { DownloadOutlined } from '@ant-design/icons';
+import { useQueryClient } from '@tanstack/react-query';
+import { APP_DATA_QUERY_KEY } from '../../lib/queries/appData';
 import * as XLSX from 'xlsx';
 
 const { Title, Text } = Typography;
@@ -43,6 +45,7 @@ function guessColumns(data) {
 }
 
 const UEX = () => {
+  const queryClient = useQueryClient();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -54,6 +57,9 @@ const UEX = () => {
   const [catAttributes, setCatAttributes] = useState([]);
   const [terminals, setTerminals] = useState([]);
   const [commodities, setCommodities] = useState([]);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+  const [syncError, setSyncError] = useState(null);
 
   const tokenInitial = useMemo(() => {
     try { return localStorage.getItem('uex.api.token') || ''; } catch (_) { return ''; }
@@ -94,6 +100,46 @@ const UEX = () => {
     const clientVersion = form.getFieldValue('clientVersion') || '';
     uexApi.setToken(token);
     uexApi.setClientVersion(clientVersion);
+  };
+
+  const onSyncDirectories = async () => {
+    setSyncError(null);
+    setSyncResult(null);
+    setSyncLoading(true);
+    try {
+      const appToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : '';
+      const uexToken = uexApi.getToken ? uexApi.getToken() : (typeof window !== 'undefined' ? localStorage.getItem('uex.api.token') : '');
+      const clientVersion = form.getFieldValue('clientVersion') || (typeof window !== 'undefined' ? localStorage.getItem('uex.client.version') : '');
+      const resp = await fetch('./api/uex/sync-directories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(appToken ? { Authorization: `Bearer ${appToken}` } : {}),
+          ...(uexToken ? { 'x-uex-token': uexToken } : {}),
+          ...(clientVersion ? { 'x-uex-client-version': clientVersion } : {}),
+        },
+        body: JSON.stringify({ full: false }),
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok || !data || data.success === false) {
+        const msg = (data && data.error) || `HTTP ${resp.status}`;
+        setSyncError(msg);
+        message.error(`Ошибка синхронизации UEX: ${msg}`);
+      } else {
+        setSyncResult(data);
+        message.success('Справочники UEX синхронизированы');
+        try {
+          // Обновляем агрегированные данные (директории, склад, витрина)
+          await queryClient.invalidateQueries({ queryKey: APP_DATA_QUERY_KEY });
+        } catch (_) {}
+      }
+    } catch (e) {
+      const msg = e?.message || 'Ошибка запроса';
+      setSyncError(msg);
+      message.error(`Ошибка синхронизации UEX: ${msg}`);
+    } finally {
+      setSyncLoading(false);
+    }
   };
 
   // Load lists for selectors
@@ -243,8 +289,31 @@ const UEX = () => {
     <div className="fade-in">
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <Card size="small">
-          <Title level={4} style={{ margin: 0 }}>UEX API</Title>
-          <Text type="secondary">GET эндпойнты UEX. Введите токен и выполните запрос.</Text>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div>
+              <Title level={4} style={{ margin: 0 }}>UEX API</Title>
+              <Text type="secondary">GET эндпойнты UEX. Введите токен и выполните запрос.</Text>
+            </div>
+            <Space>
+              <Button type="default" onClick={onSyncDirectories} loading={syncLoading}>
+                Обновить справочники из UEX
+              </Button>
+            </Space>
+          </div>
+          {syncResult && (
+            <div style={{ marginTop: 12 }}>
+              <Text type="secondary">
+                Последняя синхронизация: {syncResult.syncedAt || '—'};
+                {' '}типы: +{syncResult.productTypesCreated || 0} / обновлено {syncResult.productTypesUpdated || 0};
+                {' '}наименования: +{syncResult.productNamesCreated || 0} / обновлено {syncResult.productNamesUpdated || 0}
+              </Text>
+            </div>
+          )}
+          {syncError && (
+            <div style={{ marginTop: 8 }}>
+              <Alert type="error" message="Ошибка синхронизации справочников UEX" description={syncError} showIcon />
+            </div>
+          )}
         </Card>
 
         <Card size="small">

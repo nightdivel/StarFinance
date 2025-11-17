@@ -373,8 +373,6 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
 ```bash
 curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/directories
 ```
-200 (пример):
-```json
 {
   "product_types": ["Услуга","Товар"],
   "showcase_statuses": ["На витрине","Скрыт"],
@@ -384,11 +382,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/directories
 }
 ```
 
-### Валюты и курсы — чтение и обновление
-GET курсов:
-```bash
-curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/system/currencies/rates
-```
+## UEX — синхронизация номенклатуры
 200:
 ```json
 { "base": "aUEC", "rates": { "aUEC": 1, "КП": 0.9 } }

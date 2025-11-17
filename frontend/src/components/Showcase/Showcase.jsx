@@ -93,6 +93,18 @@ const Showcase = ({ data, userData }) => {
       render: (type) => <Tag>{type || '-'}</Tag>,
     },
     {
+      title: 'Категория',
+      dataIndex: 'category',
+      key: 'category',
+      width: 160,
+      filters: (data.directories.categories || []).map((c) => ({
+        text: c.name || c.id || '-',
+        value: c.name || c.id || '-',
+      })),
+      onFilter: (value, record) => (record.category || '').toLowerCase() === String(value).toLowerCase(),
+      render: (v) => <Tag>{v || '-'}</Tag>,
+    },
+    {
       title: 'Склад',
       dataIndex: 'warehouseType',
       key: 'warehouseType',

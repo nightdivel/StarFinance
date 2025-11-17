@@ -268,16 +268,16 @@ class ApiService {
   }
 
   // Product Names
-  addProductName({ name, type }) {
+  addProductName({ name, type, section, uexType, uexCategoryId }) {
     return this.request('/api/directories/product-names', {
       method: 'POST',
-      body: JSON.stringify({ name, type }),
+      body: JSON.stringify({ name, type, section, uexType, uexCategoryId }),
     });
   }
-  updateProductName(currentName, { name, type }) {
+  updateProductName(currentName, { name, type, section, uexType, uexCategoryId }) {
     return this.request(`/api/directories/product-names/${encodeURIComponent(currentName)}`, {
       method: 'PUT',
-      body: JSON.stringify({ name, type }),
+      body: JSON.stringify({ name, type, section, uexType, uexCategoryId }),
     });
   }
   deleteProductName(name) {

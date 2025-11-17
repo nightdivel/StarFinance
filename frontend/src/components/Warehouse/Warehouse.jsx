@@ -323,6 +323,18 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       render: (v) => v || '-',
     },
     {
+      title: 'Категория',
+      dataIndex: 'category',
+      key: 'category',
+      width: 200,
+      filters: (data.directories.categories || []).map((c) => ({
+        text: c.name || c.id || '-',
+        value: c.name || c.id || '-',
+      })),
+      onFilter: (value, record) => (record.category || '').toLowerCase() === String(value).toLowerCase(),
+      render: (v) => v || '-',
+    },
+    {
       title: 'Склад',
       dataIndex: 'warehouseType',
       key: 'warehouseType',
@@ -616,7 +628,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                   .filter((obj) => !productTypeSelected || obj.type === productTypeSelected)
                   .map((obj) => (
                     <Option key={`${obj.type || 'none'}-${obj.name}`} value={obj.name}>
-                      {obj.name}
+                      {obj.uexCategory ? `${obj.uexCategory} • ${obj.name}` : obj.name}
                     </Option>
                   ))}
               </Select>

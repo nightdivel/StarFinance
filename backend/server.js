@@ -79,6 +79,348 @@ app.use('/auth', cors(corsOptions));
 app.use('/public', cors(corsOptions));
 app.use('/health', cors(corsOptions));
 
+// ---- UEX API proxy and sync ----
+// Base docs: https://uexcorp.space/api/documentation/
+// Public base URL (same as in frontend): https://api.uexcorp.uk/2.0
+const UEX_BASE_URL = (process.env.UEX_API_BASE_URL || 'https://api.uexcorp.uk/2.0').replace(/\/$/, '');
+
+function buildUexUrl(resource = '', pathPart = '', params = {}) {
+  const base = (UEX_BASE_URL || '').replace(/\/$/, '');
+  const res = String(resource || '').replace(/^\//, '').replace(/\/$/, '');
+  const p = String(pathPart || '').replace(/^\//, '');
+  const url = p ? `${base}/${res}/${p}` : `${base}/${res}`;
+  const usp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params || {})) {
+    if (v == null || v === '') continue;
+    if (Array.isArray(v)) v.forEach((vv) => usp.append(k, String(vv)));
+    else usp.append(k, String(v));
+  }
+  const qs = usp.toString();
+  return qs ? `${url}?${qs}` : url;
+}
+
+// Simple GET proxy used by frontend UEX tool (uexApiService.js in proxy mode)
+app.get('/api/uex', authenticateToken, async (req, res) => {
+  try {
+    const { resource, path: p, ...rest } = req.query || {};
+    const resourceStr = String(resource || '').trim();
+    if (!resourceStr) return res.status(400).json({ error: 'resource is required' });
+    const url = buildUexUrl(resourceStr, p || '', rest);
+
+    const token = req.headers['x-uex-token'] || process.env.UEX_API_TOKEN || process.env.VITE_UEX_API_TOKEN;
+    const clientVersion = req.headers['x-uex-client-version'] || process.env.UEX_CLIENT_VERSION || process.env.VITE_UEX_CLIENT_VERSION;
+
+    const baseHeaders = {
+      Accept: 'application/json',
+      ...(clientVersion ? { 'X-Client-Version': String(clientVersion) } : {}),
+    };
+
+    const attempts = [];
+    if (token) {
+      const t = String(token).trim();
+      attempts.push({ ...baseHeaders, Authorization: `Bearer ${t}`, 'X-API-Key': t });
+      attempts.push({ ...baseHeaders, 'X-API-Key': t });
+      attempts.push({ ...baseHeaders, Authorization: `Token ${t}` });
+    } else {
+      attempts.push(baseHeaders);
+    }
+
+    let lastErr;
+    for (const h of attempts) {
+      try {
+        const resp = await axios.get(url, { headers: h });
+        return res.status(resp.status).json(resp.data);
+      } catch (e) {
+        const status = e?.response?.status;
+        if (status === 401 || status === 403) {
+          lastErr = e;
+          continue;
+        }
+        const body = e?.response?.data;
+        return res.status(status || 500).json({ error: 'UEX proxy error', status, body });
+      }
+    }
+    if (lastErr) {
+      const status = lastErr?.response?.status || 401;
+      const body = lastErr?.response?.data;
+      return res.status(status).json({ error: 'UEX authorization failed', status, body });
+    }
+    return res.status(500).json({ error: 'UEX proxy failed' });
+  } catch (e) {
+    console.error('GET /api/uex error:', e);
+    res.status(500).json({ error: 'Ошибка прокси UEX' });
+  }
+});
+
+// Helper: upsert product_types and product_names from UEX payloads
+// Новая структура номенклатуры: type/section/id_category/name
+// uex_type: 'item' | 'service'
+async function upsertUexDirectories({ categories, items }) {
+  let productTypesCreated = 0;
+  let productTypesUpdated = 0;
+  let productNamesCreated = 0;
+  let productNamesUpdated = 0;
+
+  // Полное обновление UEX-данных:
+  // перед обработкой свежего payload очищаем UEX-поля у ранее импортированных записей,
+  // НО только если реально пришёл непустой список items. Если UEX вернул 0 позиций,
+  // оставляем старые данные, чтобы не потерять существующую номенклатуру.
+  if (Array.isArray(items) && items.length > 0) {
+    try {
+      // product_types: только UEX-секция (name остаётся — это локальный ключ типа)
+      await query('UPDATE product_types SET uex_category = NULL');
+
+      // product_names: только те записи, у которых есть признаки UEX-происхождения
+      await query(
+        `UPDATE product_names
+         SET type = NULL,
+             uex_id = NULL,
+             uex_type = NULL,
+             uex_section = NULL,
+             uex_category_id = NULL,
+             uex_category = NULL,
+             uex_subcategory = NULL,
+             uex_meta = NULL
+         WHERE uex_id IS NOT NULL
+            OR uex_type IS NOT NULL
+            OR uex_category_id IS NOT NULL
+            OR uex_category IS NOT NULL`
+      );
+    } catch (e) {
+      console.error('upsertUexDirectories: failed to reset previous UEX data:', e);
+    }
+  }
+
+  // Categories -> product_types (name + uex_category) и карта категорий
+  const categoryById = new Map();
+  if (Array.isArray(categories)) {
+    for (const cat of categories) {
+      const catId =
+        cat?.id != null
+          ? String(cat.id)
+          : cat?.uuid != null
+          ? String(cat.uuid)
+          : cat?.category_id != null
+          ? String(cat.category_id)
+          : null;
+      const catName = (cat?.name || cat?.title || '').toString().trim();
+      const section = (cat?.section || cat?.category || cat?.slug || '').toString().trim() || null;
+
+      if (catId) {
+        categoryById.set(catId, { id: catId, name: catName, section, raw: cat });
+      }
+
+      if (!catName) continue;
+
+      const uexCategory = section;
+      const { rowCount } = await query('SELECT 1 FROM product_types WHERE name = $1', [catName]);
+      if (rowCount === 0) {
+        await query(
+          'INSERT INTO product_types(name, uex_category) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING',
+          [catName, uexCategory]
+        );
+        productTypesCreated += 1;
+      } else {
+        await query('UPDATE product_types SET uex_category = COALESCE($2, uex_category) WHERE name = $1', [
+          catName,
+          uexCategory,
+        ]);
+        productTypesUpdated += 1;
+      }
+    }
+  }
+
+  // Items -> product_names с новой структурой
+  if (Array.isArray(items)) {
+    for (const it of items) {
+      const name = (it?.name || it?.title || '').toString().trim();
+      if (!name) continue;
+
+      const catIdRaw =
+        it?.id_category != null
+          ? String(it.id_category)
+          : it?.category_id != null
+          ? String(it.category_id)
+          : it?.categoryId != null
+          ? String(it.categoryId)
+          : null;
+      const category = catIdRaw ? categoryById.get(catIdRaw) : null;
+      const section = category?.section || (it?.section || it?.category_section || null);
+      const sectionLc = section ? section.toString().toLowerCase() : '';
+
+      // Правило: категории раздела Services -> услуги, остальные -> товары
+      const uexType = sectionLc && (sectionLc === 'services' || sectionLc === 'service') ? 'service' : 'item';
+
+      // Бизнес-тип для product_names.type: Товар/Услуга (оставляем русские наименования типов)
+      const businessType = uexType === 'service' ? 'Услуга' : 'Товар';
+
+      const uexId = it?.id != null ? String(it.id) : it?.uuid != null ? String(it.uuid) : null;
+      const uexCategoryId = catIdRaw;
+      const uexCategory =
+        category?.name ||
+        (typeof it?.category === 'string' && it.category.trim() !== '' ? it.category.trim() : null) ||
+        (typeof it?.category_name === 'string' && it.category_name.trim() !== '' ? it.category_name.trim() : null);
+      const uexSubcategory = null;
+      const meta = {
+        uexId,
+        uexType,
+        uexSection: section,
+        uexCategoryId,
+        uexCategoryName: uexCategory,
+        raw: it,
+      };
+
+      const existing = await query('SELECT name FROM product_names WHERE name = $1', [name]);
+      if (existing.rowCount === 0) {
+        await query(
+          `INSERT INTO product_names(name, type, uex_id, uex_type, uex_section, uex_category_id, uex_category, uex_subcategory, uex_meta)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           ON CONFLICT (name) DO UPDATE SET
+             type = EXCLUDED.type,
+             uex_id = EXCLUDED.uex_id,
+             uex_type = EXCLUDED.uex_type,
+             uex_section = EXCLUDED.uex_section,
+             uex_category_id = EXCLUDED.uex_category_id,
+             uex_category = EXCLUDED.uex_category,
+             uex_subcategory = EXCLUDED.uex_subcategory,
+             uex_meta = EXCLUDED.uex_meta`,
+          [
+            name,
+            businessType,
+            uexId,
+            uexType,
+            section,
+            uexCategoryId,
+            uexCategory,
+            uexSubcategory,
+            meta,
+          ]
+        );
+        productNamesCreated += 1;
+      } else {
+        await query(
+          `UPDATE product_names
+           SET type = COALESCE($2, type),
+               uex_id = COALESCE($3, uex_id),
+               uex_type = COALESCE($4, uex_type),
+               uex_section = COALESCE($5, uex_section),
+               uex_category_id = COALESCE($6, uex_category_id),
+               uex_category = COALESCE($7, uex_category),
+               uex_subcategory = COALESCE($8, uex_subcategory),
+               uex_meta = $9
+           WHERE name = $1`,
+          [
+            name,
+            businessType,
+            uexId,
+            uexType,
+            section,
+            uexCategoryId,
+            uexCategory,
+            uexSubcategory,
+            meta,
+          ]
+        );
+        productNamesUpdated += 1;
+      }
+    }
+  }
+
+  return { productTypesCreated, productTypesUpdated, productNamesCreated, productNamesUpdated };
+}
+
+// Sync UEX directories into local DB
+app.post(
+  '/api/uex/sync-directories',
+  authenticateToken,
+  requirePermission('directories', 'write'),
+  async (req, res) => {
+    try {
+      const { full } = req.body || {};
+
+      const token = req.headers['x-uex-token'] || process.env.UEX_API_TOKEN || process.env.VITE_UEX_API_TOKEN;
+      const clientVersion = req.headers['x-uex-client-version'] || process.env.UEX_CLIENT_VERSION || process.env.VITE_UEX_CLIENT_VERSION;
+      const baseHeaders = {
+        Accept: 'application/json',
+        ...(clientVersion ? { 'X-Client-Version': String(clientVersion) } : {}),
+      };
+
+      const attempts = [];
+      if (token) {
+        const t = String(token).trim();
+        attempts.push({ ...baseHeaders, Authorization: `Bearer ${t}`, 'X-API-Key': t });
+        attempts.push({ ...baseHeaders, 'X-API-Key': t });
+        attempts.push({ ...baseHeaders, Authorization: `Token ${t}` });
+      } else {
+        attempts.push(baseHeaders);
+      }
+
+      async function fetchUex(resource, params = {}) {
+        const url = buildUexUrl(resource, '', params);
+        let lastErr;
+        for (const h of attempts) {
+          try {
+            const resp = await axios.get(url, { headers: h });
+            return resp.data;
+          } catch (e) {
+            const status = e?.response?.status;
+            if (status === 401 || status === 403) {
+              lastErr = e;
+              continue;
+            }
+            throw e;
+          }
+        }
+        if (lastErr) throw lastErr;
+        throw new Error('UEX request failed');
+      }
+
+      // 1) Всегда тянем полный список категорий (categories)
+      const catsRaw = await fetchUex('categories').catch(() => []);
+      const categories = Array.isArray(catsRaw?.data) ? catsRaw.data : Array.isArray(catsRaw) ? catsRaw : [];
+
+      // 2) Пытаемся взять полный список items одним запросом (как рекомендует UEX API)
+      let items = [];
+      try {
+        const itemsRaw = await fetchUex('items').catch(() => []);
+        items = Array.isArray(itemsRaw?.data) ? itemsRaw.data : Array.isArray(itemsRaw) ? itemsRaw : [];
+      } catch (_) {
+        items = [];
+      }
+
+      const stats = await upsertUexDirectories({ categories, items });
+
+      // Save sync state (simple timestamp + stats)
+      const now = new Date();
+      const meta = {
+        full: !!full,
+        counts: stats,
+      };
+      await query(
+        `CREATE TABLE IF NOT EXISTS uex_sync_state (
+          resource TEXT PRIMARY KEY,
+          last_sync_at TIMESTAMPTZ,
+          last_uex_marker TEXT,
+          meta JSONB
+        )`
+      ).catch(() => {});
+      await query(
+        `INSERT INTO uex_sync_state(resource, last_sync_at, last_uex_marker, meta)
+         VALUES ('directories', $1, NULL, $2)
+         ON CONFLICT (resource) DO UPDATE SET last_sync_at = EXCLUDED.last_sync_at, meta = EXCLUDED.meta`,
+        [now, meta]
+      );
+
+      res.json({ success: true, syncedAt: now.toISOString(), ...stats });
+    } catch (e) {
+      console.error('POST /api/uex/sync-directories error:', e?.response?.data || e);
+      const status = e?.response?.status || 500;
+      const body = e?.response?.data;
+      res.status(status).json({ success: false, error: 'Ошибка синхронизации UEX', detail: body });
+    }
+  }
+);
+
 // Body parsers should be BEFORE routes so early-declared routes see req.body
 // Note: base64 increases size by ~33%, so allow headroom for 15MB files
 app.use(express.json({ limit: '32mb' }));
@@ -169,6 +511,22 @@ app.put('/api/system/auth/background', authenticateToken, requirePermission('set
         await fs.unlink(p).catch(() => {});
       }
     } catch (_) {}
+
+  // UEX sync state (последняя синхронизация справочников из UEX)
+  try {
+    const ss = await query(
+      "SELECT last_sync_at, meta FROM uex_sync_state WHERE resource = 'directories'"
+    );
+    if (ss.rowCount > 0) {
+      const row = ss.rows[0];
+      const meta = row.meta || {};
+      directories.uexSync = {
+        lastSyncAt: row.last_sync_at ? new Date(row.last_sync_at).toISOString() : null,
+        counts: meta.counts || null,
+        full: meta.full ?? null,
+      };
+    }
+  } catch (_) {}
     const target = path.join(AUTH_PUBLIC_DIR, `${AUTH_BG_NAME}.${ext}`);
     await fs.writeFile(target, buf);
     return res.json({ success: true, url: `/public/auth/background/file/${AUTH_BG_NAME}.${ext}` });
@@ -1575,7 +1933,6 @@ app.put('/api/finance-requests/:id/cancel', authenticateToken, async (req, res) 
     try { app.locals.io.emit('transactions:changed', { id: fr.transaction_id, action: 'deleted' }); } catch(_) {}
     res.json({ success: true });
   } catch (e) {
-    console.error('PUT /api/finance-requests/:id/cancel error:', e);
     res.status(500).json({ error: 'Ошибка отмены заявки' });
   }
 });
@@ -1634,7 +1991,9 @@ app.delete(
     try {
       const id = req.params.id;
       await query('DELETE FROM transactions WHERE id = $1', [id]);
-      try { app.locals.io.emit('transactions:changed', { id, action: 'deleted' }); } catch (_) {}
+      try {
+        app.locals.io.emit('transactions:changed', { id, action: 'deleted' });
+      } catch (_) {}
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: 'Ошибка удаления транзакции' });
@@ -1642,54 +2001,6 @@ app.delete(
   }
 );
 
-// ---------- Directories CRUD (Stage 2) ----------
-// Helper to load directories from tables
-const loadDirectoriesFromDb = async () => {
-  const result = {
-    productTypes: [],
-    showcaseStatuses: [],
-    warehouseLocations: [],
-    productNames: [],
-    warehouseTypes: [],
-  };
-  try {
-    const pt = await query('SELECT name FROM product_types ORDER BY name');
-    result.productTypes = pt.rows.map((r) => r.name);
-  } catch (_) {}
-  try {
-    const ss = await query('SELECT name FROM showcase_statuses ORDER BY name');
-    result.showcaseStatuses = ss.rows.map((r) => r.name);
-  } catch (_) {}
-  try {
-    const wl = await query('SELECT name FROM warehouse_locations ORDER BY name');
-    result.warehouseLocations = wl.rows.map((r) => r.name);
-  } catch (_) {}
-  try {
-    const pn = await query('SELECT name, type FROM product_names ORDER BY name');
-    result.productNames = pn.rows.map((r) => ({ name: r.name, type: r.type || null }));
-  } catch (_) {}
-  try {
-    const wt = await query('SELECT name FROM warehouse_types ORDER BY name');
-    result.warehouseTypes = wt.rows.map((r) => r.name);
-  } catch (_) {}
-  return result;
-};
-
-app.get(
-  '/api/directories',
-  authenticateToken,
-  requirePermission('directories', 'read'),
-  async (req, res) => {
-    try {
-      const dirs = await loadDirectoriesFromDb();
-      res.json(dirs);
-    } catch (e) {
-      res.status(500).json({ error: 'Ошибка чтения справочников' });
-    }
-  }
-);
-
-// Product Types
 app.post(
   '/api/directories/product-types',
   authenticateToken,
@@ -1849,16 +2160,30 @@ app.post(
   requirePermission('directories', 'write'),
   async (req, res) => {
     try {
-      const { name, type } = req.body || {};
+      const { name, type, section, uexType, uexCategoryId } = req.body || {};
       if (!name || typeof name !== 'string')
         return res.status(400).json({ error: 'Некорректное имя' });
       if (type)
         await query('INSERT INTO product_types(name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [
           type,
         ]);
+
+      // Локальное создание номенклатуры: уважаем новые UEX-поля, но не затираем их, если запись уже существует
       await query(
-        'INSERT INTO product_names(name, type) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET type = EXCLUDED.type',
-        [name.trim(), type || null]
+        `INSERT INTO product_names(name, type, uex_type, uex_section, uex_category_id)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (name) DO UPDATE SET
+           type            = EXCLUDED.type,
+           uex_type        = COALESCE(EXCLUDED.uex_type, product_names.uex_type),
+           uex_section     = COALESCE(EXCLUDED.uex_section, product_names.uex_section),
+           uex_category_id = COALESCE(EXCLUDED.uex_category_id, product_names.uex_category_id)`,
+        [
+          name.trim(),
+          type || null,
+          uexType || null,
+          section || null,
+          uexCategoryId || null,
+        ]
       );
       const dirs = await loadDirectoriesFromDb();
       res.json({ success: true, directories: dirs });
@@ -1875,24 +2200,61 @@ app.put(
   async (req, res) => {
     try {
       const currentName = decodeURIComponent(req.params.name || '');
-      const { name, type } = req.body || {};
+      const { name, type, section, uexType, uexCategoryId } = req.body || {};
       if (!currentName) return res.status(400).json({ error: 'Имя не указано' });
       if (type)
         await query('INSERT INTO product_types(name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [
           type,
         ]);
       if (name && name !== currentName) {
-        // rename via delete+insert to keep PK uniqueness
+        // Переименование: сохраняем UEX-поля существующей записи
+        const existing = await query('SELECT * FROM product_names WHERE name = $1', [currentName]);
+        if (existing.rowCount === 0) return res.status(404).json({ error: 'Наименование не найдено' });
+        const row = existing.rows[0];
+        const newName = name.trim();
         await query('DELETE FROM product_names WHERE name = $1', [currentName]);
         await query(
-          'INSERT INTO product_names(name, type) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET type = EXCLUDED.type',
-          [name.trim(), type || null]
+          `INSERT INTO product_names(
+             name, type, uex_id, uex_type, uex_section, uex_category_id,
+             uex_category, uex_subcategory, uex_meta
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           ON CONFLICT (name) DO UPDATE SET
+             type            = EXCLUDED.type,
+             uex_id          = EXCLUDED.uex_id,
+             uex_type        = EXCLUDED.uex_type,
+             uex_section     = EXCLUDED.uex_section,
+             uex_category_id = EXCLUDED.uex_category_id,
+             uex_category    = EXCLUDED.uex_category,
+             uex_subcategory = EXCLUDED.uex_subcategory,
+             uex_meta        = EXCLUDED.uex_meta`,
+          [
+            newName,
+            type || row.type,
+            row.uex_id,
+            uexType || row.uex_type,
+            section || row.uex_section,
+            uexCategoryId || row.uex_category_id,
+            row.uex_category,
+            row.uex_subcategory,
+            row.uex_meta,
+          ]
         );
       } else {
-        await query('UPDATE product_names SET type = $2 WHERE name = $1', [
-          currentName,
-          type || null,
-        ]);
+        await query(
+          `UPDATE product_names
+           SET type            = COALESCE($2, type),
+               uex_type        = COALESCE($3, uex_type),
+               uex_section     = COALESCE($4, uex_section),
+               uex_category_id = COALESCE($5, uex_category_id)
+           WHERE name = $1`,
+          [
+            currentName,
+            type || null,
+            uexType || null,
+            section || null,
+            uexCategoryId || null,
+          ]
+        );
       }
       const dirs = await loadDirectoriesFromDb();
       res.json({ success: true, directories: dirs });
@@ -1919,9 +2281,9 @@ app.delete(
   }
 );
 
-// ---------- Currencies management ----------
+// Product Names with UEX fields (read-only view)
 app.get(
-  '/api/system/currencies',
+  '/api/directories/product-names-uex',
   authenticateToken,
   requirePermission('directories', 'read'),
   async (req, res) => {
@@ -2142,14 +2504,6 @@ const buildAggregatedData = async (userId) => {
       return [];
     }
   })();
-  const warehouseLocations = await (async () => {
-    try {
-      const r = await query('SELECT name FROM warehouse_locations');
-      return r.rows.map((x) => x.name);
-    } catch {
-      return [];
-    }
-  })();
   const warehouseTypes = await (async () => {
     try {
       const r = await query('SELECT name FROM warehouse_types');
@@ -2158,10 +2512,71 @@ const buildAggregatedData = async (userId) => {
       return [];
     }
   })();
+  // Полная номенклатура товаров/услуг с UEX-полями для автоподсказок
   const productNames = await (async () => {
     try {
-      const r = await query('SELECT name, type FROM product_names');
-      return r.rows.map((x) => ({ name: x.name, type: x.type || null }));
+      const r = await query(
+        `SELECT name, type, uex_id, uex_type, uex_section, uex_category_id,
+                uex_category, uex_subcategory
+         FROM product_names
+         ORDER BY name`
+      );
+      return r.rows.map((x) => ({
+        name: x.name,
+        // Бизнес-тип: "Товар" / "Услуга"
+        type: x.type || null,
+        // Машинный тип из UEX: 'item' | 'service'
+        uexType: x.uex_type || null,
+        section: x.uex_section || null,
+        uexCategoryId: x.uex_category_id || null,
+        uexCategory: x.uex_category || null,
+        uexSubcategory: x.uex_subcategory || null,
+        isUex: !!x.uex_id,
+      }));
+    } catch {
+      return [];
+    }
+  })();
+
+  // Справочник категорий из product_names + product_types (по данным UEX)
+  const categories = await (async () => {
+    try {
+      // 1) Категории, которые пришли вместе с номенклатурой (product_names)
+      const fromNames = (
+        await query(
+          `SELECT DISTINCT uex_category_id, uex_category, uex_section
+           FROM product_names
+           WHERE uex_category_id IS NOT NULL OR uex_category IS NOT NULL`
+        )
+      ).rows.map((x) => ({
+        id: x.uex_category_id || null,
+        name: x.uex_category || null,
+        section: x.uex_section || null,
+      }));
+
+      // 2) Категории из product_types (после синка UEX: name = имя категории, uex_category = раздел)
+      const fromTypes = (
+        await query(
+          `SELECT name, uex_category FROM product_types WHERE name IS NOT NULL`
+        )
+      ).rows.map((x) => ({
+        id: null,
+        name: x.name || null,
+        section: x.uex_category || null,
+      }));
+
+      const all = [...fromNames, ...fromTypes];
+      // Уберём дубликаты по (name, section)
+      const seen = new Set();
+      const result = [];
+      for (const c of all) {
+        const key = `${c.name || ''}__${c.section || ''}`;
+        if (!c.name && !c.id) continue;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push(c);
+      }
+      return result;
     } catch {
       return [];
     }
@@ -2173,11 +2588,10 @@ const buildAggregatedData = async (userId) => {
     showcaseStatuses: showcaseStatuses.length
       ? showcaseStatuses
       : (s['directories.showcaseStatuses'] ?? ['На витрине', 'Скрыт']),
-    warehouseLocations: warehouseLocations.length
-      ? warehouseLocations
-      : (s['directories.warehouseLocations'] ?? ['Основной склад', 'Резервный склад']),
     warehouseTypes: warehouseTypes.length ? warehouseTypes : (s['directories.warehouseTypes'] ?? []),
     productNames,
+    categories,
+    uexSync: null,
     // accountTypes assembled from tables
     accountTypes: [],
   };
@@ -2272,22 +2686,45 @@ const buildAggregatedData = async (userId) => {
         if (it.meta && typeof it.meta === 'string') metaObj = JSON.parse(it.meta);
         else if (it.meta && typeof it.meta === 'object') metaObj = it.meta;
       } catch (_) {}
+      // Попробуем сопоставить номенклатуру по имени для получения типа/категории из product_names
+      let kind = null;
+      let categoryName = null;
+      try {
+        const pn = (
+          await query(
+            'SELECT type, uex_category FROM product_names WHERE name = $1',
+            [it.name]
+          )
+        ).rows[0];
+        if (pn) {
+          kind = pn.type || null; // "Товар" / "Услуга"
+          categoryName = pn.uex_category || null;
+        }
+      } catch (_) {}
 
       warehouse.push({
         id: it.id,
+        // Название позиции склада
         name: it.name,
-        type: it.type || null,
-        productType: it.type || null,
+        // Бизнес-тип (Товар/Услуга) из справочника номенклатуры
+        type: kind || it.type || null,
+        productType: kind || it.type || null,
+        // Категория (name из UEX)
+        category: categoryName || null,
         quantity: Number(it.quantity) || 0,
         cost: it.cost !== null && it.cost !== undefined ? Number(it.cost) : undefined,
         price: it.cost !== null && it.cost !== undefined ? Number(it.cost) : undefined,
         currency: it.currency || null,
+        // Склад / локация
         location: it.location || null,
         displayCurrencies: it.display_currencies || undefined,
+        // Описание из meta
         description: metaObj && metaObj.desc ? metaObj.desc : undefined,
         meta: metaObj || undefined,
         warehouseType: it.warehouse_type || null,
+        // Владелец
         ownerLogin: it.owner_login || null,
+        // Статус витрины
         showcaseStatus: showcaseItemsMap.has(it.id) ? 'На витрине' : 'Скрыт',
         createdAt: it.created_at ? new Date(it.created_at).toISOString() : undefined,
         updatedAt: it.updated_at ? new Date(it.updated_at).toISOString() : undefined,

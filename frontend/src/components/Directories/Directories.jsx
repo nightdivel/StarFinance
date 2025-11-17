@@ -47,22 +47,24 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
       productTypes: 'Типы товаров',
       showcaseStatuses: 'Статусы витрины',
       productNames: 'Товар',
+      categories: 'Категории',
       accountTypes: 'Типы учетной записи',
-      warehouseLocations: 'Локации склада',
       warehouseTypes: 'Тип склада',
-      discordScopes: 'Scopes (Discord)'
+      discordScopes: 'Scopes'
     };
     return names[key] || key;
   }
 
   // Get directory data for table
   const directoryData = [
-    ...Object.entries(data.directories || {}).map(([key, items]) => ({
-      key,
-      name: getDirectoryName(key),
-      itemCount: items.length,
-      items,
-    })),
+    ...Object.entries(data.directories || {})
+      .filter(([key]) => key !== 'warehouseLocations')
+      .map(([key, items]) => ({
+        key,
+        name: getDirectoryName(key),
+        itemCount: Array.isArray(items) ? items.length : 0,
+        items,
+      })),
     { key: 'discordScopes', name: getDirectoryName('discordScopes'), itemCount: scopes.length, items: scopes },
   ];
 
@@ -304,6 +306,16 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
   return (
     <div style={{ padding: 4 }}>
       <Card title="Системные справочники">
+        {data?.directories?.uexSync && (
+          <div style={{ marginBottom: 12, fontSize: 12, color: '#8c8c8c' }}>
+            <div>
+              Последняя синхронизация UEX:&nbsp;
+              {data.directories.uexSync.lastSyncAt
+                ? new Date(data.directories.uexSync.lastSyncAt).toLocaleString('ru-RU')
+                : '—'}
+            </div>
+          </div>
+        )}
         <Table
           columns={columns}
           dataSource={directoryData}
@@ -433,8 +445,46 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                   ];
                   dataSource = (data.directories.productNames || []).map((it, idx) => {
                     const obj = typeof it === 'string' ? { name: it, type: undefined } : it;
-                    return { key: idx, name: obj.name, type: obj.type, raw: obj };
+                    return {
+                      key: idx,
+                      name: obj.name,
+                      type: obj.type,
+                      category: obj.uexCategory || null,
+                      raw: obj,
+                    };
                   });
+                } else if (key === 'categories') {
+                  // Категории UEX: read-only справочник
+                  columns = [
+                    {
+                      title: 'ID категории',
+                      dataIndex: 'id',
+                      key: 'id',
+                      width: 160,
+                      filterDropdown: buildFilterDropdown('Поиск по ID'),
+                      onFilter: (v, r) => (r.id || '').toLowerCase().includes(String(v).toLowerCase()),
+                    },
+                    {
+                      title: 'Название',
+                      dataIndex: 'name',
+                      key: 'name',
+                      width: 240,
+                      filterDropdown: buildFilterDropdown('Поиск по названию'),
+                      onFilter: (v, r) => (r.name || '').toLowerCase().includes(String(v).toLowerCase()),
+                    },
+                    {
+                      title: 'Раздел',
+                      dataIndex: 'section',
+                      key: 'section',
+                      width: 200,
+                    },
+                  ];
+                  dataSource = (data.directories.categories || []).map((c, idx) => ({
+                    key: idx,
+                    id: c.id,
+                    name: c.name,
+                    section: c.section,
+                  }));
                 } else if (key === 'discordScopes') {
                   columns = [
                     {
@@ -579,9 +629,15 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                     form={form}
                     layout="vertical"
                     onFinish={(values) => {
+                      const catId = values.productCategoryId || null;
+                      const cat = (data.directories.categories || []).find((c) => c.id === catId);
+                      const uexType = values.productType === 'Услуга' ? 'service' : 'item';
                       const newObj = {
                         name: values.productName,
                         type: values.productType,
+                        section: cat?.section || null,
+                        uexType,
+                        uexCategoryId: cat?.id || null,
                       };
                       if (editingItem.index !== undefined) {
                         editDirectoryItem(editingItem.directory, editingItem.index, newObj);
@@ -591,7 +647,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                     }}
                   >
                     <Row gutter={16}>
-                      <Col xs={24} sm={12}>
+                      <Col xs={24} sm={8}>
                         <Form.Item
                           name="productType"
                           label="Тип товара"
@@ -606,7 +662,30 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                           </Select>
                         </Form.Item>
                       </Col>
-                      <Col xs={24} sm={12}>
+                      <Col xs={24} sm={8}>
+                        <Form.Item
+                          name="productCategoryId"
+                          label="Категория (UEX)"
+                        >
+                          <Select
+                            allowClear
+                            showSearch
+                            placeholder="Выберите категорию"
+                            optionFilterProp="label"
+                          >
+                            {(data.directories.categories || []).map((c) => (
+                              <Option
+                                key={c.id || c.name}
+                                value={c.id}
+                                label={`${c.section || ''} ${c.name || ''}`.trim()}
+                              >
+                                {c.section ? `${c.section} • ${c.name || c.id}` : (c.name || c.id)}
+                              </Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={8}>
                         <Form.Item
                           name="productName"
                           label="Название"
