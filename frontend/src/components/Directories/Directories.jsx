@@ -422,7 +422,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                       onFilter: (v, r) => (r.name || '').toLowerCase().includes(String(v).toLowerCase()),
                     },
                     {
-                      title: 'Тип', dataIndex: 'type', key: 'type', width: 180,
+                      title: 'Тип товара', dataIndex: 'type', key: 'type', width: 200,
                       filters: (data.directories.productTypes || []).map((t) => ({ text: t, value: t })),
                       onFilter: (val, r) => r.type === val,
                     },
@@ -436,7 +436,6 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                               form.setFieldsValue({
                                 productName: record.name,
                                 productType: record.type,
-                                productCategoryId: record.raw?.uexCategoryId || null,
                               });
                             }}
                           />
@@ -453,7 +452,6 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                       key: idx,
                       name: obj.name,
                       type: obj.type,
-                      category: obj.uexCategory || null,
                       raw: obj,
                     };
                   });
@@ -624,15 +622,9 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                             form={form}
                             layout="vertical"
                             onFinish={(values) => {
-                              const catId = values.productCategoryId || null;
-                              const cat = (data.directories.categories || []).find((c) => c.id === catId);
-                              const uexType = values.productType === 'Услуга' ? 'service' : 'item';
                               const newObj = {
                                 name: values.productName,
                                 type: values.productType,
-                                section: cat?.section || null,
-                                uexType,
-                                uexCategoryId: cat?.id || null,
                               };
                               if (editingItem.index !== undefined) {
                                 editDirectoryItem(editingItem.directory, editingItem.index, newObj);
@@ -657,30 +649,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                                   </Select>
                                 </Form.Item>
                               </Col>
-                              <Col xs={24} sm={8}>
-                                <Form.Item
-                                  name="productCategoryId"
-                                  label="Категория (UEX)"
-                                >
-                                  <Select
-                                    allowClear
-                                    showSearch
-                                    placeholder="Выберите категорию"
-                                    optionFilterProp="label"
-                                  >
-                                    {(data.directories.categories || []).map((c) => (
-                                      <Option
-                                        key={c.id || c.name}
-                                        value={c.id}
-                                        label={`${c.section || ''} ${c.name || ''}`.trim()}
-                                      >
-                                        {c.section ? `${c.section} • ${c.name || c.id}` : (c.name || c.id)}
-                                      </Option>
-                                    ))}
-                                  </Select>
-                                </Form.Item>
-                              </Col>
-                              <Col xs={24} sm={8}>
+                              <Col xs={24} sm={16}>
                                 <Form.Item
                                   name="productName"
                                   label="Название"
@@ -734,6 +703,15 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
 
                     <TableWithFullscreen
                       title={`Элементы: ${currentDirectory.name}`}
+                      extra={
+                        <Input
+                          allowClear
+                          placeholder={`Поиск по: ${currentDirectory.name}`}
+                          value={dirSearch}
+                          onChange={(e) => setDirSearch(e.target.value)}
+                          style={{ width: 260 }}
+                        />
+                      }
                       infinite={true}
                       batchSize={50}
                       tableProps={{
@@ -753,18 +731,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
           </div>
         )}
       </Modal>
-      {/* Глобальный поиск по текущему справочнику */}
-      {currentDirectory && (
-        <div style={{ position: 'fixed', right: 24, bottom: 24 }}>
-          <Input
-            allowClear
-            placeholder={`Поиск по: ${currentDirectory.name}`}
-            value={dirSearch}
-            onChange={(e) => setDirSearch(e.target.value)}
-            style={{ width: 300 }}
-          />
-        </div>
-      )}
+      {/* Глобальный поиск теперь встроен в тулбар таблицы (extra в TableWithFullscreen) */}
     </div>
   );
 };

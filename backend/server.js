@@ -2187,7 +2187,7 @@ app.post(
   requirePermission('directories', 'write'),
   async (req, res) => {
     try {
-      const { name, type, section, uexType, uexCategoryId } = req.body || {};
+      const { name, type } = req.body || {};
       if (!name || typeof name !== 'string')
         return res.status(400).json({ error: 'Некорректное имя' });
       if (type)
@@ -2195,25 +2195,26 @@ app.post(
           type,
         ]);
 
-      // Локальное создание номенклатуры: уважаем новые UEX-поля, но не затираем их, если запись уже существует
+      // Локальное создание номенклатуры: работаем только с name и type, UEX-поля не трогаем
       await query(
-        `INSERT INTO product_names(name, type, uex_type, uex_section, uex_category_id)
-         VALUES ($1,$2,$3,$4,$5)
+        `INSERT INTO product_names(name, type)
+         VALUES ($1,$2)
          ON CONFLICT (name) DO UPDATE SET
-           type            = EXCLUDED.type,
-           uex_type        = COALESCE(EXCLUDED.uex_type, product_names.uex_type),
-           uex_section     = COALESCE(EXCLUDED.uex_section, product_names.uex_section),
-           uex_category_id = COALESCE(EXCLUDED.uex_category_id, product_names.uex_category_id)`,
-        [
-          name.trim(),
-          type || null,
-          uexType || null,
-          section || null,
-          uexCategoryId || null,
-        ]
+           type = EXCLUDED.type`,
+        [name.trim(), type || null]
       );
-      const dirs = await loadDirectoriesFromDb();
-      res.json({ success: true, directories: dirs });
+      let dirs = null;
+      try {
+        dirs = await loadDirectoriesFromDb();
+      } catch (err) {
+        // Не ломаем добавление из-за ошибки при сборе справочников (например, Discord)
+        console.error('loadDirectoriesFromDb failed after product-names insert:', err);
+      }
+      if (dirs) {
+        res.json({ success: true, directories: dirs });
+      } else {
+        res.json({ success: true });
+      }
     } catch (e) {
       res.status(500).json({ error: 'Ошибка сохранения наименования' });
     }
@@ -2560,8 +2561,24 @@ const buildAggregatedData = async (userId) => {
         uexSubcategory: x.uex_subcategory || null,
         isUex: !!x.uex_id,
       }));
-    } catch {
-      return [];
+    } catch (e) {
+      console.error('loadDirectoriesFromDb: failed to load productNames with UEX fields, fallback to basic query:', e);
+      try {
+        const r = await query('SELECT name, type FROM product_names ORDER BY name');
+        return r.rows.map((x) => ({
+          name: x.name,
+          type: x.type || null,
+          uexType: null,
+          section: null,
+          uexCategoryId: null,
+          uexCategory: null,
+          uexSubcategory: null,
+          isUex: false,
+        }));
+      } catch (e2) {
+        console.error('loadDirectoriesFromDb: fallback query for productNames failed:', e2);
+        return [];
+      }
     }
   })();
 

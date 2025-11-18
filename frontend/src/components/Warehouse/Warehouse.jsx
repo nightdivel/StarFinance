@@ -625,7 +625,14 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                   .map((item) =>
                     typeof item === 'string' ? { name: item, type: undefined } : item
                   )
-                  .filter((obj) => !productTypeSelected || obj.type === productTypeSelected)
+                  .filter((obj) => {
+                    if (!productTypeSelected) return true;
+                    // Фильтрация по бизнес-типу или по UEX-категории
+                    return (
+                      obj.type === productTypeSelected ||
+                      obj.uexCategory === productTypeSelected
+                    );
+                  })
                   .map((obj) => (
                     <Option key={`${obj.type || 'none'}-${obj.name}`} value={obj.name}>
                       {obj.uexCategory ? `${obj.uexCategory} • ${obj.name}` : obj.name}
