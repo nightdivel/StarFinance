@@ -1,0 +1,67 @@
+# .github/workflows/deploy.yml
+name: Deploy to 77.37.200.234
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy via SSH (password)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Add server to known_hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H 77.37.200.234 >> ~/.ssh/known_hosts
+
+    - name: Deploy on server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: 77.37.200.234
+        username: ${{ secrets.LOGIN }}
+        password: ${{ secrets.PASS }}
+        port: 22
+        script: |
+          $ErrorActionPreference = "Stop"
+          $projectDir = Join-Path $env:USERPROFILE "StarFinance"
+          $repoUrl = "https://github.com/nightdivel/StarFinance.git"
+
+          Write-Host "[INFO] Preparing project dir: $projectDir"
+          if (-not (Test-Path $projectDir)) {
+            New-Item -ItemType Directory -Path $projectDir | Out-Null
+          }
+
+          if (-not (Test-Path (Join-Path $projectDir ".git"))) {
+            Write-Host "[INFO] Cloning repository..."
+            git clone $repoUrl $projectDir
+          }
+
+          Set-Location $projectDir
+          $branch = if ($env:GIT_BRANCH) { $env:GIT_BRANCH } else { "main" }
+          Write-Host "[INFO] Updating branch: $branch"
+          git fetch origin
+          git checkout $branch
+          git pull --rebase origin $branch
+
+          Write-Host "[INFO] Docker compose build & restart"
+          docker compose version
+          try {
+            docker compose down --remove-orphans
+          } catch {
+            Write-Host "[WARN] docker compose down failed: $($_.Exception.Message)"
+          }
+          docker compose build --no-cache
+          docker compose up -d --force-recreate
+
+          Write-Host "[INFO] Deleting dangling images"
+          try {
+            docker image prune -f
+          } catch {
+            Write-Host "[WARN] docker image prune failed: $($_.Exception.Message)"
+          }
