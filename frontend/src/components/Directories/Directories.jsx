@@ -349,30 +349,10 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                 let dataSource = [];
                 const canWrite = authService.hasPermission('directories', 'write') || (key === 'discordScopes' && authService.hasPermission('settings', 'write'));
 
-                const buildFilterDropdown = (placeholder) => ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-                  <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
-                    <Input
-                      placeholder={placeholder}
-                      value={selectedKeys[0]}
-                      onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-                      onPressEnter={() => confirm()}
-                      style={{ marginBottom: 8, display: 'block' }}
-                    />
-                    <Space>
-                      <Button type="primary" size="small" onClick={() => confirm()}>
-                        Найти
-                      </Button>
-                      <Button size="small" onClick={() => { clearFilters?.(); confirm(); }}>Сбросить</Button>
-                    </Space>
-                  </div>
-                );
-
                 if (key === 'accountTypes') {
                   columns = [
                     {
                       title: 'Название типа', dataIndex: 'name', key: 'name', width: 220,
-                      filterDropdown: buildFilterDropdown('Поиск по названию'),
-                      onFilter: (v, r) => (r.name || '').toLowerCase().includes(String(v).toLowerCase()),
                     },
                     {
                       title: 'Права', dataIndex: 'permStr', key: 'permStr', ellipsis: true,
@@ -408,13 +388,9 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                   columns = [
                     {
                       title: 'Название', dataIndex: 'name', key: 'name', width: 220,
-                      filterDropdown: buildFilterDropdown('Поиск по названию'),
-                      onFilter: (v, r) => (r.name || '').toLowerCase().includes(String(v).toLowerCase()),
                     },
                     {
                       title: 'Тип товара', dataIndex: 'type', key: 'type', width: 200,
-                      filters: (data.directories.productTypes || []).map((t) => ({ text: t, value: t })),
-                      onFilter: (val, r) => r.type === val,
                     },
                     {
                       title: 'Действия', key: 'actions', width: 120, fixed: 'right',
@@ -471,16 +447,12 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                       dataIndex: 'id',
                       key: 'id',
                       width: 160,
-                      filterDropdown: buildFilterDropdown('Поиск по ID'),
-                      onFilter: (v, r) => (r.id || '').toLowerCase().includes(String(v).toLowerCase()),
                     },
                     {
                       title: 'Название',
                       dataIndex: 'name',
                       key: 'name',
                       width: 240,
-                      filterDropdown: buildFilterDropdown('Поиск по названию'),
-                      onFilter: (v, r) => (r.name || '').toLowerCase().includes(String(v).toLowerCase()),
                     },
                     {
                       title: 'Раздел',
@@ -499,8 +471,6 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                   columns = [
                     {
                       title: 'Scope', dataIndex: 'value', key: 'value', width: 320,
-                      filterDropdown: buildFilterDropdown('Поиск по scope'),
-                      onFilter: (v, r) => (r.value || '').toLowerCase().includes(String(v).toLowerCase()),
                     },
                     {
                       title: 'Действия', key: 'actions', width: 120, align: 'center',
@@ -519,8 +489,6 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                   columns = [
                     {
                       title: 'Значение', dataIndex: 'value', key: 'value', width: 320,
-                      filterDropdown: buildFilterDropdown('Поиск по значению'),
-                      onFilter: (v, r) => (r.value || '').toLowerCase().includes(String(v).toLowerCase()),
                     },
                     {
                       title: 'Действия', key: 'actions', width: 120, align: 'center',

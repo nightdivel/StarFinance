@@ -83,6 +83,7 @@ app.use('/health', cors(corsOptions));
 // Base docs: https://uexcorp.space/api/documentation/
 // Public base URL (same as in frontend): https://api.uexcorp.uk/2.0
 const UEX_BASE_URL = (process.env.UEX_API_BASE_URL || 'https://api.uexcorp.uk/2.0').replace(/\/$/, '');
+const UEX_COMPANY_ID = process.env.UEX_COMPANY_ID || process.env.VITE_UEX_COMPANY_ID || null;
 
 function buildUexUrl(resource = '', pathPart = '', params = {}) {
   const base = (UEX_BASE_URL || '').replace(/\/$/, '');
@@ -253,8 +254,9 @@ async function upsertUexDirectories({ categories, items }) {
       // Правило: категории раздела Services -> услуги, остальные -> товары
       const uexType = sectionLc && (sectionLc === 'services' || sectionLc === 'service') ? 'service' : 'item';
 
-      // Бизнес-тип для product_names.type: Товар/Услуга (оставляем русские наименования типов)
-      const businessType = uexType === 'service' ? 'Услуга' : 'Товар';
+      // Тип товара для product_names.type должен соответствовать справочнику product_types.
+      // Используем тот же раздел, что и при записи в product_types (section, либо имя категории).
+      const productTypeName = section || category?.name || null;
 
       const uexId = it?.id != null ? String(it.id) : it?.uuid != null ? String(it.uuid) : null;
       const uexCategoryId = catIdRaw;
@@ -288,7 +290,7 @@ async function upsertUexDirectories({ categories, items }) {
              uex_meta = EXCLUDED.uex_meta`,
           [
             name,
-            businessType,
+            productTypeName,
             uexId,
             uexType,
             section,
@@ -313,7 +315,7 @@ async function upsertUexDirectories({ categories, items }) {
            WHERE name = $1`,
           [
             name,
-            businessType,
+            productTypeName,
             uexId,
             uexType,
             section,
@@ -358,7 +360,13 @@ app.post(
       }
 
       async function fetchUex(resource, params = {}) {
-        const url = buildUexUrl(resource, '', params);
+        const finalParams = { ...params };
+        if (resource === 'items' && UEX_COMPANY_ID) {
+          if (!finalParams.id_company) {
+            finalParams.id_company = UEX_COMPANY_ID;
+          }
+        }
+        const url = buildUexUrl(resource, '', finalParams);
         let lastErr;
         for (const h of attempts) {
           try {
