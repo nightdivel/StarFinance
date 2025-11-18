@@ -2,53 +2,28 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
+# System dependencies (CA certificates, curl for healthchecks)
+RUN apk add --no-cache ca-certificates curl && update-ca-certificates
+
+# Copy package manifests for root, frontend, and backend
 COPY package*.json ./
 COPY frontend/package*.json ./frontend/
 COPY backend/package*.json ./backend/
 
 # Install dependencies
-RUN npm install
-RUN cd frontend && npm install
-RUN cd backend && npm install
+RUN npm install \
+ && cd frontend && npm install \
+ && cd ../backend && npm install
 
-# Copy source code
+# Copy full source code
 COPY . .
 
-# Build frontend
-# Set base path for Vite production build to support subpath deployment (/economy/)
-ENV BASE_PATH=/economy/
-# Route API requests through Nginx subpath as well
-ENV VITE_API_BASE_URL=/economy
-RUN cd frontend && npm run build
-
-EXPOSE 3000
-
-CMD ["npm", "start"]
-FROM node:18-alpine
-
-WORKDIR /app
-
-# CA для HTTPS-запросов внутри контейнера
-RUN apk add --no-cache ca-certificates && update-ca-certificates
-
-# Copy package files
-COPY package*.json ./
-COPY frontend/package*.json ./frontend/
-COPY backend/package*.json ./backend/
-
-# Install dependencies
-RUN npm install
-RUN cd frontend && npm install
-RUN cd backend && npm install
-
-# Copy source code
-COPY . .
-
-# Build frontend
+# Build frontend for /economy/ subpath
 ENV BASE_PATH=/economy/
 ENV VITE_API_BASE_URL=/economy
 RUN cd frontend && npm run build
 
 EXPOSE 3000
-CMD ["npm", "start"]
+
+# On container start: run DB migrations then start backend server
+CMD ["sh", "-c", "cd backend && npm run migrate:all && npm start"]
