@@ -191,7 +191,7 @@ async function upsertUexDirectories({ categories, items }) {
     }
   }
 
-  // Categories -> product_types (name + uex_category) и карта категорий
+  // Categories -> product_types (section как name) и карта категорий
   const categoryById = new Map();
   if (Array.isArray(categories)) {
     for (const cat of categories) {
@@ -210,19 +210,21 @@ async function upsertUexDirectories({ categories, items }) {
         categoryById.set(catId, { id: catId, name: catName, section, raw: cat });
       }
 
-      if (!catName) continue;
+      // Тип товара строим по разделу UEX (section)
+      const typeName = section || catName;
+      if (!typeName) continue;
 
-      const uexCategory = section;
-      const { rowCount } = await query('SELECT 1 FROM product_types WHERE name = $1', [catName]);
+      const uexCategory = catName; // само название категории сохраняем в uex_category для справки
+      const { rowCount } = await query('SELECT 1 FROM product_types WHERE name = $1', [typeName]);
       if (rowCount === 0) {
         await query(
           'INSERT INTO product_types(name, uex_category) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING',
-          [catName, uexCategory]
+          [typeName, uexCategory]
         );
         productTypesCreated += 1;
       } else {
         await query('UPDATE product_types SET uex_category = COALESCE($2, uex_category) WHERE name = $1', [
-          catName,
+          typeName,
           uexCategory,
         ]);
         productTypesUpdated += 1;
@@ -417,27 +419,9 @@ app.post(
 
       const stats = await upsertUexDirectories({ categories, items });
 
-      // Save sync state (simple timestamp + stats)
+      // Раньше здесь сохранялось состояние синхронизации в uex_sync_state.
+      // Теперь мы не ведём отдельный журнал синка для директорий.
       const now = new Date();
-      const meta = {
-        full: !!full,
-        counts: stats,
-      };
-      await query(
-        `CREATE TABLE IF NOT EXISTS uex_sync_state (
-          resource TEXT PRIMARY KEY,
-          last_sync_at TIMESTAMPTZ,
-          last_uex_marker TEXT,
-          meta JSONB
-        )`
-      ).catch(() => {});
-      await query(
-        `INSERT INTO uex_sync_state(resource, last_sync_at, last_uex_marker, meta)
-         VALUES ('directories', $1, NULL, $2)
-         ON CONFLICT (resource) DO UPDATE SET last_sync_at = EXCLUDED.last_sync_at, meta = EXCLUDED.meta`,
-        [now, meta]
-      );
-
       res.json({ success: true, syncedAt: now.toISOString(), ...stats });
     } catch (e) {
       console.error('POST /api/uex/sync-directories error:', e?.response?.data || e);
@@ -539,21 +523,8 @@ app.put('/api/system/auth/background', authenticateToken, requirePermission('set
       }
     } catch (_) {}
 
-  // UEX sync state (последняя синхронизация справочников из UEX)
-  try {
-    const ss = await query(
-      "SELECT last_sync_at, meta FROM uex_sync_state WHERE resource = 'directories'"
-    );
-    if (ss.rowCount > 0) {
-      const row = ss.rows[0];
-      const meta = row.meta || {};
-      directories.uexSync = {
-        lastSyncAt: row.last_sync_at ? new Date(row.last_sync_at).toISOString() : null,
-        counts: meta.counts || null,
-        full: meta.full ?? null,
-      };
-    }
-  } catch (_) {}
+  // Ранее здесь подмешивалось состояние последней UEX-синхронизации (directories.uexSync).
+  // Теперь оно не используется в UI и не загружается из БД.
     const target = path.join(AUTH_PUBLIC_DIR, `${AUTH_BG_NAME}.${ext}`);
     await fs.writeFile(target, buf);
     return res.json({ success: true, url: `/public/auth/background/file/${AUTH_BG_NAME}.${ext}` });

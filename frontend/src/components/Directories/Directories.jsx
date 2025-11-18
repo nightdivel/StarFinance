@@ -71,14 +71,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
   // Add item to directory (все справочники через API)
   const addDirectoryItem = async (directoryKey, newItem) => {
     try {
-      if (directoryKey === 'productTypes') {
-        await apiService.addProductType(newItem);
-        message.success('Тип товара добавлен');
-        await onRefresh?.();
-        setEditingItem(null);
-        form.resetFields();
-        return;
-      }
+      // productTypes теперь приходят из UEX и считаются read-only в UI
       if (directoryKey === 'showcaseStatuses') {
         await apiService.addShowcaseStatus(newItem);
         message.success('Статус витрины добавлен');
@@ -155,12 +148,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
       onOk: async () => {
         try {
           const current = data.directories[directoryKey][itemIndex];
-          if (directoryKey === 'productTypes') {
-            await apiService.deleteProductType(current);
-            message.success('Тип товара удален');
-            await onRefresh?.();
-            return;
-          }
+          // productTypes: read-only (управляются только синком UEX)
           if (directoryKey === 'showcaseStatuses') {
             await apiService.deleteShowcaseStatus(current);
             message.success('Статус витрины удален');
@@ -216,12 +204,9 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
   // Edit directory item (все справочники через API)
   const editDirectoryItem = async (directoryKey, itemIndex, newValue) => {
     try {
-      if (['productTypes', 'showcaseStatuses', 'warehouseLocations', 'warehouseTypes'].includes(directoryKey)) {
+      if (['showcaseStatuses', 'warehouseLocations', 'warehouseTypes'].includes(directoryKey)) {
         const current = data.directories[directoryKey][itemIndex];
-        if (directoryKey === 'productTypes') {
-          await apiService.deleteProductType(current);
-          await apiService.addProductType(newValue);
-        } else if (directoryKey === 'showcaseStatuses') {
+        if (directoryKey === 'showcaseStatuses') {
           await apiService.deleteShowcaseStatus(current);
           await apiService.addShowcaseStatus(newValue);
         } else if (directoryKey === 'warehouseLocations') {
@@ -314,16 +299,6 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
   return (
     <div style={{ padding: 4 }}>
       <Card title="Системные справочники">
-        {data?.directories?.uexSync && (
-          <div style={{ marginBottom: 12, fontSize: 12, color: '#8c8c8c' }}>
-            <div>
-              Последняя синхронизация UEX:&nbsp;
-              {data.directories.uexSync.lastSyncAt
-                ? new Date(data.directories.uexSync.lastSyncAt).toLocaleString('ru-RU')
-                : '—'}
-            </div>
-          </div>
-        )}
         <Table
           columns={columns}
           dataSource={directoryData}
@@ -351,17 +326,19 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
         {currentDirectory && (
           <div>
             <div style={{ marginBottom: 16 }}>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  setEditingItem({ directory: currentDirectory.key, value: '' });
-                  form.setFieldsValue({ newItem: '' });
-                }}
-                disabled={!authService.hasPermission('directories', 'write')}
-              >
-                Добавить
-              </Button>
+              {currentDirectory.key !== 'productTypes' && currentDirectory.key !== 'categories' && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    setEditingItem({ directory: currentDirectory.key, value: '' });
+                    form.setFieldsValue({ newItem: '' });
+                  }}
+                  disabled={!authService.hasPermission('directories', 'write')}
+                >
+                  Добавить
+                </Button>
+              )}
             </div>
 
             {
@@ -441,22 +418,39 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                     },
                     {
                       title: 'Действия', key: 'actions', width: 120, fixed: 'right',
-                      render: (_, record, index) => (
-                        <Space>
-                          <Button size="small" type="text" icon={<EditOutlined />} disabled={!canWrite}
-                            onClick={() => {
-                              setEditingItem({ directory: key, index, value: record.raw });
-                              form.setFieldsValue({
-                                productName: record.name,
-                                productType: record.type,
-                              });
-                            }}
-                          />
-                          <Button size="small" type="text" danger icon={<DeleteOutlined />} disabled={!canWrite}
-                            onClick={() => removeDirectoryItem(key, index)}
-                          />
-                        </Space>
-                      ),
+                      render: (_, record, index) => {
+                        const isUex = !!record.raw?.isUex || !!record.raw?.uexId;
+                        const disabled = !canWrite || isUex;
+                        return (
+                          <Space>
+                            <Button
+                              size="small"
+                              type="text"
+                              icon={<EditOutlined />}
+                              disabled={disabled}
+                              onClick={() => {
+                                if (disabled) return;
+                                setEditingItem({ directory: key, index, value: record.raw });
+                                form.setFieldsValue({
+                                  productName: record.name,
+                                  productType: record.type,
+                                });
+                              }}
+                            />
+                            <Button
+                              size="small"
+                              type="text"
+                              danger
+                              icon={<DeleteOutlined />}
+                              disabled={disabled}
+                              onClick={() => {
+                                if (disabled) return;
+                                removeDirectoryItem(key, index);
+                              }}
+                            />
+                          </Space>
+                        );
+                      },
                     },
                   ];
                   dataSource = (data.directories.productNames || []).map((it, idx) => {
