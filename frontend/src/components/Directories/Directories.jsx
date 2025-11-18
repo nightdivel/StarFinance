@@ -418,7 +418,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                     },
                     {
                       title: 'Действия', key: 'actions', width: 120, fixed: 'right',
-                      render: (_, record, index) => {
+                      render: (_, record) => {
                         const isUex = !!record.raw?.isUex || !!record.raw?.uexId;
                         const disabled = !canWrite || isUex;
                         return (
@@ -430,7 +430,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                               disabled={disabled}
                               onClick={() => {
                                 if (disabled) return;
-                                setEditingItem({ directory: key, index, value: record.raw });
+                                setEditingItem({ directory: key, index: record.sourceIndex, value: record.raw });
                                 form.setFieldsValue({
                                   productName: record.name,
                                   productType: record.type,
@@ -445,7 +445,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                               disabled={disabled}
                               onClick={() => {
                                 if (disabled) return;
-                                removeDirectoryItem(key, index);
+                                removeDirectoryItem(key, record.sourceIndex);
                               }}
                             />
                           </Space>
@@ -457,6 +457,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                     const obj = typeof it === 'string' ? { name: it, type: undefined } : it;
                     return {
                       key: idx,
+                      sourceIndex: idx,
                       name: obj.name,
                       type: obj.type,
                       raw: obj,

@@ -2233,8 +2233,20 @@ app.put(
           ]
         );
       }
-      const dirs = await loadDirectoriesFromDb();
-      res.json({ success: true, directories: dirs });
+
+      // Как и в POST-хендлере, не даём ошибке сборки директорий
+      // ломать сам факт обновления записи.
+      let dirs = null;
+      try {
+        dirs = await loadDirectoriesFromDb();
+      } catch (err) {
+        console.error('loadDirectoriesFromDb failed after product-names update:', err);
+      }
+      if (dirs) {
+        res.json({ success: true, directories: dirs });
+      } else {
+        res.json({ success: true });
+      }
     } catch (e) {
       res.status(500).json({ error: 'Ошибка обновления наименования' });
     }
