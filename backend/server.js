@@ -2235,39 +2235,17 @@ app.put(
           type,
         ]);
       if (name && name !== currentName) {
-        // Переименование: сохраняем UEX-поля существующей записи
-        const existing = await query('SELECT * FROM product_names WHERE name = $1', [currentName]);
-        if (existing.rowCount === 0) return res.status(404).json({ error: 'Наименование не найдено' });
-        const row = existing.rows[0];
+        // Простое переименование: обновляем name и type, UEX-поля не трогаем
         const newName = name.trim();
-        await query('DELETE FROM product_names WHERE name = $1', [currentName]);
         await query(
-          `INSERT INTO product_names(
-             name, type, uex_id, uex_type, uex_section, uex_category_id,
-             uex_category, uex_subcategory, uex_meta
-           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-           ON CONFLICT (name) DO UPDATE SET
-             type            = EXCLUDED.type,
-             uex_id          = EXCLUDED.uex_id,
-             uex_type        = EXCLUDED.uex_type,
-             uex_section     = EXCLUDED.uex_section,
-             uex_category_id = EXCLUDED.uex_category_id,
-             uex_category    = EXCLUDED.uex_category,
-             uex_subcategory = EXCLUDED.uex_subcategory,
-             uex_meta        = EXCLUDED.uex_meta`,
-          [
-            newName,
-            type || row.type,
-            row.uex_id,
-            uexType || row.uex_type,
-            section || row.uex_section,
-            uexCategoryId || row.uex_category_id,
-            row.uex_category,
-            row.uex_subcategory,
-            row.uex_meta,
-          ]
+          `UPDATE product_names
+           SET name = $2,
+               type = COALESCE($3, type)
+           WHERE name = $1`,
+          [currentName, newName, type || null]
         );
       } else {
+        // Обновление типа / UEX-полей без смены имени
         await query(
           `UPDATE product_names
            SET type            = COALESCE($2, type),

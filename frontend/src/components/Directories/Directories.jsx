@@ -296,7 +296,15 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
       key: 'actions',
       width: 100,
       render: (_, record) => (
-        <Button type="primary" size="small" onClick={() => setCurrentDirectory(record)}>
+        <Button
+          type="primary"
+          size="small"
+          onClick={() => {
+            // При открытии любого справочника сбрасываем общий поиск
+            setDirSearch('');
+            setCurrentDirectory(record);
+          }}
+        >
           Просмотреть
         </Button>
       ),
@@ -329,7 +337,12 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
       <Modal
         title={currentDirectory ? `Справочник: ${currentDirectory.name}` : 'Справочник'}
         open={!!currentDirectory}
-        onCancel={() => { setCurrentDirectory(null); setEditingItem(null); try { form.resetFields(); } catch (_) {} }}
+        onCancel={() => {
+          setCurrentDirectory(null);
+          setEditingItem(null);
+          setDirSearch('');
+          try { form.resetFields(); } catch (_) {}
+        }}
         width={900}
         bodyStyle={{ maxHeight: '70vh', overflowY: 'auto' }}
         style={{ top: 24 }}
