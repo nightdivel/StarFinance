@@ -18,7 +18,7 @@ jobs:
     - name: Add server to known_hosts
       run: |
         mkdir -p ~/.ssh
-        ssh-keyscan -H 77.37.200.234 >> ~/.ssh/known_hosts
+        ssh-keyscan -H 77.37.200.234 >> ~/.ssh/known_hosts || echo "[WARN] ssh-keyscan failed, continuing without updating known_hosts"
 
     - name: Deploy on server
       uses: appleboy/ssh-action@v1.0.3
