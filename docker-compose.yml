@@ -1,6 +1,6 @@
 services:
   economy:
-    image: popovef/economy-app:latest
+    build: .
     container_name: economy_app
     restart: always
     ports:
@@ -50,26 +50,18 @@ services:
       retries: 5
       start_period: 40s
 
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./ssl:/etc/ssl/certs
-    depends_on:
-      economy:
-        condition: service_healthy
-    restart: unless-stopped
-
-  watchtower:
-    image: containrrr/watchtower
-    container_name: economy_watchtower
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: economy_app --interval 300 --cleanup
+  # nginx:
+  #   image: nginx:alpine
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf
+  #     - ./ssl:/etc/ssl/certs
+  #   depends_on:
+  #     economy:
+  #       condition: service_healthy
+  #   restart: unless-stopped
 
 volumes:
   pgdata:
