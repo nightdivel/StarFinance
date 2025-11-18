@@ -16,7 +16,7 @@ function buildConfig() {
     };
   }
   return {
-    host: process.env.PG_HOST || 'localhost',
+    host: process.env.PG_HOST || 'postgres',
     port: Number(process.env.PG_PORT || 5432),
     database: process.env.PG_DATABASE || 'starfinance',
     user: process.env.PG_USER || 'postgres',
