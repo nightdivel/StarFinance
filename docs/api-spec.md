@@ -373,20 +373,78 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
 ```bash
 curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/directories
 ```
+Пример ответа (упрощённый):
+```json
 {
-  "product_types": ["Услуга","Товар"],
-  "showcase_statuses": ["На витрине","Скрыт"],
-  "warehouse_locations": ["Основной склад","Резервный склад"],
-  "warehouse_types": ["Тип A","Тип B"],
-  "currencies": ["aUEC","КП"]
+  "productTypes": ["Services","Personal Weapon","Liveries"],
+  "showcaseStatuses": ["На витрине","Скрыт"],
+  "warehouseTypes": ["Основной","Орбитальный"],
+  "productNames": [
+    {
+      "name": "100i Auspicious Red Dog Livery",
+      "type": "Liveries"
+    }
+  ],
+  "categories": [...]
 }
 ```
 
 ## UEX — синхронизация номенклатуры
-200:
+
+### POST /api/uex/sync-directories
+
+- Auth: да
+- Права: `directories:write`
+- Описание: забирает номенклатуру из UEX API и синхронизирует локальные справочники
+  `product_types` и `product_names`.
+
+#### Источники данных UEX
+
+- **categories** — запрашиваются всегда:
+  - `GET {UEX_BASE_URL}/categories`
+  - Результат мапится в локальный справочник `product_types`:
+    - `product_types.name` = UEX `section` (раздел),
+    - `product_types.uex_category` = имя категории UEX.
+
+- **items** — запрашиваются в два шага:
+  1. `GET {UEX_BASE_URL}/items?id_company=...`
+  2. Если ответ пустой, fallback по категориям:
+     `GET {UEX_BASE_URL}/items?id_category=<ID>&id_company=...` (для первых N категорий).
+
+`id_company` берётся из окружения:
+
+- `UEX_COMPANY_ID` (приоритетно) или
+- `VITE_UEX_COMPANY_ID`.
+
+#### Маппинг в локальную БД
+
+- Таблица `product_types`:
+  - значения формируются по разделам UEX (section),
+  - используется как справочник «Типы товаров» в интерфейсе.
+
+- Таблица `product_names`:
+  - поле `name` — наименование товара/услуги из UEX;
+  - поле `type` — **всегда одно из значений `product_types.name`** (раздел UEX, например `Services`,
+    `Personal Weapon`, `Liveries`);
+  - поля `uex_id`, `uex_type`, `uex_section`, `uex_category_id`, `uex_category`, `uex_subcategory`, `uex_meta`
+    содержат исходные UEX-данные и метаинформацию.
+
+UEX‑позиции считаются read‑only и не редактируются через UI; пользователь может добавлять свои
+локальные позиции (услуги и т.п.) в `product_names` без `uex_id`.
+
+Успех 200:
 ```json
-{ "base": "aUEC", "rates": { "aUEC": 1, "КП": 0.9 } }
+{
+  "success": true,
+  "syncedAt": "2025-11-18T02:34:12.345Z",
+  "productTypesCreated": 10,
+  "productTypesUpdated": 5,
+  "productNamesCreated": 120,
+  "productNamesUpdated": 40
+}
 ```
+
+## Валюты и курсы
 
 PUT курсов:
 ```bash
