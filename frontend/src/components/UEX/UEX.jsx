@@ -6,6 +6,7 @@ import { DownloadOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { APP_DATA_QUERY_KEY } from '../../lib/queries/appData';
 import * as XLSX from 'xlsx';
+import { compareDropdownStrings } from '../../utils/helpers';
 
 const { Title, Text } = Typography;
 

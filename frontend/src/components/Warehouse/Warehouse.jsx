@@ -35,6 +35,7 @@ import { authService } from '../../services/authService';
 
 // Config
 import { SHOWCASE_STATUSES } from '../../config/appConfig';
+import { compareDropdownStrings } from '../../utils/helpers';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -318,7 +319,10 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       dataIndex: 'productType',
       key: 'productType',
       width: 160,
-      filters: (data.directories.productTypes || []).map((t) => ({ text: t, value: t })),
+      filters: (data.directories.productTypes || [])
+        .slice()
+        .sort((a, b) => compareDropdownStrings(a, b))
+        .map((t) => ({ text: t, value: t })),
       onFilter: (value, record) => record.productType === value,
       render: (v) => v || '-',
     },
@@ -327,10 +331,13 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       dataIndex: 'category',
       key: 'category',
       width: 200,
-      filters: (data.directories.categories || []).map((c) => ({
-        text: c.name || c.id || '-',
-        value: c.name || c.id || '-',
-      })),
+      filters: (data.directories.categories || [])
+        .slice()
+        .sort((a, b) => compareDropdownStrings(a.name || a.id, b.name || b.id))
+        .map((c) => ({
+          text: c.name || c.id || '-',
+          value: c.name || c.id || '-',
+        })),
       onFilter: (value, record) => (record.category || '').toLowerCase() === String(value).toLowerCase(),
       render: (v) => v || '-',
     },
@@ -339,7 +346,10 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       dataIndex: 'warehouseType',
       key: 'warehouseType',
       width: 160,
-      filters: (data.directories.warehouseTypes || []).map((t) => ({ text: t, value: t })),
+      filters: (data.directories.warehouseTypes || [])
+        .slice()
+        .sort((a, b) => compareDropdownStrings(a, b))
+        .map((t) => ({ text: t, value: t })),
       onFilter: (value, record) => record.warehouseType === value,
       render: (v) => v || '-',
     },
@@ -584,11 +594,14 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
         <Form form={form} layout="vertical" onFinish={handleProductSubmit}>
           <Form.Item name="productType" label="Тип">
             <Select placeholder="Выберите тип">
-              {(data.directories.productTypes || []).map((t) => (
-                <Option key={t} value={t}>
-                  {t}
-                </Option>
-              ))}
+              {(data.directories.productTypes || [])
+                .slice()
+                .sort((a, b) => compareDropdownStrings(a, b))
+                .map((t) => (
+                  <Option key={t} value={t}>
+                    {t}
+                  </Option>
+                ))}
             </Select>
           </Form.Item>
 
@@ -598,11 +611,14 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
             rules={[{ required: true, message: 'Выберите склад' }]}
           >
             <Select placeholder="Выберите склад">
-              {(data.directories.warehouseTypes || []).map((t) => (
-                <Option key={t} value={t}>
-                  {t}
-                </Option>
-              ))}
+              {(data.directories.warehouseTypes || [])
+                .slice()
+                .sort((a, b) => compareDropdownStrings(a, b))
+                .map((t) => (
+                  <Option key={t} value={t}>
+                    {t}
+                  </Option>
+                ))}
             </Select>
           </Form.Item>
 
@@ -625,6 +641,8 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                   .map((item) =>
                     typeof item === 'string' ? { name: item, type: undefined } : item
                   )
+                  .slice()
+                  .sort((a, b) => compareDropdownStrings(a.name, b.name))
                   .filter((obj) => {
                     if (!productTypeSelected) return true;
                     // Фильтрация по бизнес-типу или по UEX-категории
@@ -682,11 +700,14 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
             rules={[{ validator: (_, v) => (Array.isArray(v) && v.length > 0 ? Promise.resolve() : Promise.reject(new Error('Выберите хотя бы одну валюту'))) }]}
           >
             <Select mode="multiple" placeholder="Выберите валюты">
-              {data.system.currencies.map((currency) => (
-                <Option key={currency} value={currency}>
-                  {currency}
-                </Option>
-              ))}
+              {data.system.currencies
+                .slice()
+                .sort((a, b) => compareDropdownStrings(a, b))
+                .map((currency) => (
+                  <Option key={currency} value={currency}>
+                    {currency}
+                  </Option>
+                ))}
             </Select>
           </Form.Item>
 
@@ -694,9 +715,12 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
           <Form.Item name="ownerLogin" label="Владелец (логин)">
             {authService.hasPermission('users', 'write') ? (
               <Select showSearch allowClear placeholder="Выберите владельца">
-                {(data.users || []).map((u) => (
-                  <Option key={u.username} value={u.username}>{u.username}</Option>
-                ))}
+                {(data.users || [])
+                  .slice()
+                  .sort((a, b) => compareDropdownStrings(a.username, b.username))
+                  .map((u) => (
+                    <Option key={u.username} value={u.username}>{u.username}</Option>
+                  ))}
               </Select>
             ) : (
               <Input placeholder={userData?.username} value={userData?.username} readOnly />
@@ -708,11 +732,14 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
             label="Валюта отображения (витрина)"
             tooltip="Только для витрины. Можно выбрать несколько. Порядок определяет приоритет." >
             <Select mode="multiple" placeholder="Выберите валюты для витрины">
-              {data.system.currencies.map((currency) => (
-                <Option key={currency} value={currency}>
-                  {currency}
-                </Option>
-              ))}
+              {data.system.currencies
+                .slice()
+                .sort((a, b) => compareDropdownStrings(a, b))
+                .map((currency) => (
+                  <Option key={currency} value={currency}>
+                    {currency}
+                  </Option>
+                ))}
             </Select>
           </Form.Item>
 

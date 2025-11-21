@@ -33,6 +33,7 @@ import { authService } from '../../services/authService';
 
 // Config
 import { USER_ROLES } from '../../config/appConfig';
+import { compareDropdownStrings } from '../../utils/helpers';
 
 const { Option } = Select;
 
@@ -226,7 +227,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
       dataIndex: 'username',
       key: 'username',
       width: 150,
-      sorter: (a, b) => a.username.localeCompare(b.username),
+      sorter: (a, b) => compareDropdownStrings(a.username, b.username),
       ellipsis: true,
       render: (text) => (
         <Tooltip title={text}>
@@ -563,16 +564,22 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
             <Select placeholder="Выберите тип">
               {Array.isArray(data?.directories?.accountTypes) &&
               data.directories.accountTypes.length > 0
-                ? data.directories.accountTypes.map((t) => (
-                    <Option key={t.name} value={t.name}>
-                      {t.name}
-                    </Option>
-                  ))
-                : [USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.GUEST].map((role) => (
-                    <Option key={role} value={role}>
-                      {role}
-                    </Option>
-                  ))}
+                ? data.directories.accountTypes
+                    .slice()
+                    .sort((a, b) => compareDropdownStrings(a.name, b.name))
+                    .map((t) => (
+                      <Option key={t.name} value={t.name}>
+                        {t.name}
+                      </Option>
+                    ))
+                : [USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.GUEST]
+                    .slice()
+                    .sort((a, b) => compareDropdownStrings(a, b))
+                    .map((role) => (
+                      <Option key={role} value={role}>
+                        {role}
+                      </Option>
+                    ))}
             </Select>
           </Form.Item>
 

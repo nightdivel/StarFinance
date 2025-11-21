@@ -21,6 +21,7 @@ import { apiService } from '../../services/apiService';
 import { authService } from '../../services/authService';
 import { PERMISSIONS } from '../../config/appConfig';
 import TableWithFullscreen from '../common/TableWithFullscreen';
+import { compareDropdownStrings } from '../../utils/helpers';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -66,7 +67,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
         items,
       })),
     { key: 'discordScopes', name: getDirectoryName('discordScopes'), itemCount: scopes.length, items: scopes },
-  ];
+  ].sort((a, b) => compareDropdownStrings(a.name, b.name));
 
   // Add item to directory (все справочники через API)
   const addDirectoryItem = async (directoryKey, newItem) => {
@@ -461,12 +462,15 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                       width: 200,
                     },
                   ];
-                  dataSource = (data.directories.categories || []).map((c, idx) => ({
-                    key: idx,
-                    id: c.id,
-                    name: c.name,
-                    section: c.section,
-                  }));
+                  dataSource = (data.directories.categories || [])
+                    .slice()
+                    .sort((a, b) => compareDropdownStrings(a.name || a.id, b.name || b.id))
+                    .map((c, idx) => ({
+                      key: idx,
+                      id: c.id,
+                      name: c.name,
+                      section: c.section,
+                    }));
                 } else if (key === 'discordScopes') {
                   columns = [
                     {
@@ -476,14 +480,22 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                       title: 'Действия', key: 'actions', width: 120, align: 'center',
                       render: (_, __, index) => (
                         <Space>
-                          <Button size="small" type="text" danger icon={<DeleteOutlined />} disabled={!canWrite}
+                          <Button
+                            size="small"
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            disabled={!canWrite}
                             onClick={() => removeDirectoryItem(key, index)}
                           />
                         </Space>
                       ),
                     },
                   ];
-                  dataSource = scopes.map((s, idx) => ({ key: idx, value: s }));
+                  dataSource = scopes
+                    .slice()
+                    .sort((a, b) => compareDropdownStrings(a, b))
+                    .map((s, idx) => ({ key: idx, value: s }));
                 } else {
                   // Простые справочники как таблица из одной колонки
                   columns = [
@@ -507,7 +519,10 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                       ),
                     },
                   ];
-                  dataSource = (data.directories[key] || []).map((it, idx) => ({ key: idx, value: it }));
+                  dataSource = (data.directories[key] || [])
+                    .slice()
+                    .sort((a, b) => compareDropdownStrings(a, b))
+                    .map((it, idx) => ({ key: idx, value: it }));
                 }
 
                 // Глобальный поиск по текущей таблице
@@ -578,9 +593,12 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
 
                             <Form.Item name="allowedWarehouseTypes" label="Склад (разрешенные типы)">
                               <Select mode="multiple" placeholder="Выберите типы склада">
-                                {(data.directories.warehouseTypes || []).map((t) => (
-                                  <Option key={t} value={t}>{t}</Option>
-                                ))}
+                                {(data.directories.warehouseTypes || [])
+                                  .slice()
+                                  .sort((a, b) => compareDropdownStrings(a, b))
+                                  .map((t) => (
+                                    <Option key={t} value={t}>{t}</Option>
+                                  ))}
                               </Select>
                             </Form.Item>
 
@@ -617,11 +635,14 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                                   rules={[{ required: true, message: 'Выберите тип товара' }]}
                                 >
                                   <Select placeholder="Выберите тип">
-                                    {(data.directories.productTypes || []).map((t) => (
-                                      <Option key={t} value={t}>
-                                        {t}
-                                      </Option>
-                                    ))}
+                                    {(data.directories.productTypes || [])
+                                      .slice()
+                                      .sort((a, b) => compareDropdownStrings(a, b))
+                                      .map((t) => (
+                                        <Option key={t} value={t}>
+                                          {t}
+                                        </Option>
+                                      ))}
                                   </Select>
                                 </Form.Item>
                               </Col>

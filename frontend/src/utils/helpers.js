@@ -32,6 +32,33 @@ export const formatDate = (date, format = 'DD.MM.YYYY HH:mm:ss') => {
   return format.replace(/YYYY|MM|DD|HH|mm|ss/g, (match) => replacements[match]);
 };
 
+// Locale-aware string compare for dropdowns: 0-9, А-Я, A-Z
+export const compareDropdownStrings = (a, b) => {
+  const sa = String(a ?? '').trim();
+  const sb = String(b ?? '').trim();
+  if (!sa && !sb) return 0;
+  if (!sa) return 1;
+  if (!sb) return -1;
+
+  const isDigit = (ch) => /[0-9]/.test(ch);
+  const isCyr = (ch) => /[\u0400-\u04FF]/.test(ch);
+  const isLat = (ch) => /[A-Za-z]/.test(ch);
+
+  const cat = (s) => {
+    const ch = s[0];
+    if (isDigit(ch)) return 0;
+    if (isCyr(ch)) return 1;
+    if (isLat(ch)) return 2;
+    return 3;
+  };
+
+  const ca = cat(sa);
+  const cb = cat(sb);
+  if (ca !== cb) return ca - cb;
+
+  return sa.localeCompare(sb, 'ru-RU', { sensitivity: 'base' });
+};
+
 // Debounce function
 export const debounce = (func, wait) => {
   let timeout;

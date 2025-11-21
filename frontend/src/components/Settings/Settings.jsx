@@ -20,6 +20,7 @@ import {
   Upload,
   Checkbox,
 } from 'antd';
+import { compareDropdownStrings } from '../../utils/helpers';
 
 import { SettingOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 
@@ -516,13 +517,14 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     rules={[{ required: true, message: 'Выберите базовую валюту' }]}
                   >
                     <Select placeholder="Выберите валюту" disabled={!canWrite}>
-                      {(form.getFieldValue('currencies') || data?.system.currencies || []).map(
-                        (currency) => (
+                      {(form.getFieldValue('currencies') || data?.system.currencies || [])
+                        .slice()
+                        .sort((a, b) => compareDropdownStrings(a, b))
+                        .map((currency) => (
                           <Option key={currency} value={currency}>
                             {currency}
                           </Option>
-                        )
-                      )}
+                        ))}
                     </Select>
                   </Form.Item>
                 </Col>
@@ -614,8 +616,10 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
 
               <Form.Item label="Курсы обмена">
                 <div style={{ display: 'grid', gap: 12 }}>
-                  {(form.getFieldValue('currencies') || data?.system.currencies || []).map(
-                    (currency) => (
+                  {(form.getFieldValue('currencies') || data?.system.currencies || [])
+                    .slice()
+                    .sort((a, b) => compareDropdownStrings(a, b))
+                    .map((currency) => (
                       <Row key={currency} gutter={16} align="middle">
                         <Col span={6}>
                           <Text strong>{currency}</Text>

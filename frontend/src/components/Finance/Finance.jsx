@@ -27,6 +27,7 @@ import { authService } from '../../services/authService';
 
 // Config
 import { CURRENCY_FORMAT } from '../../config/appConfig';
+import { compareDropdownStrings } from '../../utils/helpers';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -562,7 +563,10 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
         draggableHandle=".card-draggable"
       >
         <div key="stats" style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-          {data.system.currencies.map((currency) => (
+          {data.system.currencies
+            .slice()
+            .sort((a, b) => compareDropdownStrings(a, b))
+            .map((currency) => (
             <Card key={currency} size="small" style={{ minWidth: 220, flex: '1 1 220px' }} title={<span className="card-draggable" style={{ cursor: 'move' }}>Баланс ({currency})</span>}>
               <Statistic
                 value={balances[currency]}
@@ -639,7 +643,10 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
             title={<span className="card-draggable" style={{ cursor: 'move' }}>Валюты</span>}
             tableProps={{
               columns: currencyColumns,
-              dataSource: data.system.currencies.map((c) => ({ currency: c })),
+              dataSource: data.system.currencies
+                .slice()
+                .sort((a, b) => compareDropdownStrings(a, b))
+                .map((c) => ({ currency: c })),
               rowKey: "currency",
               pagination: false,
               scroll: { y: 400 },
@@ -693,11 +700,14 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
             rules={[{ required: true, message: 'Выберите валюту' }]}
           >
             <Select placeholder="Выберите валюту">
-              {data.system.currencies.map((currency) => (
-                <Option key={currency} value={currency}>
-                  {currency}
-                </Option>
-              ))}
+              {data.system.currencies
+                .slice()
+                .sort((a, b) => compareDropdownStrings(a, b))
+                .map((currency) => (
+                  <Option key={currency} value={currency}>
+                    {currency}
+                  </Option>
+                ))}
             </Select>
           </Form.Item>
 
@@ -715,7 +725,10 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
           >
             <AutoComplete
               allowClear
-              options={(data.users || []).map((u) => ({ value: u.username }))}
+              options={(data.users || [])
+                .slice()
+                .sort((a, b) => compareDropdownStrings(a.username, b.username))
+                .map((u) => ({ value: u.username }))}
               placeholder={txType === 'income' ? 'Логин отправителя' : 'Логин получателя'}
               filterOption={(inputValue, option) =>
                 String(option?.value || '').toLowerCase().includes(String(inputValue).toLowerCase())
