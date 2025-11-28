@@ -3,13 +3,11 @@ services:
     build: .
     container_name: economy_app
     restart: always
-    ports:
-      - "8081:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
-      FRONTEND_URL: https://korjeek.ru/economy
-      DISCORD_REDIRECT_URI: https://korjeek.ru/economy/auth/discord/callback
+      FRONTEND_URL: ${FRONTEND_URL}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI}
       PG_HOST: postgres
       PG_PORT: 5432
       PG_DATABASE: starfinance
@@ -49,6 +47,25 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+  caddy:
+    image: caddy:2
+    container_name: economy_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN}
+      - EMAIL=${EMAIL}
+    depends_on:
+      economy:
+        condition: service_healthy
 
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,16 @@
+{$DOMAIN} {
+  encode gzip
+
+  tls {$EMAIL}
+
+  @health {
+    path /health
+  }
+
+  handle @health {
+    reverse_proxy economy:3000
+  }
+
+  # По умолчанию проксируем всё приложение на backend
+  reverse_proxy economy:3000
+}
