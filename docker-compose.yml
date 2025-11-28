@@ -8,8 +8,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      FRONTEND_URL: http://77.37.200.234
-      DISCORD_REDIRECT_URI: http://77.37.200.234/auth/discord/callback
+      FRONTEND_URL: https://korjeek.ru/economy
+      DISCORD_REDIRECT_URI: https://korjeek.ru/economy/auth/discord/callback
       PG_HOST: postgres
       PG_PORT: 5432
       PG_DATABASE: starfinance
@@ -49,19 +49,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
-
-    nginx:
-      image: nginx:alpine
-      ports:
-        - "80:80"
-        - "443:443"
-      volumes:
-        - ./nginx.conf:/etc/nginx/nginx.conf
-        - ./ssl:/etc/ssl/certs
-      depends_on:
-        economy:
-          condition: service_healthy
-      restart: unless-stopped
 
 volumes:
   pgdata:
