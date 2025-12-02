@@ -18,9 +18,9 @@ RUN npm install \
 # Copy full source code
 COPY . .
 
-# Build frontend for root path
-ENV BASE_PATH=/
-ENV VITE_API_BASE_URL=/
+# Build frontend for /economy path
+ENV BASE_PATH=/economy/
+ENV VITE_API_BASE_URL=/economy
 RUN cd frontend && npm run build
 
 EXPOSE 3000
