@@ -16,12 +16,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 0"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
     logging:
       driver: json-file
       options:
@@ -47,25 +41,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
-  caddy:
-    image: caddy:2
-    container_name: economy_caddy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    environment:
-      - DOMAIN=${DOMAIN}
-      - EMAIL=${EMAIL}
-    depends_on:
-      economy:
-        condition: service_healthy
 
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:
