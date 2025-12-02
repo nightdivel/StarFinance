@@ -328,6 +328,23 @@ class ApiService {
     return this.request('/api/system/auth/background', { method: 'DELETE' });
   }
 
+  // ----- Auth icon management -----
+  // Public metadata (no auth needed)
+  getAuthIconMeta() {
+    return this.request('/public/auth/icon', { method: 'GET' });
+  }
+  // Admin: set icon from data URL (PNG/JPEG/WebP)
+  setAuthIcon(dataUrl) {
+    return this.request('/api/system/auth/icon', {
+      method: 'PUT',
+      body: JSON.stringify({ dataUrl }),
+    });
+  }
+  // Admin: delete icon
+  deleteAuthIcon() {
+    return this.request('/api/system/auth/icon', { method: 'DELETE' });
+  }
+
 }
 
 export default ApiService;

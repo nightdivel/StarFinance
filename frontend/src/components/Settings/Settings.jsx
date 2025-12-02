@@ -49,6 +49,9 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
   // Auth background state
   const [authBgUrl, setAuthBgUrl] = useState(null);
   const [authBgLoading, setAuthBgLoading] = useState(false);
+  // Auth icon state
+  const [authIconUrl, setAuthIconUrl] = useState(null);
+  const [authIconLoading, setAuthIconLoading] = useState(false);
 
   useEffect(() => {
     setCanWrite(authService.hasPermission('settings', 'write'));
@@ -142,6 +145,17 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
           ? apiService.buildUrl(url)
           : (url || null);
         setAuthBgUrl(normalized);
+      } catch (_) {}
+    })();
+    // Fetch current auth icon meta (public)
+    (async () => {
+      try {
+        const meta = await apiService.getAuthIconMeta();
+        const url = meta?.url;
+        const normalized = typeof url === 'string' && url.startsWith('/')
+          ? apiService.buildUrl(url)
+          : (url || null);
+        setAuthIconUrl(normalized);
       } catch (_) {}
     })();
     // Загрузим справочник scopes и существующие маппинги
@@ -733,6 +747,76 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <img src={authBgUrl} alt="Auth background" style={{ maxWidth: 220, maxHeight: 120, objectFit: 'cover', borderRadius: 8, border: '1px solid #eee' }} />
                     <Button type="primary" size="small" onClick={() => window.open(authBgUrl, '_blank')}>Открыть</Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Auth Icon Upload */}
+              <Divider />
+              <Title level={5}>Иконка формы авторизации</Title>
+              <Text type="secondary">
+                Поддерживаются PNG, JPEG, WebP. Максимальный размер файла — 15 MB. Иконка отображается над логотипом BLSK Star Finance.
+              </Text>
+              <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (!/image\/(png|jpeg|jpg|webp)/i.test(file.type)) {
+                      message.error('Допускаются только PNG/JPEG/WebP');
+                      return;
+                    }
+                    if (file.size > 15000 * 1024) {
+                      message.error('Размер файла превышает 15MB');
+                      return;
+                    }
+                    setAuthIconLoading(true);
+                    try {
+                      const reader = new FileReader();
+                      const dataUrl = await new Promise((resolve, reject) => {
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                      });
+                      await apiService.setAuthIcon(String(dataUrl));
+                      const meta = await apiService.getAuthIconMeta();
+                      const url = meta?.url;
+                      const normalized = typeof url === 'string' && url.startsWith('/')
+                        ? apiService.buildUrl(url)
+                        : (url || null);
+                      setAuthIconUrl(normalized);
+                      message.success('Иконка обновлена');
+                    } catch (err) {
+                      message.error('Не удалось загрузить иконку');
+                    } finally {
+                      setAuthIconLoading(false);
+                      e.target.value = '';
+                    }
+                  }}
+                  disabled={!canWrite || authIconLoading}
+                />
+                <Button
+                  danger
+                  onClick={async () => {
+                    setAuthIconLoading(true);
+                    try {
+                      await apiService.deleteAuthIcon();
+                      setAuthIconUrl(null);
+                      message.success('Иконка удалена');
+                    } catch (_) {
+                      message.error('Не удалось удалить иконку');
+                    } finally { setAuthIconLoading(false); }
+                  }}
+                  disabled={!canWrite || authIconLoading || !authIconUrl}
+                >
+                  Удалить иконку
+                </Button>
+                {authIconUrl && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <img src={authIconUrl} alt="Auth icon" style={{ maxWidth: 96, maxHeight: 96, objectFit: 'contain', borderRadius: 8, border: '1px solid #eee' }} />
+                    <Button type="primary" size="small" onClick={() => window.open(authIconUrl, '_blank')}>Открыть</Button>
                   </div>
                 )}
               </div>

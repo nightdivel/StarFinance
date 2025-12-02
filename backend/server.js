@@ -435,11 +435,19 @@ app.use((req, res, next) => {
 // ---- Auth page background (public GET, admin PUT/DELETE) ----
 // Storage path: backend/public/auth-bg.<ext>
 const AUTH_BG_NAME = 'auth-bg';
+const AUTH_ICON_NAME = 'auth-icon';
 const AUTH_PUBLIC_DIR = path.join(__dirname, 'public');
 async function getAuthBgFile() {
   try {
     const files = await fs.readdir(AUTH_PUBLIC_DIR).catch(() => []);
     const f = files.find((n) => /^auth-bg\.(png|jpe?g|webp)$/i.test(n));
+    return f ? path.join(AUTH_PUBLIC_DIR, f) : null;
+  } catch (_) { return null; }
+}
+async function getAuthIconFile() {
+  try {
+    const files = await fs.readdir(AUTH_PUBLIC_DIR).catch(() => []);
+    const f = files.find((n) => /^auth-icon\.(png|jpe?g|webp)$/i.test(n));
     return f ? path.join(AUTH_PUBLIC_DIR, f) : null;
   } catch (_) { return null; }
 }
@@ -458,11 +466,38 @@ app.get('/public/auth/background', async (req, res) => {
   }
 });
 
+// Public metadata endpoint for auth icon
+app.get('/public/auth/icon', async (req, res) => {
+  try {
+    const filePath = await getAuthIconFile();
+    if (!filePath) return res.json({ url: null, updatedAt: null });
+    const stat = await fs.stat(filePath).catch(() => null);
+    const fileName = path.basename(filePath);
+    return res.json({ url: `/public/auth/icon/file/${encodeURIComponent(fileName)}`, updatedAt: stat ? stat.mtimeMs : null });
+  } catch (e) {
+    return res.json({ url: null, updatedAt: null });
+  }
+});
+
 // Public file sender
 app.get('/public/auth/background/file/:name', async (req, res) => {
   try {
     const name = req.params.name;
     if (!/^auth-bg\.(png|jpe?g|webp)$/i.test(name)) return res.status(404).end();
+    const filePath = path.join(AUTH_PUBLIC_DIR, name);
+    const exists = await fs.stat(filePath).catch(() => null);
+    if (!exists) return res.status(404).end();
+    res.sendFile(filePath);
+  } catch (e) {
+    res.status(500).end();
+  }
+});
+
+// Public file sender for auth icon
+app.get('/public/auth/icon/file/:name', async (req, res) => {
+  try {
+    const name = req.params.name;
+    if (!/^auth-icon\.(png|jpe?g|webp)$/i.test(name)) return res.status(404).end();
     const filePath = path.join(AUTH_PUBLIC_DIR, name);
     const exists = await fs.stat(filePath).catch(() => null);
     if (!exists) return res.status(404).end();
@@ -530,6 +565,59 @@ app.delete('/api/system/auth/background', authenticateToken, requirePermission('
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: 'Ошибка удаления фона' });
+  }
+});
+
+// Admin: set icon. Body: { dataUrl: 'data:image/png;base64,...' }
+app.put('/api/system/auth/icon', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    const { dataUrl } = req.body || {};
+    if (!dataUrl || typeof dataUrl !== 'string') {
+      return res.status(400).json({ error: 'Некорректные данные изображения' });
+    }
+    if (!dataUrl.startsWith('data:image/')) {
+      return res.status(400).json({ error: 'Ожидается data:image/*;base64,...' });
+    }
+    const headerEnd = dataUrl.indexOf(',');
+    if (headerEnd < 0) return res.status(400).json({ error: 'Неверный формат data URL' });
+    const header = dataUrl.slice(0, headerEnd);
+    const b64 = dataUrl.slice(headerEnd + 1);
+    const mimeMatch = header.match(/^data:image\/([^;]+)(;.*)?;base64$/i);
+    if (!mimeMatch) return res.status(400).json({ error: 'Неверный заголовок data URL (нет ;base64)' });
+    const subtype = String(mimeMatch[1] || '').toLowerCase();
+    let ext;
+    if (subtype === 'png') ext = 'png';
+    else if (subtype === 'webp') ext = 'webp';
+    else if (subtype === 'jpeg' || subtype === 'jpg' || subtype === 'pjpeg' || subtype === 'jfif') ext = 'jpeg';
+    else return res.status(400).json({ error: 'Поддерживаются PNG/JPEG/WebP (base64)' });
+    const buf = Buffer.from(b64, 'base64');
+    if (buf.length > 15000 * 1024) return res.status(413).json({ error: 'Размер изображения превышает 15MB' });
+    await fs.mkdir(AUTH_PUBLIC_DIR, { recursive: true }).catch(() => {});
+    try {
+      for (const e of ['png','jpg','jpeg','webp']) {
+        const p = path.join(AUTH_PUBLIC_DIR, `${AUTH_ICON_NAME}.${e}`);
+        await fs.unlink(p).catch(() => {});
+      }
+    } catch (_) {}
+    const target = path.join(AUTH_PUBLIC_DIR, `${AUTH_ICON_NAME}.${ext}`);
+    await fs.writeFile(target, buf);
+    return res.json({ success: true, url: `/public/auth/icon/file/${AUTH_ICON_NAME}.${ext}` });
+  } catch (e) {
+    console.error('PUT /api/system/auth/icon error:', e);
+    return res.status(500).json({ error: 'Ошибка сохранения иконки' });
+  }
+});
+
+// Admin: delete icon
+app.delete('/api/system/auth/icon', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    for (const e of ['png','jpg','jpeg','webp']) {
+      const p = path.join(AUTH_PUBLIC_DIR, `${AUTH_ICON_NAME}.${e}`);
+      await fs.unlink(p).catch(() => {});
+    }
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: 'Ошибка удаления иконки' });
   }
 });
 app.locals.io = io;

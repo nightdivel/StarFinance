@@ -14,6 +14,7 @@ const Auth = ({ onLogin }) => {
   const [serverDiscordEnabled, setServerDiscordEnabled] = useState(false);
   const [discordLoginUrl, setDiscordLoginUrl] = useState('');
   const [authBgUrl, setAuthBgUrl] = useState(null);
+  const [authIconUrl, setAuthIconUrl] = useState(null);
   const [form] = Form.useForm();
   const authService = new AuthService();
 
@@ -38,6 +39,15 @@ const Auth = ({ onLogin }) => {
           : (url || null);
         setAuthBgUrl(normalized);
       } catch (_) {}
+      // Получим иконку формы авторизации (публичные метаданные)
+      try {
+        const metaIcon = await apiService.getAuthIconMeta();
+        const url = metaIcon?.url;
+        const normalized = typeof url === 'string' && url.startsWith('/')
+          ? apiService.buildUrl(url)
+          : (url || null);
+        setAuthIconUrl(normalized);
+      } catch (_) {}
     })();
   }, []);
 
@@ -60,6 +70,15 @@ const Auth = ({ onLogin }) => {
     <div className="auth-container" style={authBgUrl ? { backgroundImage: `url(${authBgUrl})` } : undefined}>
       <Card className="auth-card">
         <div className="auth-header">
+          {authIconUrl && (
+            <div style={{ marginBottom: 12 }}>
+              <img
+                src={authIconUrl}
+                alt="Auth icon"
+                style={{ maxWidth: 96, maxHeight: 96, objectFit: 'contain' }}
+              />
+            </div>
+          )}
           <Title level={2}>BLSK Star Finance</Title>
           <Text type="secondary">Система управления финансами и складом</Text>
         </div>
