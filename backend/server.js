@@ -37,17 +37,21 @@ function buildDiscordAuthorizeUrl(eff) {
 }
 
 const app = express();
+// behind reverse proxy (Caddy/Nginx) trust X-Forwarded-* to correctly detect https and client IP
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: true, credentials: true },
 });
 
 // CORS configuration (apply only to API/auth/public/health, not to static assets)
-// Универсальный режим: разрешаем любые Origin (для доступа с любого домена/IP)
+// Dev: разрешаем любые Origin. Prod: ограничиваем до FRONTEND_URL
+const isProd = process.env.NODE_ENV === 'production';
+const strictOrigin = (SERVER_CONFIG.FRONTEND_URL && SERVER_CONFIG.FRONTEND_URL !== '*')
+  ? SERVER_CONFIG.FRONTEND_URL
+  : undefined;
 const corsOptions = {
-  origin: function (_origin, callback) {
-    return callback(null, true);
-  },
+  origin: isProd && strictOrigin ? strictOrigin : true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],

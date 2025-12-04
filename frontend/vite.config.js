@@ -24,6 +24,14 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       host: '0.0.0.0',
       https: httpsConfig,
+      // HMR по WSS при включённом HTTPS
+      hmr: httpsConfig
+        ? {
+            protocol: 'wss',
+            host: 'localhost',
+            port: 5173,
+          }
+        : undefined,
       proxy: {
         '/api': {
           target: 'http://localhost:3000',
@@ -47,7 +55,6 @@ export default defineConfig(({ mode }) => {
           ws: true, // Включаем поддержку WebSocket
           changeOrigin: true,
           secure: false, // Отключаем проверку SSL для прокси
-          ws: true,
         },
         // Static flags/endpoints served by backend
         '/public': {
