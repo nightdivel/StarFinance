@@ -7,14 +7,28 @@
     Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
   }
 
-  @health {
-    path /health
+  # API/auth/ws/health под префиксом /economy -> backend (срезаем префикс)
+  @api path /economy/api* /economy/auth* /economy/socket.io* /economy/health
+  handle @api {
+    uri strip_prefix /economy
+    reverse_proxy economy:3000
   }
 
+  # Отдаём фронтенд как статику под /economy
+  handle_path /economy* {
+    root * /srv/frontend
+    try_files {path} /economy/index.html
+    file_server
+  }
+
+  # Прямой health без префикса (опционально)
+  @health path /health
   handle @health {
     reverse_proxy economy:3000
   }
 
-  # По умолчанию проксируем всё приложение на backend
-  reverse_proxy economy:3000
+  # Остальное — 404
+  handle {
+    respond 404
+  }
 }
