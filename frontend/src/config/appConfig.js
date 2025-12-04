@@ -20,6 +20,7 @@ export const APP_CONFIG = {
       CHANGE_PASSWORD: '/api/change-password',
       USERS: '/api/users',
       DISCORD_AUTH: '/auth/discord',
+      ECONOMY: '/economy',
     },
     TIMEOUT: 10000,
     RETRY_ATTEMPTS: 3,
