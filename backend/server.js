@@ -2975,8 +2975,12 @@ function getDiscordCallbackPathFromRedirect(redirectUri) {
     if (!redirectUri || typeof redirectUri !== 'string') return '/auth/discord/callback';
     const url = new URL(redirectUri);
     const p = url.pathname || '/auth/discord/callback';
-    // Используем путь из redirectUri как есть, чтобы совпадал с настройками Discord
-    // и маршрутом прокси (включая возможный префикс вроде /economy).
+    // Если внешний путь имеет префикс (например, /economy/auth/discord/callback), но
+    // сам callback внутри приложения обслуживается без префикса, то регистрируем
+    // роут именно как '/auth/discord/callback'.
+    if (p.endsWith('/auth/discord/callback')) {
+      return '/auth/discord/callback';
+    }
     return p;
   } catch {
     return '/auth/discord/callback';
