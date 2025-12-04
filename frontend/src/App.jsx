@@ -38,41 +38,117 @@ function App() {
     // Проверка наличия токена в URL (после Discord OAuth)
     const params = new URLSearchParams(window.location.search);
     const urlToken = params.get('token');
+    const authStatus = params.get('auth');
+    
+    console.log('URL Params:', { token: !!urlToken, authStatus });
+    
     if (urlToken) {
-      try { localStorage.setItem('authToken', urlToken); } catch (_) {}
-      fetch(`${API_BASE_URL ? API_BASE_URL : ''}/auth/profile`, { headers: { Authorization: `Bearer ${urlToken}` } })
-        .then((r) => {
-          if (!r.ok) throw new Error('Не удалось получить профиль');
-          return r.json();
-        })
-        .then((profile) => {
-          const user = {
-            username: profile.username,
-            accountType: profile.accountType,
-            permissions: profile.permissions || {},
-            offline: false,
-            avatarUrl: profile.avatarUrl || null,
-          };
-          setIsAuthenticated(true);
-          setUserData(user);
-          
-          try { localStorage.setItem('userData', JSON.stringify(user)); } catch (_) {}
-        })
-        .catch(() => { /* ignore */ })
-        .finally(() => {
-          const url = new URL(window.location.href);
-          url.search = '';
-          window.history.replaceState({}, document.title, url.toString());
-        });
+      console.log('Found token in URL, attempting authentication...');
+      
+      // Сохраняем токен
+      try { 
+        localStorage.setItem('authToken', urlToken);
+        console.log('Token saved to localStorage');
+      } catch (error) {
+        console.error('Failed to save token to localStorage:', error);
+      }
+      
+      // Получаем профиль пользователя
+      const profileUrl = `${API_BASE_URL ? API_BASE_URL : ''}/auth/profile`;
+      console.log('Fetching profile from:', profileUrl);
+      
+      fetch(profileUrl, { 
+        headers: { 
+          'Authorization': `Bearer ${urlToken}`,
+          'Accept': 'application/json'
+        }
+      })
+      .then(async (response) => {
+        console.log('Profile response status:', response.status);
+        const responseText = await response.text();
+        
+        if (!response.ok) {
+          console.error('Profile request failed:', response.status, response.statusText, responseText);
+          throw new Error(`Ошибка сервера: ${response.status} ${response.statusText}`);
+        }
+        
+        try {
+          return JSON.parse(responseText);
+        } catch (e) {
+          console.error('Failed to parse profile response:', e, 'Response:', responseText);
+          throw new Error('Неверный формат ответа от сервера');
+        }
+      })
+      .then((profile) => {
+        console.log('Profile data received:', profile);
+        
+        if (!profile || !profile.username) {
+          throw new Error('Неверный формат профиля пользователя');
+        }
+        
+        const user = {
+          username: profile.username,
+          accountType: profile.accountType,
+          permissions: profile.permissions || {},
+          offline: false,
+          avatarUrl: profile.avatarUrl || null,
+        };
+        
+        console.log('Setting user data and authentication state');
+        setIsAuthenticated(true);
+        setUserData(user);
+        
+        try { 
+          localStorage.setItem('userData', JSON.stringify(user));
+          console.log('User data saved to localStorage');
+        } catch (error) {
+          console.error('Failed to save user data to localStorage:', error);
+        }
+      })
+      .catch((error) => {
+        console.error('Authentication error:', error);
+        // Показываем сообщение об ошибке пользователю
+        message.error(error.message || 'Ошибка входа через Discord');
+        // Очищаем невалидный токен
+        localStorage.removeItem('authToken');
+      })
+      .finally(() => {
+        // Очищаем URL от параметров аутентификации
+        const url = new URL(window.location.href);
+        url.search = '';
+        window.history.replaceState({}, document.title, url.toString());
+        console.log('URL cleaned up');
+      });
+    } else if (authStatus === 'error') {
+      // Обработка ошибки аутентификации
+      const errorMessage = params.get('message') || 'Неизвестная ошибка аутентификации';
+      console.error('Authentication error from server:', errorMessage);
+      message.error(`Ошибка входа: ${errorMessage}`);
+      
+      // Очищаем URL от параметров ошибки
+      const url = new URL(window.location.href);
+      url.search = '';
+      window.history.replaceState({}, document.title, url.toString());
     } else {
       // Восстановление локальной сессии
       const token = localStorage.getItem('authToken');
       const savedUserData = localStorage.getItem('userData');
+      
       if (token && savedUserData) {
-        const user = JSON.parse(savedUserData);
-        setIsAuthenticated(true);
-        setUserData(user);
-        
+        console.log('Restoring session from localStorage');
+        try {
+          const user = JSON.parse(savedUserData);
+          setIsAuthenticated(true);
+          setUserData(user);
+          console.log('Session restored successfully');
+        } catch (error) {
+          console.error('Failed to parse saved user data:', error);
+          // Очищаем повреждённые данные
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userData');
+        }
+      } else {
+        console.log('No active session found');
       }
     }
   }, [API_BASE_URL]);
