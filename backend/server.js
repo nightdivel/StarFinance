@@ -3327,9 +3327,27 @@ function getDiscordFrontendBaseFromRedirect(redirectUri) {
         );
       } catch (error) {
         console.error('Discord OAuth error:', error.response?.data || error.message);
-        res.redirect(
-          `${SERVER_CONFIG.FRONTEND_URL}/?auth=error&message=Authentication failed`
-        );
+        try {
+          const status = error?.response?.status;
+          const body = error?.response?.data;
+          const errCode =
+            (body && typeof body.error === 'string' && body.error) ||
+            (body && (body.code !== undefined && String(body.code))) ||
+            (status ? `http_${status}` : 'unknown');
+          const errDesc =
+            (body && typeof body.error_description === 'string' && body.error_description) ||
+            (body && typeof body.message === 'string' && body.message) ||
+            (typeof error?.message === 'string' && error.message) ||
+            'Authentication failed';
+          const url = `${SERVER_CONFIG.FRONTEND_URL}/?auth=error&message=${encodeURIComponent('Authentication failed')}` +
+            `&err=${encodeURIComponent(errCode)}` +
+            `&desc=${encodeURIComponent(errDesc)}`;
+          res.redirect(url);
+        } catch (_) {
+          res.redirect(
+            `${SERVER_CONFIG.FRONTEND_URL}/?auth=error&message=Authentication failed`
+          );
+        }
       }
     });
   } catch (e) {
