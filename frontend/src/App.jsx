@@ -39,8 +39,10 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const urlToken = params.get('token');
     const authStatus = params.get('auth');
+    const errCode = params.get('err');
+    const errDesc = params.get('desc');
     
-    console.log('URL Params:', { token: !!urlToken, authStatus });
+    console.log('URL Params:', { token: !!urlToken, authStatus, err: errCode || null, desc: errDesc || null });
     
     if (urlToken) {
       console.log('Found token in URL, attempting authentication...');
@@ -122,8 +124,14 @@ function App() {
     } else if (authStatus === 'error') {
       // Обработка ошибки аутентификации
       const errorMessage = params.get('message') || 'Неизвестная ошибка аутентификации';
-      console.error('Authentication error from server:', errorMessage);
-      message.error(`Ошибка входа: ${errorMessage}`);
+      const details = [errCode, errDesc].filter(Boolean).join(': ');
+      if (details) {
+        console.error('Authentication error from server:', errorMessage, '| Details:', details);
+        message.error(`Ошибка входа: ${errorMessage} (${details})`);
+      } else {
+        console.error('Authentication error from server:', errorMessage);
+        message.error(`Ошибка входа: ${errorMessage}`);
+      }
       
       // Очищаем URL от параметров ошибки
       const url = new URL(window.location.href);
