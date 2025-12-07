@@ -3624,10 +3624,13 @@ app.put(
             : eff.redirectUri || '',
         defaultAccountType: eff.defaultAccountType || 'Гость',
       };
-      // Base URL policy: only store explicitly provided non-empty string; else keep existing
-      const baseUrl = (typeof baseUrlIn === 'string' && baseUrlIn.trim() !== '')
-        ? baseUrlIn.trim()
-        : (eff.baseUrl || '');
+      // Base URL policy: if provided (even empty string), store as-is; if not provided, keep existing
+      let baseUrl;
+      if (baseUrlIn !== undefined) {
+        baseUrl = (typeof baseUrlIn === 'string') ? baseUrlIn.trim() : '';
+      } else {
+        baseUrl = eff.baseUrl || '';
+      }
       // Ensure DB columns exist (light auto-migration)
       try {
         await query('ALTER TABLE discord_settings ADD COLUMN IF NOT EXISTS base_url text');
