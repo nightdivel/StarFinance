@@ -30,7 +30,7 @@ try {
   console.log('✅ Private key generated successfully');
   
   // Generate self-signed certificate
-  execSync(`openssl req -new -x509 -key "${keyPath}" -out "${certPath}" -days 365 -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"`);
+  execSync(`openssl req -new -x509 -key "${keyPath}" -out "${certPath}" -days 365 -subj "/CN=http://blsk.fin-tech.com/" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"`);
   console.log('✅ Certificate generated successfully');
   
   console.log('\n✅ Certificates successfully generated:');
