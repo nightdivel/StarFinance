@@ -3045,7 +3045,7 @@ function getDiscordFrontendBaseFromRedirect(redirectUri) {
           {
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
-              'Accept-Encoding': 'application/json',
+              'Accept': 'application/json',
             },
           }
         );
@@ -3053,7 +3053,7 @@ function getDiscordFrontendBaseFromRedirect(redirectUri) {
         const userResponse = await axios.get('https://discord.com/api/users/@me', {
           headers: {
             Authorization: `Bearer ${tokenResponse.data.access_token}`,
-            'Accept-Encoding': 'application/json',
+            'Accept': 'application/json',
           },
         });
 
