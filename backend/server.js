@@ -533,7 +533,7 @@ app.put('/api/system/auth/background', authenticateToken, requirePermission('set
     let ext;
     if (subtype === 'png') ext = 'png';
     else if (subtype === 'webp') ext = 'webp';
-    else if (subtype === 'svg' || subtype === 'jpg' || subtype === 'psvg' || subtype === 'jfif') ext = 'svg';
+    else if (subtype === 'svg' || subtype === 'svg+xml' || subtype === 'jpg' || subtype === 'psvg' || subtype === 'jfif') ext = 'svg';
     else return res.status(400).json({ error: 'Поддерживаются PNG/svg/WebP (base64)' });
     // Size limit ~15 MB (15000 KB)
     const buf = Buffer.from(b64, 'base64');
