@@ -444,14 +444,14 @@ const AUTH_PUBLIC_DIR = path.join(__dirname, 'public');
 async function getAuthBgFile() {
   try {
     const files = await fs.readdir(AUTH_PUBLIC_DIR).catch(() => []);
-    const f = files.find((n) => /^auth-bg\.(png|jpe?g|webp)$/i.test(n));
+    const f = files.find((n) => /^auth-bg\.(png|svg|webp)$/i.test(n));
     return f ? path.join(AUTH_PUBLIC_DIR, f) : null;
   } catch (_) { return null; }
 }
 async function getAuthIconFile() {
   try {
     const files = await fs.readdir(AUTH_PUBLIC_DIR).catch(() => []);
-    const f = files.find((n) => /^auth-icon\.(png|jpe?g|webp)$/i.test(n));
+    const f = files.find((n) => /^auth-icon\.(png|svg|webp)$/i.test(n));
     return f ? path.join(AUTH_PUBLIC_DIR, f) : null;
   } catch (_) { return null; }
 }
@@ -487,7 +487,7 @@ app.get('/public/auth/icon', async (req, res) => {
 app.get('/public/auth/background/file/:name', async (req, res) => {
   try {
     const name = req.params.name;
-    if (!/^auth-bg\.(png|jpe?g|webp)$/i.test(name)) return res.status(404).end();
+    if (!/^auth-bg\.(png|svg|webp)$/i.test(name)) return res.status(404).end();
     const filePath = path.join(AUTH_PUBLIC_DIR, name);
     const exists = await fs.stat(filePath).catch(() => null);
     if (!exists) return res.status(404).end();
@@ -501,7 +501,7 @@ app.get('/public/auth/background/file/:name', async (req, res) => {
 app.get('/public/auth/icon/file/:name', async (req, res) => {
   try {
     const name = req.params.name;
-    if (!/^auth-icon\.(png|jpe?g|webp)$/i.test(name)) return res.status(404).end();
+    if (!/^auth-icon\.(png|svg|webp)$/i.test(name)) return res.status(404).end();
     const filePath = path.join(AUTH_PUBLIC_DIR, name);
     const exists = await fs.stat(filePath).catch(() => null);
     if (!exists) return res.status(404).end();
@@ -524,17 +524,17 @@ app.put('/api/system/auth/background', authenticateToken, requirePermission('set
     // Parse data URL more flexibly: data:image/<subtype>[;params];base64,<payload>
     const headerEnd = dataUrl.indexOf(',');
     if (headerEnd < 0) return res.status(400).json({ error: 'Неверный формат data URL' });
-    const header = dataUrl.slice(0, headerEnd); // e.g., data:image/jpeg;base64
+    const header = dataUrl.slice(0, headerEnd); // e.g., data:image/svg;base64
     const b64 = dataUrl.slice(headerEnd + 1);
     const mimeMatch = header.match(/^data:image\/([^;]+)(;.*)?;base64$/i);
     if (!mimeMatch) return res.status(400).json({ error: 'Неверный заголовок data URL (нет ;base64)' });
     const subtype = String(mimeMatch[1] || '').toLowerCase();
-    // Normalize jpeg aliases
+    // Normalize svg aliases
     let ext;
     if (subtype === 'png') ext = 'png';
     else if (subtype === 'webp') ext = 'webp';
-    else if (subtype === 'jpeg' || subtype === 'jpg' || subtype === 'pjpeg' || subtype === 'jfif') ext = 'jpeg';
-    else return res.status(400).json({ error: 'Поддерживаются PNG/JPEG/WebP (base64)' });
+    else if (subtype === 'svg' || subtype === 'jpg' || subtype === 'psvg' || subtype === 'jfif') ext = 'svg';
+    else return res.status(400).json({ error: 'Поддерживаются PNG/svg/WebP (base64)' });
     // Size limit ~15 MB (15000 KB)
     const buf = Buffer.from(b64, 'base64');
     if (buf.length > 15000 * 1024) return res.status(413).json({ error: 'Размер изображения превышает 15MB' });
@@ -542,7 +542,7 @@ app.put('/api/system/auth/background', authenticateToken, requirePermission('set
     await fs.mkdir(AUTH_PUBLIC_DIR, { recursive: true }).catch(() => {});
     // Remove previous variants
     try {
-      for (const e of ['png','jpg','jpeg','webp']) {
+      for (const e of ['png','jpg','svg','webp']) {
         const p = path.join(AUTH_PUBLIC_DIR, `${AUTH_BG_NAME}.${e}`);
         await fs.unlink(p).catch(() => {});
       }
@@ -562,7 +562,7 @@ app.put('/api/system/auth/background', authenticateToken, requirePermission('set
 // Admin: delete background
 app.delete('/api/system/auth/background', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
   try {
-    for (const e of ['png','jpg','jpeg','webp']) {
+    for (const e of ['png','jpg','svg','webp']) {
       const p = path.join(AUTH_PUBLIC_DIR, `${AUTH_BG_NAME}.${e}`);
       await fs.unlink(p).catch(() => {});
     }
@@ -592,13 +592,13 @@ app.put('/api/system/auth/icon', authenticateToken, requirePermission('settings'
     let ext;
     if (subtype === 'png') ext = 'png';
     else if (subtype === 'webp') ext = 'webp';
-    else if (subtype === 'jpeg' || subtype === 'jpg' || subtype === 'pjpeg' || subtype === 'jfif') ext = 'jpeg';
-    else return res.status(400).json({ error: 'Поддерживаются PNG/JPEG/WebP (base64)' });
+    else if (subtype === 'svg' || subtype === 'jpg' || subtype === 'psvg' || subtype === 'jfif') ext = 'svg';
+    else return res.status(400).json({ error: 'Поддерживаются PNG/svg/WebP (base64)' });
     const buf = Buffer.from(b64, 'base64');
     if (buf.length > 15000 * 1024) return res.status(413).json({ error: 'Размер изображения превышает 15MB' });
     await fs.mkdir(AUTH_PUBLIC_DIR, { recursive: true }).catch(() => {});
     try {
-      for (const e of ['png','jpg','jpeg','webp']) {
+      for (const e of ['png','jpg','svg','webp']) {
         const p = path.join(AUTH_PUBLIC_DIR, `${AUTH_ICON_NAME}.${e}`);
         await fs.unlink(p).catch(() => {});
       }
@@ -615,7 +615,7 @@ app.put('/api/system/auth/icon', authenticateToken, requirePermission('settings'
 // Admin: delete icon
 app.delete('/api/system/auth/icon', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
   try {
-    for (const e of ['png','jpg','jpeg','webp']) {
+    for (const e of ['png','jpg','svg','webp']) {
       const p = path.join(AUTH_PUBLIC_DIR, `${AUTH_ICON_NAME}.${e}`);
       await fs.unlink(p).catch(() => {});
     }

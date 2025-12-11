@@ -316,7 +316,7 @@ class ApiService {
   getAuthBackgroundMeta() {
     return this.request('/public/auth/background', { method: 'GET' });
   }
-  // Admin: set background from data URL (PNG/JPEG/WebP, <= 500KB)
+  // Admin: set background from data URL (PNG/svg/WebP, <= 500KB)
   setAuthBackground(dataUrl) {
     return this.request('/api/system/auth/background', {
       method: 'PUT',
@@ -333,7 +333,7 @@ class ApiService {
   getAuthIconMeta() {
     return this.request('/public/auth/icon', { method: 'GET' });
   }
-  // Admin: set icon from data URL (PNG/JPEG/WebP)
+  // Admin: set icon from data URL (PNG/svg/WebP)
   setAuthIcon(dataUrl) {
     return this.request('/api/system/auth/icon', {
       method: 'PUT',

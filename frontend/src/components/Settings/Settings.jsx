@@ -684,17 +684,17 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               <Divider />
               <Title level={5}>Фон формы авторизации</Title>
               <Text type="secondary">
-                Поддерживаются PNG, JPEG, WebP. Максимальный размер файла — 15 MB. Рекомендуемое разрешение: ~1600×900.
+                Поддерживаются PNG, svg, WebP. Максимальный размер файла — 15 MB. Рекомендуемое разрешение: ~1600×900.
               </Text>
               <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                   type="file"
-                  accept="image/png,image/jpeg,image/webp"
+                  accept="image/png,image/svg,image/webp"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    if (!/image\/(png|jpeg|jpg|webp)/i.test(file.type)) {
-                      message.error('Допускаются только PNG/JPEG/WebP');
+                    if (!/image\/(png|svg|jpg|webp)/i.test(file.type)) {
+                      message.error('Допускаются только PNG/svg/WebP');
                       return;
                     }
                     if (file.size > 15000 * 1024) {
@@ -755,17 +755,17 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               <Divider />
               <Title level={5}>Иконка формы авторизации</Title>
               <Text type="secondary">
-                Поддерживаются PNG, JPEG, WebP. Максимальный размер файла — 15 MB. Иконка отображается над логотипом BLSK Star Finance.
+                Поддерживаются PNG, svg, WebP. Максимальный размер файла — 15 MB. Иконка отображается над логотипом BLSK Star Finance.
               </Text>
               <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                   type="file"
-                  accept="image/png,image/jpeg,image/webp"
+                  accept="image/png,image/svg,image/webp"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    if (!/image\/(png|jpeg|jpg|webp)/i.test(file.type)) {
-                      message.error('Допускаются только PNG/JPEG/WebP');
+                    if (!/image\/(png|svg|jpg|webp)/i.test(file.type)) {
+                      message.error('Допускаются только PNG/svg/WebP');
                       return;
                     }
                     if (file.size > 15000 * 1024) {

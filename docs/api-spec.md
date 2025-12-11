@@ -17,7 +17,7 @@
 
 - GET /public/auth/background/file/:name
   - Auth: нет
-  - Описание: отдать файл изображения. `name` = `auth-bg.(png|jpg|jpeg|webp)`
+  - Описание: отдать файл изображения. `name` = `auth-bg.(png|jpg|svg|webp)`
   - 200: бинарный файл, 404 — если не найден
 
 - PUT /api/system/auth/background
