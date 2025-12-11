@@ -594,9 +594,9 @@ app.put('/api/system/auth/icon', authenticateToken, requirePermission('settings'
     // Handle svg+xml case - extract base type before +
     const baseType = subtype.includes('+') ? subtype.split('+')[0] : subtype;
     let ext;
-    if (subtype === 'png') ext = 'png';
-    else if (subtype === 'webp') ext = 'webp';
-    else if (subtype === 'svg' || subtype === 'jpg' || subtype === 'psvg' || subtype === 'jfif') ext = 'svg';
+    if (baseType === 'png') ext = 'png';
+    else if (baseType === 'webp') ext = 'webp';
+    else if (baseType === 'svg' || subtype === 'svg+xml' || baseType === 'jpg' || baseType === 'psvg' || baseType === 'jfif') ext = 'svg';
     else return res.status(400).json({ error: 'Поддерживаются PNG/svg/WebP (base64)' });
     const buf = Buffer.from(b64, 'base64');
     if (buf.length > 15000 * 1024) return res.status(413).json({ error: 'Размер изображения превышает 15MB' });
