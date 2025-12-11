@@ -27,10 +27,19 @@ class ApiService {
 
       if (!response.ok) {
         let bodyText = '';
-        try { bodyText = await response.text(); } catch {}
-        const err = new Error(`HTTP error! status: ${response.status}`);
+        let bodyJson = null;
+        try { 
+          bodyText = await response.text();
+          try {
+            bodyJson = JSON.parse(bodyText);
+          } catch {
+            // Если не JSON, оставляем как текст
+          }
+        } catch {}
+        const err = new Error(`HTTP error! status: ${response.status}${bodyJson?.error ? ': ' + bodyJson.error : ''}`);
         err.status = response.status;
         err.body = bodyText;
+        err.json = bodyJson;
         throw err;
       }
 

@@ -109,7 +109,6 @@ class AuthService {
 
       // Администратор имеет все права
       if (user.accountType === 'Администратор') {
-        console.log('Admin access granted');
         return true;
       }
 

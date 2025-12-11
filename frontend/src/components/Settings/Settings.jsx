@@ -689,11 +689,11 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                   type="file"
-                  accept="image/png,image/svg,image/webp"
+                  accept="image/png,image/svg+xml,image/webp"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    if (!/image\/(png|svg|jpg|webp)/i.test(file.type)) {
+                    if (!/image\/(png|svg\+xml|jpg|webp)/i.test(file.type)) {
                       message.error('Допускаются только PNG/svg/WebP');
                       return;
                     }
@@ -760,11 +760,11 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                   type="file"
-                  accept="image/png,image/svg,image/webp"
+                  accept="image/png,image/svg+xml,image/webp"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    if (!/image\/(png|svg|jpg|webp)/i.test(file.type)) {
+                    if (!/image\/(png|svg\+xml|jpg|webp)/i.test(file.type)) {
                       message.error('Допускаются только PNG/svg/WebP');
                       return;
                     }
@@ -780,6 +780,11 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                         reader.onerror = reject;
                         reader.readAsDataURL(file);
                       });
+                      
+                      // Логируем для отладки
+                      console.log('Sending auth icon dataUrl length:', dataUrl.length);
+                      console.log('Data URL prefix:', dataUrl.substring(0, 50));
+                      
                       await apiService.setAuthIcon(String(dataUrl));
                       const meta = await apiService.getAuthIconMeta();
                       const url = meta?.url;
@@ -789,7 +794,9 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                       setAuthIconUrl(normalized);
                       message.success('Иконка обновлена');
                     } catch (err) {
-                      message.error('Не удалось загрузить иконку');
+                      console.error('Error uploading auth icon:', err);
+                      const errorMsg = err?.body || err?.message || 'Не удалось загрузить иконку';
+                      message.error(`Ошибка: ${errorMsg}`);
                     } finally {
                       setAuthIconLoading(false);
                       e.target.value = '';
