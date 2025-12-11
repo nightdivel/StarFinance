@@ -542,7 +542,7 @@ app.put('/api/system/auth/background', authenticateToken, requirePermission('set
     await fs.mkdir(AUTH_PUBLIC_DIR, { recursive: true }).catch(() => {});
     // Remove previous variants
     try {
-      for (const e of ['png','jpg','svg','webp']) {
+      for (const e of ['png','svg','webp']) {
         const p = path.join(AUTH_PUBLIC_DIR, `${AUTH_BG_NAME}.${e}`);
         await fs.unlink(p).catch(() => {});
       }
@@ -562,7 +562,7 @@ app.put('/api/system/auth/background', authenticateToken, requirePermission('set
 // Admin: delete background
 app.delete('/api/system/auth/background', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
   try {
-    for (const e of ['png','jpg','svg','webp']) {
+    for (const e of ['png','svg','webp']) {
       const p = path.join(AUTH_PUBLIC_DIR, `${AUTH_BG_NAME}.${e}`);
       await fs.unlink(p).catch(() => {});
     }
@@ -598,7 +598,7 @@ app.put('/api/system/auth/icon', authenticateToken, requirePermission('settings'
     if (buf.length > 15000 * 1024) return res.status(413).json({ error: 'Размер изображения превышает 15MB' });
     await fs.mkdir(AUTH_PUBLIC_DIR, { recursive: true }).catch(() => {});
     try {
-      for (const e of ['png','jpg','svg','webp']) {
+      for (const e of ['png','svg','webp']) {
         const p = path.join(AUTH_PUBLIC_DIR, `${AUTH_ICON_NAME}.${e}`);
         await fs.unlink(p).catch(() => {});
       }
@@ -615,7 +615,7 @@ app.put('/api/system/auth/icon', authenticateToken, requirePermission('settings'
 // Admin: delete icon
 app.delete('/api/system/auth/icon', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
   try {
-    for (const e of ['png','jpg','svg','webp']) {
+    for (const e of ['png','svg','webp']) {
       const p = path.join(AUTH_PUBLIC_DIR, `${AUTH_ICON_NAME}.${e}`);
       await fs.unlink(p).catch(() => {});
     }
@@ -3730,6 +3730,14 @@ app.get('/auth/profile', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Ошибка получения профиля' });
   }
 });
+
+// Serve backend public files (auth background/icon)
+try {
+  const publicPath = path.resolve(__dirname, 'public');
+  app.use('/public', express.static(publicPath));
+} catch (e) {
+  console.error('Failed to serve public directory:', e);
+}
 
 // Serve frontend build in production (if exists)
 try {
