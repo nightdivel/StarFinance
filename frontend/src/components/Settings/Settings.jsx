@@ -684,7 +684,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               <Divider />
               <Title level={5}>Фон формы авторизации</Title>
               <Text type="secondary">
-                Поддерживаются PNG, svg, WebP. Максимальный размер файла — 15 MB. Рекомендуемое разрешение: ~1600×900.
+                Поддерживаются PNG, SVG, WebP. Максимальный размер файла — 15 MB. Рекомендуемое разрешение: ~1600×900.
               </Text>
               <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
@@ -755,7 +755,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               <Divider />
               <Title level={5}>Иконка формы авторизации</Title>
               <Text type="secondary">
-                Поддерживаются PNG, svg, WebP. Максимальный размер файла — 15 MB. Иконка отображается над логотипом BLSK Star Finance.
+                Поддерживаются PNG, SVG, WebP. Максимальный размер файла — 15 MB. Иконка отображается над логотипом BLSK Star Finance.
               </Text>
               <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input

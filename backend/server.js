@@ -529,11 +529,13 @@ app.put('/api/system/auth/background', authenticateToken, requirePermission('set
     const mimeMatch = header.match(/^data:image\/([^;]+)(;.*)?;base64$/i);
     if (!mimeMatch) return res.status(400).json({ error: 'Неверный заголовок data URL (нет ;base64)' });
     const subtype = String(mimeMatch[1] || '').toLowerCase();
+    // Handle svg+xml case - extract base type before +
+    const baseType = subtype.includes('+') ? subtype.split('+')[0] : subtype;
     // Normalize svg aliases
     let ext;
-    if (subtype === 'png') ext = 'png';
-    else if (subtype === 'webp') ext = 'webp';
-    else if (subtype === 'svg' || subtype === 'svg+xml' || subtype === 'jpg' || subtype === 'psvg' || subtype === 'jfif') ext = 'svg';
+    if (baseType === 'png') ext = 'png';
+    else if (baseType === 'webp') ext = 'webp';
+    else if (baseType === 'svg' || subtype === 'svg+xml' || baseType === 'jpg' || baseType === 'psvg' || baseType === 'jfif') ext = 'svg';
     else return res.status(400).json({ error: 'Поддерживаются PNG/svg/WebP (base64)' });
     // Size limit ~15 MB (15000 KB)
     const buf = Buffer.from(b64, 'base64');
@@ -589,6 +591,8 @@ app.put('/api/system/auth/icon', authenticateToken, requirePermission('settings'
     const mimeMatch = header.match(/^data:image\/([^;]+)(;.*)?;base64$/i);
     if (!mimeMatch) return res.status(400).json({ error: 'Неверный заголовок data URL (нет ;base64)' });
     const subtype = String(mimeMatch[1] || '').toLowerCase();
+    // Handle svg+xml case - extract base type before +
+    const baseType = subtype.includes('+') ? subtype.split('+')[0] : subtype;
     let ext;
     if (subtype === 'png') ext = 'png';
     else if (subtype === 'webp') ext = 'webp';
