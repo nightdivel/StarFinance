@@ -21,6 +21,12 @@ module.exports = {
 
   JWT_CONFIG: {
     SECRET: process.env.JWT_SECRET || 'your-super-secure-jwt-secret-key-change-in-production',
-    EXPIRY: process.env.TOKEN_EXPIRY || '24h',
+    EXPIRY: process.env.TOKEN_EXPIRY || process.env.ACCESS_TOKEN_EXPIRY || '15m',
+    REFRESH_SECRET:
+      process.env.JWT_REFRESH_SECRET ||
+      process.env.REFRESH_JWT_SECRET ||
+      process.env.JWT_SECRET ||
+      'your-refresh-secret-key-change-in-production',
+    REFRESH_EXPIRY: process.env.REFRESH_TOKEN_EXPIRY || '7d',
   },
 };
