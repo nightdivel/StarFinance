@@ -8,6 +8,10 @@ CREATE TABLE IF NOT EXISTS account_types (
   name TEXT PRIMARY KEY
 );
 
+INSERT INTO account_types(name) VALUES ('Администратор') ON CONFLICT DO NOTHING;
+INSERT INTO account_types(name) VALUES ('Пользователь') ON CONFLICT DO NOTHING;
+INSERT INTO account_types(name) VALUES ('Гость') ON CONFLICT DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS account_type_permissions (
   account_type TEXT NOT NULL REFERENCES account_types(name) ON DELETE CASCADE,
   resource TEXT NOT NULL,
@@ -236,11 +240,6 @@ CREATE INDEX IF NOT EXISTS idx_finance_requests_to_user ON finance_requests(to_u
 CREATE INDEX IF NOT EXISTS idx_finance_requests_status ON finance_requests(status);
 
 -- Seed defaults (idempotent)
--- Account types
-INSERT INTO account_types(name) VALUES ('Администратор') ON CONFLICT DO NOTHING;
-INSERT INTO account_types(name) VALUES ('Пользователь') ON CONFLICT DO NOTHING;
-INSERT INTO account_types(name) VALUES ('Гость') ON CONFLICT DO NOTHING;
-
 -- Permissions for Admin
 INSERT INTO account_type_permissions(account_type, resource, level) VALUES
 ('Администратор','finance','write'),

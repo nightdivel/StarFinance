@@ -15,6 +15,10 @@ function generateAccessToken(userId) {
   });
 }
 
+function generateToken(userId) {
+  return generateAccessToken(userId);
+}
+
 function generateRefreshToken(userId) {
   return jwt.sign({ id: userId, type: 'refresh' }, JWT_CONFIG.REFRESH_SECRET, {
     expiresIn: JWT_CONFIG.REFRESH_EXPIRY,
@@ -169,6 +173,7 @@ function requireAnyPermission(resources, level) {
 }
 
 module.exports = {
+  generateToken,
   generateAccessToken,
   generateRefreshToken,
   issueAuthTokens,
