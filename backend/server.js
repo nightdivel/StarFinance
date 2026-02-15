@@ -325,6 +325,13 @@ app.post(
     try {
       const { full } = req.body || {};
 
+      const deadlineMs = Number(process.env.UEX_SYNC_DEADLINE_MS || 8 * 60 * 1000);
+      const startedAt = Date.now();
+      const isTimedOut = () => Date.now() - startedAt > deadlineMs;
+
+      const maxCategories = Number(process.env.UEX_SYNC_MAX_CATEGORIES || 200);
+      const concurrency = Math.max(1, Number(process.env.UEX_SYNC_CONCURRENCY || 6));
+
       const token = req.headers['x-uex-token'] || process.env.UEX_API_TOKEN || process.env.VITE_UEX_API_TOKEN;
       const clientVersion = req.headers['x-uex-client-version'] || process.env.UEX_CLIENT_VERSION || process.env.VITE_UEX_CLIENT_VERSION;
       const baseHeaders = {
@@ -382,12 +389,36 @@ app.post(
       }
 
       // 3) Если общий список items пустой, пробуем по категориям (id_category)
-      // На проде так исторически и работало (даёт ~180 позиций), поэтому оставляем
-      // это поведение как fallback, но ограничим количество категорий для безопасности.
-      if ((!Array.isArray(items) || items.length === 0) && Array.isArray(categories) && categories.length > 0) {
+      // ВАЖНО: это может быть очень долго (много запросов). Для UI по умолчанию (full=false)
+      // пропускаем fallback, чтобы не ловить 504 от прокси.
+      if (
+        (full === true || full === 'true') &&
+        (!Array.isArray(items) || items.length === 0) &&
+        Array.isArray(categories) &&
+        categories.length > 0
+      ) {
         const byCat = [];
-        const MAX_CATEGORIES = 200; // защитный лимит
-        for (const cat of categories.slice(0, MAX_CATEGORIES)) {
+
+        const mapLimit = async (arr, limit, mapper) => {
+          const results = new Array(arr.length);
+          let idx = 0;
+          const workers = new Array(Math.min(limit, arr.length)).fill(0).map(async () => {
+            while (idx < arr.length) {
+              const cur = idx++;
+              if (isTimedOut()) return;
+              try {
+                results[cur] = await mapper(arr[cur], cur);
+              } catch (e) {
+                results[cur] = null;
+              }
+            }
+          });
+          await Promise.all(workers);
+          return results;
+        };
+
+        await mapLimit(categories.slice(0, maxCategories), concurrency, async (cat) => {
+          if (isTimedOut()) return null;
           const catId =
             cat?.id != null
               ? String(cat.id)
@@ -396,16 +427,21 @@ app.post(
               : cat?.category_id != null
               ? String(cat.category_id)
               : null;
-          if (!catId) continue;
+          if (!catId) return null;
           try {
             const raw = await fetchUex('items', { id_category: catId }).catch(() => []);
             const arr = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
             if (Array.isArray(arr) && arr.length > 0) byCat.push(...arr);
+            return arr.length;
           } catch (_) {
-            // пропускаем категорию, если по ней ошибка
+            return null;
           }
-        }
+        });
         if (byCat.length > 0) items = byCat;
+      }
+
+      if (isTimedOut()) {
+        return res.status(503).json({ success: false, error: 'UEX sync timeout' });
       }
 
       const stats = await upsertUexDirectories({ categories, items });
