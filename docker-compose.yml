@@ -47,24 +47,6 @@ services:
     entrypoint: /bin/sh
     command: -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $!; done"
 
-  caddy:
-    image: caddy:2.8
-    container_name: economy_caddy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN}
-      EMAIL: ${EMAIL}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./frontend/dist:/srv/frontend:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - economy
-
   postgres:
     image: postgres:15
     container_name: economy_db
@@ -87,7 +69,5 @@ services:
 
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:
   letsencrypt:
   certbot-www:

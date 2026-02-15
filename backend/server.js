@@ -66,6 +66,7 @@ app.use('/health', cors(corsOptions));
 // Public base URL (same as in frontend): https://api.uexcorp.uk/2.0
 const UEX_BASE_URL = (process.env.UEX_API_BASE_URL || 'https://api.uexcorp.uk/2.0').replace(/\/$/, '');
 const UEX_COMPANY_ID = process.env.UEX_COMPANY_ID || process.env.VITE_UEX_COMPANY_ID || null;
+const UEX_AXIOS_TIMEOUT_MS = Number(process.env.UEX_AXIOS_TIMEOUT_MS || 120000);
 
 function buildUexUrl(resource = '', pathPart = '', params = {}) {
   const base = (UEX_BASE_URL || '').replace(/\/$/, '');
@@ -111,7 +112,7 @@ app.get('/api/uex', authenticateToken, async (req, res) => {
     let lastErr;
     for (const h of attempts) {
       try {
-        const resp = await axios.get(url, { headers: h });
+        const resp = await axios.get(url, { headers: h, timeout: UEX_AXIOS_TIMEOUT_MS });
         return res.status(resp.status).json(resp.data);
       } catch (e) {
         const status = e?.response?.status;
@@ -352,7 +353,7 @@ app.post(
         let lastErr;
         for (const h of attempts) {
           try {
-            const resp = await axios.get(url, { headers: h });
+            const resp = await axios.get(url, { headers: h, timeout: UEX_AXIOS_TIMEOUT_MS });
             return resp.data;
           } catch (e) {
             const status = e?.response?.status;
