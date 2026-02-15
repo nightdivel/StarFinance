@@ -5,6 +5,29 @@ class ApiService {
     this.baseURL = API_BASE_URL;
   }
 
+  handleAuthExpired(status) {
+    if (typeof window === 'undefined') return;
+    if (status !== 401 && status !== 403) return;
+    try { localStorage.removeItem('authToken'); } catch (_) {}
+    try { localStorage.removeItem('userData'); } catch (_) {}
+    try { window.dispatchEvent(new CustomEvent('auth:logout', { detail: { status } })); } catch (_) {}
+    try { window.dispatchEvent(new Event('auth:logout')); } catch (_) {}
+    // Fallback: если приложение не обработало событие (например, из-за подвисшего состояния),
+    // перезагрузим страницу один раз за сессию.
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        const k = 'auth.logout.reload.once';
+        if (sessionStorage.getItem(k) !== '1') {
+          sessionStorage.setItem(k, '1');
+          setTimeout(() => {
+            try { window.location.reload(); } catch (_) {}
+          }, 0);
+        }
+      }
+    } catch (_) {}
+  }
+
   buildUrl(path) {
     const base = (this.baseURL || '').replace(/\/$/, '');
     const rel = String(path || '');
@@ -36,6 +59,9 @@ class ApiService {
             // Если не JSON, оставляем как текст
           }
         } catch {}
+
+        this.handleAuthExpired(response.status);
+
         const err = new Error(`HTTP error! status: ${response.status}${bodyJson?.error ? ': ' + bodyJson.error : ''}`);
         err.status = response.status;
         err.body = bodyText;
@@ -73,17 +99,6 @@ class ApiService {
   }
   deleteShowcaseStatus(name) {
     return this.request(`/api/directories/showcase-statuses/${encodeURIComponent(name)}`, {
-      method: 'DELETE',
-    });
-  }
-  addWarehouseLocation(name) {
-    return this.request('/api/directories/warehouse-locations', {
-      method: 'POST',
-      body: JSON.stringify({ name }),
-    });
-  }
-  deleteWarehouseLocation(name) {
-    return this.request(`/api/directories/warehouse-locations/${encodeURIComponent(name)}`, {
       method: 'DELETE',
     });
   }

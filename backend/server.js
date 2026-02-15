@@ -549,9 +549,6 @@ app.put('/api/system/auth/background', authenticateToken, requirePermission('set
         await fs.unlink(p).catch(() => {});
       }
     } catch (_) {}
-
-  // Ранее здесь подмешивалось состояние последней UEX-синхронизации (directories.uexSync).
-  // Теперь оно не используется в UI и не загружается из БД.
     const target = path.join(AUTH_PUBLIC_DIR, `${AUTH_BG_NAME}.${ext}`);
     await fs.writeFile(target, buf);
     return res.json({ success: true, url: `/public/auth/background/file/${AUTH_BG_NAME}.${ext}` });
@@ -1315,11 +1312,14 @@ app.get(
   requirePermission('warehouse', 'read'),
   async (req, res) => {
     try {
+      const meRes = await query('SELECT id, username, account_type FROM users WHERE id = $1', [req.user.id]);
+      if (meRes.rowCount === 0) return res.status(401).json({ error: 'Нет пользователя' });
+      const me = meRes.rows[0];
+
       // Получим список разрешенных типов склада для текущего типа учетной записи
       let allowedTypes = null;
       try {
-        const ures = await query('SELECT account_type FROM users WHERE id = $1', [req.user.id]);
-        const accType = ures.rows[0]?.account_type || null;
+        const accType = me.account_type || null;
         if (accType) {
           const wres = await query(
             'SELECT warehouse_type FROM account_type_warehouse_types WHERE account_type = $1',
@@ -1333,8 +1333,8 @@ app.get(
       let w;
       if (Array.isArray(allowedTypes) && allowedTypes.length > 0) {
         w = await query(
-          'SELECT id, name, type, quantity, cost, currency, location, display_currencies, meta, warehouse_type, owner_login, created_at, updated_at FROM warehouse_items WHERE warehouse_type = ANY($1) ORDER BY created_at DESC',
-          [allowedTypes]
+          'SELECT id, name, type, quantity, cost, currency, display_currencies, meta, warehouse_type, owner_login, created_at, updated_at FROM warehouse_items WHERE owner_login = $2 AND warehouse_type = ANY($1) ORDER BY created_at DESC',
+          [allowedTypes, me.username]
         );
       } else {
         // Если список разрешенных типов пуст или не задан — ничего не показываем
@@ -1347,7 +1347,6 @@ app.get(
         quantity: Number(it.quantity) || 0,
         price: it.cost !== null && it.cost !== undefined ? Number(it.cost) : undefined,
         currency: it.currency || null,
-        location: it.location || null,
         displayCurrencies: it.display_currencies || undefined,
         meta: it.meta || undefined,
         warehouseType: it.warehouse_type || null,
@@ -1368,7 +1367,7 @@ app.post(
   requirePermission('warehouse', 'write'),
   async (req, res) => {
     try {
-      const { id, name, type, quantity, price, currency, location, displayCurrencies, meta, warehouseType, ownerLogin } =
+      const { id, name, type, quantity, price, currency, displayCurrencies, meta, warehouseType, ownerLogin } =
         req.body || {};
       if (!name) return res.status(400).json({ error: 'Название обязательно' });
       const newId = id || `w_${Date.now()}`;
@@ -1376,35 +1375,28 @@ app.post(
       const ures = await query('SELECT id, username, account_type FROM users WHERE id = $1', [req.user.id]);
       if (ures.rowCount === 0) return res.status(401).json({ error: 'Нет пользователя' });
       const me = ures.rows[0];
-      const perms = await getPermissionsForTypeDb(me.account_type).catch(() => ({}));
-      const isAdmin = me.account_type === 'Администратор' || perms?.users === 'write';
       const existing = await query('SELECT id, owner_login FROM warehouse_items WHERE id = $1', [newId]);
       if (existing.rowCount > 0) {
         const isOwner = existing.rows[0]?.owner_login && existing.rows[0].owner_login === me.username;
-        if (!isAdmin && !isOwner) {
+        if (!isOwner) {
           return res.status(403).json({ error: 'Недостаточно прав для обновления товара' });
         }
       }
-      const effectiveOwnerLogin = isAdmin ? (ownerLogin || me.username) : me.username;
+      const effectiveOwnerLogin = me.username;
       if (type)
         await query('INSERT INTO product_types(name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [
           type,
         ]);
-      if (location)
-        await query(
-          'INSERT INTO warehouse_locations(name) VALUES ($1) ON CONFLICT (name) DO NOTHING',
-          [location]
-        );
       if (warehouseType)
         await query('INSERT INTO warehouse_types(name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [
           warehouseType,
         ]);
       const effCurrency = currency || (Array.isArray(displayCurrencies) && displayCurrencies.length > 0 ? displayCurrencies[0] : null);
       await query(
-        `INSERT INTO warehouse_items(id, name, type, quantity, cost, currency, location, display_currencies, meta, warehouse_type, owner_login, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, now())
+        `INSERT INTO warehouse_items(id, name, type, quantity, cost, currency, display_currencies, meta, warehouse_type, owner_login, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now())
        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, quantity = EXCLUDED.quantity, cost = EXCLUDED.cost,
-         currency = COALESCE($6, warehouse_items.currency), location = EXCLUDED.location, display_currencies = COALESCE($8, warehouse_items.display_currencies), meta = EXCLUDED.meta, warehouse_type = EXCLUDED.warehouse_type, owner_login = EXCLUDED.owner_login, updated_at = now()`,
+         currency = COALESCE($6, warehouse_items.currency), display_currencies = COALESCE($7, warehouse_items.display_currencies), meta = EXCLUDED.meta, warehouse_type = EXCLUDED.warehouse_type, owner_login = EXCLUDED.owner_login, updated_at = now()`,
         [
           newId,
           name,
@@ -1412,7 +1404,6 @@ app.post(
           Number(quantity) || 0,
           price !== undefined ? Number(price) : null,
           effCurrency || null,
-          location || null,
           displayCurrencies || null,
           meta ? JSON.stringify(meta) : null,
           warehouseType || null,
@@ -1421,7 +1412,7 @@ app.post(
       );
       const row = (
         await query(
-          'SELECT id, name, type, quantity, cost, currency, location, display_currencies, meta, warehouse_type, owner_login, created_at, updated_at FROM warehouse_items WHERE id = $1',
+          'SELECT id, name, type, quantity, cost, currency, display_currencies, meta, warehouse_type, owner_login, created_at, updated_at FROM warehouse_items WHERE id = $1',
           [newId]
         )
       ).rows[0];
@@ -1441,7 +1432,7 @@ app.put(
   async (req, res) => {
     try {
       const id = req.params.id;
-      const { name, type, quantity, price, currency, location, displayCurrencies, meta, warehouseType, ownerLogin } =
+      const { name, type, quantity, price, currency, displayCurrencies, meta, warehouseType, ownerLogin } =
         req.body || {};
       const exists = await query('SELECT 1 FROM warehouse_items WHERE id = $1', [id]);
       if (exists.rowCount === 0) return res.status(404).json({ error: 'Позиция не найдена' });
@@ -1450,14 +1441,12 @@ app.put(
         const ures = await query('SELECT id, username, account_type FROM users WHERE id = $1', [req.user.id]);
         if (ures.rowCount === 0) return res.status(401).json({ error: 'Нет пользователя' });
         const me = ures.rows[0];
-        const perms = await getPermissionsForTypeDb(me.account_type);
-        const isAdmin = me.account_type === 'Администратор' || perms.users === 'write';
         const itemRes = await query('SELECT owner_login FROM warehouse_items WHERE id = $1', [id]);
         const isOwner = itemRes.rows[0]?.owner_login && itemRes.rows[0].owner_login === me.username;
-        if (!isAdmin && !isOwner) {
+        if (!isOwner) {
           return res.status(403).json({ error: 'Недостаточно прав для редактирования товара' });
         }
-        var effectiveOwnerLogin = isAdmin ? (ownerLogin ?? itemRes.rows[0]?.owner_login ?? me.username) : (itemRes.rows[0]?.owner_login ?? me.username);
+        var effectiveOwnerLogin = me.username;
       } catch (_) {
         // if check fails unexpectedly, forbid
         return res.status(403).json({ error: 'Недостаточно прав' });
@@ -1466,11 +1455,6 @@ app.put(
         await query('INSERT INTO product_types(name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [
           type,
         ]);
-      if (location)
-        await query(
-          'INSERT INTO warehouse_locations(name) VALUES ($1) ON CONFLICT (name) DO NOTHING',
-          [location]
-        );
       if (warehouseType)
         await query('INSERT INTO warehouse_types(name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [
           warehouseType,
@@ -1478,7 +1462,7 @@ app.put(
       const effCurrencyUpdate = currency || (Array.isArray(displayCurrencies) && displayCurrencies.length > 0 ? displayCurrencies[0] : null);
       await query(
         `UPDATE warehouse_items SET name = COALESCE($2,name), type = COALESCE($3,type), quantity = COALESCE($4,quantity), cost = $5,
-        currency = COALESCE($6,currency), location = COALESCE($7,location), display_currencies = COALESCE($8, display_currencies), meta = $9, warehouse_type = COALESCE($10, warehouse_type), owner_login = COALESCE($11, owner_login), updated_at = now() WHERE id = $1`,
+        currency = COALESCE($6,currency), display_currencies = COALESCE($7, display_currencies), meta = $8, warehouse_type = COALESCE($9, warehouse_type), owner_login = COALESCE($10, owner_login), updated_at = now() WHERE id = $1`,
         [
           id,
           name || null,
@@ -1486,7 +1470,6 @@ app.put(
           quantity !== undefined ? Number(quantity) : null,
           price !== undefined ? Number(price) : null,
           effCurrencyUpdate || null,
-          location || null,
           displayCurrencies || null,
           meta ? JSON.stringify(meta) : null,
           warehouseType || null,
@@ -1495,7 +1478,7 @@ app.put(
       );
       const row = (
         await query(
-          'SELECT id, name, type, quantity, cost, currency, location, display_currencies, meta, warehouse_type, owner_login, created_at, updated_at FROM warehouse_items WHERE id = $1',
+          'SELECT id, name, type, quantity, cost, currency, display_currencies, meta, warehouse_type, owner_login, created_at, updated_at FROM warehouse_items WHERE id = $1',
           [id]
         )
       ).rows[0];
@@ -1521,9 +1504,8 @@ app.patch('/api/warehouse/:id/quantity', authenticateToken, async (req, res) => 
     const me = ures.rows[0];
     const itemRes = await query('SELECT owner_login FROM warehouse_items WHERE id = $1', [id]);
     if (itemRes.rowCount === 0) return res.status(404).json({ error: 'Позиция не найдена' });
-    const isAdmin = me.account_type === 'Администратор';
     const isOwner = itemRes.rows[0].owner_login && itemRes.rows[0].owner_login === me.username;
-    if (!isAdmin && !isOwner) {
+    if (!isOwner) {
       return res.status(403).json({ error: 'Недостаточно прав для изменения количества' });
     }
     await query('UPDATE warehouse_items SET quantity = $2, updated_at = now() WHERE id = $1', [id, Number(quantity)]);
@@ -1549,10 +1531,8 @@ app.delete(
       const ures = await query('SELECT id, username, account_type FROM users WHERE id = $1', [req.user.id]);
       if (ures.rowCount === 0) return res.status(401).json({ error: 'Нет пользователя' });
       const me = ures.rows[0];
-      const perms = await getPermissionsForTypeDb(me.account_type).catch(() => ({}));
-      const isAdmin = me.account_type === 'Администратор' || perms?.users === 'write';
       const isOwner = item.owner_login && item.owner_login === me.username;
-      if (!isAdmin && !isOwner) {
+      if (!isOwner) {
         return res.status(403).json({ error: 'Недостаточно прав для удаления товара' });
       }
       await query('DELETE FROM warehouse_items WHERE id = $1', [id]);
@@ -1595,15 +1575,14 @@ app.get(
              COALESCE(w.name,'') ILIKE $1 ESCAPE '\\' OR
              COALESCE(w.type,'') ILIKE $1 ESCAPE '\\' OR
              COALESCE(CAST(w.quantity AS TEXT),'') ILIKE $1 ESCAPE '\\' OR
-             COALESCE(CAST(w.cost AS TEXT),'') ILIKE $1 ESCAPE '\\' OR
-             COALESCE(w.currency,'') ILIKE $1 ESCAPE '\\' OR
-             COALESCE(w.location,'') ILIKE $1 ESCAPE '\\' OR
-             COALESCE(CAST(w.display_currencies AS TEXT),'') ILIKE $1 ESCAPE '\\' OR
-             COALESCE(CAST(w.meta AS TEXT),'') ILIKE $1 ESCAPE '\\' OR
-             COALESCE(w.warehouse_type,'') ILIKE $1 ESCAPE '\\' OR
-             COALESCE(w.owner_login,'') ILIKE $1 ESCAPE '\\' OR
-             COALESCE(TO_CHAR(w.created_at, 'YYYY-MM-DD HH24:MI:SS'),'') ILIKE $1 ESCAPE '\\' OR
-             COALESCE(TO_CHAR(w.updated_at, 'YYYY-MM-DD HH24:MI:SS'),'') ILIKE $1 ESCAPE '\\'
+            COALESCE(CAST(w.cost AS TEXT),'') ILIKE $1 ESCAPE '\\' OR
+            COALESCE(w.currency,'') ILIKE $1 ESCAPE '\\' OR
+            COALESCE(CAST(w.display_currencies AS TEXT),'') ILIKE $1 ESCAPE '\\' OR
+            COALESCE(CAST(w.meta AS TEXT),'') ILIKE $1 ESCAPE '\\' OR
+            COALESCE(w.warehouse_type,'') ILIKE $1 ESCAPE '\\' OR
+            COALESCE(w.owner_login,'') ILIKE $1 ESCAPE '\\' OR
+            COALESCE(TO_CHAR(w.created_at, 'YYYY-MM-DD HH24:MI:SS'),'') ILIKE $1 ESCAPE '\\' OR
+            COALESCE(TO_CHAR(w.updated_at, 'YYYY-MM-DD HH24:MI:SS'),'') ILIKE $1 ESCAPE '\\'
            )
            ORDER BY s.created_at DESC`,
           [like]
@@ -1637,21 +1616,37 @@ app.post(
   async (req, res) => {
     try {
       const { id, warehouseItemId, status, price, currency, meta } = req.body || {};
-      const newId = id || `s_${Date.now()}`;
+      let newId = id || null;
       // Проверка: только админ или владелец связанного товарa может создавать/обновлять запись витрины
       const ures = await query('SELECT id, username, account_type FROM users WHERE id = $1', [req.user.id]);
       if (ures.rowCount === 0) return res.status(401).json({ error: 'Нет пользователя' });
       const me = ures.rows[0];
-      const perms = await getPermissionsForTypeDb(me.account_type).catch(() => ({}));
-      const isAdmin = me.account_type === 'Администратор' || perms?.users === 'write';
       if (warehouseItemId) {
         const w = await query('SELECT owner_login FROM warehouse_items WHERE id = $1', [warehouseItemId]);
         if (w.rowCount === 0) return res.status(400).json({ error: 'Связанный товар не найден' });
         const isOwner = w.rows[0]?.owner_login && w.rows[0].owner_login === me.username;
-        if (!isAdmin && !isOwner) return res.status(403).json({ error: 'Недостаточно прав для размещения товара на витрине' });
-      } else if (!isAdmin) {
-        // нет warehouseItemId — только админ может создавать такие записи
-        return res.status(403).json({ error: 'Недостаточно прав для создания позиции витрины' });
+        if (!isOwner) return res.status(403).json({ error: 'Недостаточно прав для размещения товара на витрине' });
+      } else {
+        return res.status(400).json({ error: 'warehouseItemId обязателен' });
+      }
+
+      // Idempotency: если id не задан, то для одного товара используем уже существующую запись витрины
+      // и чистим возможные дубли (оставляем самую свежую)
+      if (!newId) {
+        const existing = await query(
+          'SELECT id FROM showcase_items WHERE warehouse_item_id = $1 ORDER BY created_at DESC NULLS LAST, updated_at DESC NULLS LAST LIMIT 1',
+          [warehouseItemId]
+        );
+        const existingId = existing.rows[0]?.id || null;
+        if (existingId) {
+          newId = existingId;
+          await query(
+            'DELETE FROM showcase_items WHERE warehouse_item_id = $1 AND id <> $2',
+            [warehouseItemId, existingId]
+          );
+        } else {
+          newId = `s_${Date.now()}`;
+        }
       }
       if (status)
         await query(
@@ -1665,7 +1660,7 @@ app.post(
          currency = EXCLUDED.currency, meta = EXCLUDED.meta, updated_at = now()`,
         [
           newId,
-          warehouseItemId || null,
+          warehouseItemId,
           status || null,
           price !== undefined ? Number(price) : null,
           currency || null,
@@ -1701,17 +1696,15 @@ app.put(
       const ures = await query('SELECT id, username, account_type FROM users WHERE id = $1', [req.user.id]);
       if (ures.rowCount === 0) return res.status(401).json({ error: 'Нет пользователя' });
       const me = ures.rows[0];
-      const perms = await getPermissionsForTypeDb(me.account_type).catch(() => ({}));
-      const isAdmin = me.account_type === 'Администратор' || perms?.users === 'write';
       const current = await query('SELECT warehouse_item_id FROM showcase_items WHERE id = $1', [id]);
       const targetWid = warehouseItemId || current.rows[0]?.warehouse_item_id || null;
       if (targetWid) {
         const w = await query('SELECT owner_login FROM warehouse_items WHERE id = $1', [targetWid]);
         if (w.rowCount === 0) return res.status(400).json({ error: 'Связанный товар не найден' });
         const isOwner = w.rows[0]?.owner_login && w.rows[0].owner_login === me.username;
-        if (!isAdmin && !isOwner) return res.status(403).json({ error: 'Недостаточно прав для изменения позиции витрины' });
-      } else if (!isAdmin) {
-        return res.status(403).json({ error: 'Недостаточно прав для изменения позиции витрины' });
+        if (!isOwner) return res.status(403).json({ error: 'Недостаточно прав для изменения позиции витрины' });
+      } else {
+        return res.status(400).json({ error: 'warehouseItemId обязателен' });
       }
       if (status)
         await query(
@@ -1756,16 +1749,14 @@ app.delete(
       const ures = await query('SELECT id, username, account_type FROM users WHERE id = $1', [req.user.id]);
       if (ures.rowCount === 0) return res.status(401).json({ error: 'Нет пользователя' });
       const me = ures.rows[0];
-      const perms = await getPermissionsForTypeDb(me.account_type).catch(() => ({}));
-      const isAdmin = me.account_type === 'Администратор' || perms?.users === 'write';
       const cur = await query('SELECT warehouse_item_id FROM showcase_items WHERE id = $1', [id]);
       if (cur.rowCount === 0) return res.status(404).json({ error: 'Позиция не найдена' });
       const wid = cur.rows[0]?.warehouse_item_id || null;
       if (wid) {
         const w = await query('SELECT owner_login FROM warehouse_items WHERE id = $1', [wid]);
         const isOwner = w.rows[0]?.owner_login && w.rows[0].owner_login === me.username;
-        if (!isAdmin && !isOwner) return res.status(403).json({ error: 'Недостаточно прав для удаления позиции витрины' });
-      } else if (!isAdmin) {
+        if (!isOwner) return res.status(403).json({ error: 'Недостаточно прав для удаления позиции витрины' });
+      } else {
         return res.status(403).json({ error: 'Недостаточно прав для удаления позиции витрины' });
       }
       await query('DELETE FROM showcase_items WHERE id = $1', [id]);
@@ -1789,12 +1780,10 @@ app.delete(
       const ures = await query('SELECT id, username, account_type FROM users WHERE id = $1', [req.user.id]);
       if (ures.rowCount === 0) return res.status(401).json({ error: 'Нет пользователя' });
       const me = ures.rows[0];
-      const perms = await getPermissionsForTypeDb(me.account_type).catch(() => ({}));
-      const isAdmin = me.account_type === 'Администратор' || perms?.users === 'write';
       const w = await query('SELECT owner_login FROM warehouse_items WHERE id = $1', [wid]);
       if (w.rowCount === 0) return res.status(404).json({ error: 'Товар не найден' });
       const isOwner = w.rows[0]?.owner_login && w.rows[0].owner_login === me.username;
-      if (!isAdmin && !isOwner) return res.status(403).json({ error: 'Недостаточно прав для очистки витрины по товару' });
+      if (!isOwner) return res.status(403).json({ error: 'Недостаточно прав для очистки витрины по товару' });
       await query('DELETE FROM showcase_items WHERE warehouse_item_id = $1', [wid]);
       try { app.locals.io.emit('showcase:changed', { warehouseItemId: wid, action: 'deleted_by_warehouse' }); } catch (_) {}
       res.json({ success: true });
@@ -2152,45 +2141,6 @@ app.delete(
       res.json({ success: true, directories: dirs });
     } catch (e) {
       res.status(500).json({ error: 'Ошибка удаления статуса' });
-    }
-  }
-);
-
-// Warehouse Locations
-app.post(
-  '/api/directories/warehouse-locations',
-  authenticateToken,
-  requirePermission('directories', 'write'),
-  async (req, res) => {
-    try {
-      const { name } = req.body || {};
-      if (!name || typeof name !== 'string')
-        return res.status(400).json({ error: 'Некорректное имя локации' });
-      await query(
-        'INSERT INTO warehouse_locations(name) VALUES ($1) ON CONFLICT (name) DO NOTHING',
-        [name.trim()]
-      );
-      const dirs = await loadDirectoriesFromDb();
-      res.json({ success: true, directories: dirs });
-    } catch (e) {
-      res.status(500).json({ error: 'Ошибка сохранения локации' });
-    }
-  }
-);
-
-app.delete(
-  '/api/directories/warehouse-locations/:name',
-  authenticateToken,
-  requirePermission('directories', 'write'),
-  async (req, res) => {
-    try {
-      const name = decodeURIComponent(req.params.name || '');
-      if (!name) return res.status(400).json({ error: 'Имя не указано' });
-      await query('DELETE FROM warehouse_locations WHERE name = $1', [name]);
-      const dirs = await loadDirectoriesFromDb();
-      res.json({ success: true, directories: dirs });
-    } catch (e) {
-      res.status(500).json({ error: 'Ошибка удаления локации' });
     }
   }
 );
@@ -2728,10 +2678,12 @@ const buildAggregatedData = async (userId) => {
   // Warehouse (filtered по allowedWarehouseTypes текущего пользователя)
   const warehouse = [];
   let allowedTypes = null;
+  let currentUsername = null;
   try {
     if (userId) {
-      const ures = await query('SELECT account_type FROM users WHERE id = $1', [userId]);
+      const ures = await query('SELECT account_type, username FROM users WHERE id = $1', [userId]);
       const accType = ures.rows[0]?.account_type || null;
+      currentUsername = ures.rows[0]?.username || null;
       if (accType) {
         const wres = await query('SELECT warehouse_type FROM account_type_warehouse_types WHERE account_type = $1', [accType]);
         allowedTypes = wres.rows.map((r) => r.warehouse_type).filter(Boolean);
@@ -2747,10 +2699,10 @@ const buildAggregatedData = async (userId) => {
   } catch (_) {}
   try {
     let w;
-    if (Array.isArray(allowedTypes) && allowedTypes.length > 0) {
+    if (currentUsername && Array.isArray(allowedTypes) && allowedTypes.length > 0) {
       w = await query(
-        'SELECT id, name, type, quantity, cost, currency, location, display_currencies, meta, warehouse_type, owner_login, created_at, updated_at FROM warehouse_items WHERE warehouse_type = ANY($1)',
-        [allowedTypes]
+        'SELECT id, name, type, quantity, cost, currency, display_currencies, meta, warehouse_type, owner_login, created_at, updated_at FROM warehouse_items WHERE owner_login = $2 AND warehouse_type = ANY($1)',
+        [allowedTypes, currentUsername]
       );
     } else {
       // Пустой или отсутствующий список — не возвращаем позиции склада
@@ -2792,8 +2744,6 @@ const buildAggregatedData = async (userId) => {
         cost: it.cost !== null && it.cost !== undefined ? Number(it.cost) : undefined,
         price: it.cost !== null && it.cost !== undefined ? Number(it.cost) : undefined,
         currency: it.currency || null,
-        // Склад / локация
-        location: it.location || null,
         displayCurrencies: it.display_currencies || undefined,
         // Описание из meta
         description: metaObj && metaObj.desc ? metaObj.desc : undefined,
@@ -2803,6 +2753,58 @@ const buildAggregatedData = async (userId) => {
         ownerLogin: it.owner_login || null,
         // Статус витрины
         showcaseStatus: showcaseItemsMap.has(it.id) ? 'На витрине' : 'Скрыт',
+        createdAt: it.created_at ? new Date(it.created_at).toISOString() : undefined,
+        updatedAt: it.updated_at ? new Date(it.updated_at).toISOString() : undefined,
+      });
+    }
+  } catch (_) {}
+
+  // Showcase Warehouse: товары на витрине со всех личных складов
+  const showcaseWarehouse = [];
+  try {
+    const sw = await query(
+      `SELECT w.id, w.name, w.type, w.quantity, w.cost, w.currency, w.display_currencies, w.meta,
+              w.warehouse_type, w.owner_login, w.created_at, w.updated_at
+       FROM warehouse_items w
+       JOIN showcase_items s ON s.warehouse_item_id = w.id
+       ORDER BY s.created_at DESC`
+    );
+    for (const it of sw.rows) {
+      let metaObj = undefined;
+      try {
+        if (it.meta && typeof it.meta === 'string') metaObj = JSON.parse(it.meta);
+        else if (it.meta && typeof it.meta === 'object') metaObj = it.meta;
+      } catch (_) {}
+
+      // Попробуем сопоставить номенклатуру по имени для получения типа/категории из product_names
+      let kind = null;
+      let categoryName = null;
+      try {
+        const pn = (
+          await query('SELECT type, uex_category FROM product_names WHERE name = $1', [it.name])
+        ).rows[0];
+        if (pn) {
+          kind = pn.type || null;
+          categoryName = pn.uex_category || null;
+        }
+      } catch (_) {}
+
+      showcaseWarehouse.push({
+        id: it.id,
+        name: it.name,
+        type: kind || it.type || null,
+        productType: kind || it.type || null,
+        category: categoryName || null,
+        quantity: Number(it.quantity) || 0,
+        cost: it.cost !== null && it.cost !== undefined ? Number(it.cost) : undefined,
+        price: it.cost !== null && it.cost !== undefined ? Number(it.cost) : undefined,
+        currency: it.currency || null,
+        displayCurrencies: it.display_currencies || undefined,
+        description: metaObj && metaObj.desc ? metaObj.desc : undefined,
+        meta: metaObj || undefined,
+        warehouseType: it.warehouse_type || null,
+        ownerLogin: it.owner_login || null,
+        showcaseStatus: 'На витрине',
         createdAt: it.created_at ? new Date(it.created_at).toISOString() : undefined,
         updatedAt: it.updated_at ? new Date(it.updated_at).toISOString() : undefined,
       });
@@ -2855,7 +2857,7 @@ const buildAggregatedData = async (userId) => {
   } catch (_) {}
 
   // nextId kept for backward compatibility (not used with normalized tables)
-  return { system, warehouse, users, transactions, showcase, directories, nextId: 1 };
+  return { system, warehouse, showcaseWarehouse, users, transactions, showcase, directories, nextId: 1 };
 };
 
 // ---------- Helpers for normalized DB ----------
@@ -3788,13 +3790,12 @@ const checkDbAndWarn = async () => {
     }
   };
   // Core tables presence (best-effort counts)
-  const tables = [
+  const TABLES_ORDER = [
     'users',
     'account_types',
     'account_type_permissions',
     'product_types',
     'showcase_statuses',
-    'warehouse_locations',
     'currencies',
     'currency_rates',
     'warehouse_items',
@@ -3806,7 +3807,7 @@ const checkDbAndWarn = async () => {
     'discord_scope_mappings',
     'user_layouts',
   ];
-  for (const t of tables) {
+  for (const t of TABLES_ORDER) {
     const c = await tryCount(`SELECT 1 FROM ${t} LIMIT 1`);
     if (c === -1) warns.push(`Таблица отсутствует или недоступна: ${t}`);
   }

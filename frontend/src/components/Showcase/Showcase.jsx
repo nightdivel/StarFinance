@@ -22,7 +22,9 @@ const Showcase = ({ data, userData }) => {
   const [scSearch, setScSearch] = useState('');
 
   // Only items on showcase
-  const showcasedProducts = data.warehouse.filter((product) => product.showcaseStatus === 'На витрине');
+  const showcasedProducts = Array.isArray(data?.showcaseWarehouse)
+    ? data.showcaseWarehouse
+    : (data.warehouse || []).filter((product) => product.showcaseStatus === 'На витрине');
 
   // Format currency as integer (ceil) with thousand separators
   const formatCurrency = (amount) => {
@@ -105,15 +107,6 @@ const Showcase = ({ data, userData }) => {
       render: (v) => <Tag>{v || '-'}</Tag>,
     },
     {
-      title: 'Склад',
-      dataIndex: 'warehouseType',
-      key: 'warehouseType',
-      width: 140,
-      filters: (data.directories.warehouseTypes || []).map((t) => ({ text: t, value: t })),
-      onFilter: (value, record) => record.warehouseType === value,
-      render: (v) => <Tag>{v || '-'}</Tag>,
-    },
-    {
       title: 'Владелец',
       dataIndex: 'ownerLogin',
       key: 'ownerLogin',
@@ -166,13 +159,14 @@ const Showcase = ({ data, userData }) => {
         );
       },
     },
-    {
+{
       title: 'Описание',
       dataIndex: 'description',
       key: 'description',
+      width: 240,
       ellipsis: true,
-      render: (description, record) => {
-        const val = description || record?.meta?.desc || '-';
+      render: (text, record) => {
+        const val = text || record?.meta?.desc || '-';
         return (
           <Tooltip title={val}>
             <span>{val}</span>

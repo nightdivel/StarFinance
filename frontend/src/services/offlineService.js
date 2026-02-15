@@ -81,7 +81,6 @@ class OfflineService {
           quantity: 10,
           price: 100,
           currency: 'aUEC',
-          location: 'Основной склад',
         },
       ],
       users: [

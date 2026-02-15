@@ -18,6 +18,30 @@ const TableWithFullscreen = ({
   const fullData = Array.isArray(tableProps?.dataSource) ? tableProps.dataSource : [];
   const slicedData = useMemo(() => (infinite ? fullData.slice(0, limit) : fullData), [fullData, infinite, limit]);
 
+  const normalizedColumns = useMemo(() => {
+    const cols = Array.isArray(tableProps?.columns) ? tableProps.columns : undefined;
+    if (!cols) return cols;
+    if (tableProps?.compactColumns === false) return cols;
+
+    const stripWidth = (arr) =>
+      arr.map((c) => {
+        if (!c || typeof c !== 'object') return c;
+        const hasFixed = !!c.fixed;
+        const hasChildren = Array.isArray(c.children) && c.children.length > 0;
+        const next = {
+          ...c,
+          ...(hasChildren ? { children: stripWidth(c.children) } : null),
+        };
+        if (!hasFixed && Object.prototype.hasOwnProperty.call(next, 'width')) {
+          const { width: _w, ...rest } = next;
+          return rest;
+        }
+        return next;
+      });
+
+    return stripWidth(cols);
+  }, [tableProps]);
+
   useEffect(() => {
     // reset limit when datasource changes
     setLimit(batchSize);
@@ -66,10 +90,13 @@ const TableWithFullscreen = ({
         <Table
           {...{
             bordered: false,
+            size: tableProps?.size ?? 'small',
+            tableLayout: tableProps?.tableLayout ?? 'auto',
             sticky: tableProps?.sticky ?? false,
-            scroll: { x: '100%', ...(tableProps?.scroll || {}) },
+            scroll: tableProps?.scroll,
             pagination: false,
             ...tableProps,
+            columns: normalizedColumns ?? tableProps?.columns,
             dataSource: slicedData,
           }}
         />
@@ -95,10 +122,13 @@ const TableWithFullscreen = ({
         <Table
           {...{
             bordered: false,
+            size: tableProps?.size ?? 'small',
+            tableLayout: tableProps?.tableLayout ?? 'auto',
             sticky: tableProps?.sticky ?? false,
-            scroll: { y: 'calc(100vh - 140px)', x: '100%', ...(tableProps?.scroll || {}) },
+            scroll: { y: 'calc(100vh - 140px)', ...(tableProps?.scroll || {}) },
             pagination: false,
             ...tableProps,
+            columns: normalizedColumns ?? tableProps?.columns,
             dataSource: slicedData,
           }}
         />

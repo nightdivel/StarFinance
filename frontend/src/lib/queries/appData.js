@@ -3,9 +3,9 @@ import { apiService } from '../../services/apiService';
 
 export const APP_DATA_QUERY_KEY = ['appData'];
 
-export function useAppDataQuery(options = {}) {
+export function useAppDataQuery(userKey, options = {}) {
   return useQuery({
-    queryKey: APP_DATA_QUERY_KEY,
+    queryKey: [...APP_DATA_QUERY_KEY, userKey || 'anonymous'],
     queryFn: async () => {
       const data = await apiService.request('/api/data', { method: 'GET' });
       return data;

@@ -136,7 +136,8 @@ function requirePermission(resource, level) {
       const { user, permissions } = await loadUserAndPermissions(req.user.id);
       if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
       // Администратор — всегда можно (серверный суперюзер)
-      if (user.account_type === 'Администратор') return next();
+      if (user.account_type === 'Администратор' && resource !== 'warehouse' && resource !== 'showcase')
+        return next();
       const userPermission = permissions[resource];
       if (!userPermission) return res.status(403).json({ error: 'Доступ запрещен' });
       const permissionLevels = { none: 0, read: 1, write: 2 };
@@ -159,7 +160,11 @@ function requireAnyPermission(resources, level) {
       const { user, permissions } = await loadUserAndPermissions(req.user.id);
       if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
       // Администратор — всегда можно (серверный суперюзер)
-      if (user.account_type === 'Администратор') return next();
+      if (
+        user.account_type === 'Администратор' &&
+        !(Array.isArray(resources) && (resources.includes('warehouse') || resources.includes('showcase')))
+      )
+        return next();
       for (const r of resources) {
         const userPermission = permissions[r];
         const userLevel = permissionLevels[userPermission];

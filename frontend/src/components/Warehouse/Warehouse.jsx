@@ -138,7 +138,6 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
         quantity: values.quantity,
         price: parseFloat(values.cost),
         currency: baseCurrency,
-        location: values.location || null,
         ownerLogin: values.ownerLogin || null,
         warehouseType: values.warehouseType || null,
         displayCurrencies:

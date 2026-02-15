@@ -1,5 +1,8 @@
 const { Pool } = require('pg');
 const { URL } = require('url');
+const path = require('path');
+
+require('dotenv').config({ path: path.resolve(__dirname, './.env') });
 
 // Support either individual PG_* vars or DATABASE_URL
 function buildConfig() {

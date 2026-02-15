@@ -78,10 +78,6 @@ CREATE TABLE IF NOT EXISTS showcase_statuses (
   name TEXT PRIMARY KEY
 );
 
-CREATE TABLE IF NOT EXISTS warehouse_locations (
-  name TEXT PRIMARY KEY
-);
-
 -- Product names
 CREATE TABLE IF NOT EXISTS product_names (
   name TEXT PRIMARY KEY,
@@ -108,12 +104,15 @@ CREATE TABLE IF NOT EXISTS warehouse_items (
   quantity NUMERIC(18,3) NOT NULL DEFAULT 0,
   cost NUMERIC(18,2),
   currency TEXT,
-  location TEXT REFERENCES warehouse_locations(name),
   display_currencies TEXT[],
   meta JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ
 );
+
+DROP INDEX IF EXISTS ux_showcase_items_warehouse_item_id;
+ALTER TABLE warehouse_items DROP COLUMN IF EXISTS location;
+DROP TABLE IF EXISTS warehouse_locations;
 
 -- Warehouse extensions
 CREATE TABLE IF NOT EXISTS warehouse_types (
@@ -121,9 +120,7 @@ CREATE TABLE IF NOT EXISTS warehouse_types (
 );
 -- Seed some default warehouse types (idempotent)
 INSERT INTO warehouse_types(name) VALUES
-  ('Основной'),
-  ('Орбитальный'),
-  ('Региональный')
+  ('Основной')
 ON CONFLICT DO NOTHING;
 ALTER TABLE warehouse_items 
   ADD COLUMN IF NOT EXISTS warehouse_type TEXT REFERENCES warehouse_types(name);
@@ -142,8 +139,6 @@ CREATE TABLE IF NOT EXISTS account_type_warehouse_types (
 -- Seed default allowed warehouse types per account type (idempotent)
 INSERT INTO account_type_warehouse_types(account_type, warehouse_type) VALUES
   ('Администратор','Основной'),
-  ('Администратор','Орбитальный'),
-  ('Администратор','Региональный'),
   ('Пользователь','Основной')
 ON CONFLICT DO NOTHING;
 
@@ -305,9 +300,6 @@ INSERT INTO product_types(name) VALUES ('Услуга') ON CONFLICT DO NOTHING;
 INSERT INTO product_types(name) VALUES ('Товар') ON CONFLICT DO NOTHING;
 INSERT INTO showcase_statuses(name) VALUES ('На витрине') ON CONFLICT DO NOTHING;
 INSERT INTO showcase_statuses(name) VALUES ('Скрыт') ON CONFLICT DO NOTHING;
-INSERT INTO warehouse_locations(name) VALUES ('Основной склад') ON CONFLICT DO NOTHING;
-INSERT INTO warehouse_locations(name) VALUES ('Резервный склад') ON CONFLICT DO NOTHING;
-
 -- Currencies base
 INSERT INTO currencies(code) VALUES ('aUEC') ON CONFLICT DO NOTHING;
 INSERT INTO currencies(code) VALUES ('КП') ON CONFLICT DO NOTHING;
@@ -364,9 +356,6 @@ INSERT INTO product_types(name) VALUES ('Запчасть') ON CONFLICT DO NOTHI
 -- Remove deprecated currencies if present (idempotent cleanup)
 DELETE FROM currency_rates WHERE code IN ('UEC','REC') OR base_code IN ('UEC','REC');
 DELETE FROM currencies WHERE code IN ('UEC','REC');
-
-INSERT INTO warehouse_locations(name) VALUES ('Орбитальный склад') ON CONFLICT DO NOTHING;
-INSERT INTO warehouse_locations(name) VALUES ('Склад New Babbage') ON CONFLICT DO NOTHING;
 
 -- Additional warehouse demo items removed
 

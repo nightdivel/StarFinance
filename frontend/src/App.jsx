@@ -162,6 +162,45 @@ function App() {
   }, [API_BASE_URL]);
 
   useEffect(() => {
+    const doLogout = () => {
+      try {
+        handleLogout();
+      } catch (_) {}
+    };
+
+    const onAuthLogout = () => doLogout();
+    const onStorage = (e) => {
+      if (!e) return;
+      if (e.key !== 'authToken' && e.key !== 'userData') return;
+      // Если токен удалили/обнулили (в другой вкладке или вручную)
+      const token = (() => {
+        try { return localStorage.getItem('authToken'); } catch (_) { return null; }
+      })();
+      if (!token) doLogout();
+    };
+
+    const checkToken = () => {
+      const token = (() => {
+        try { return localStorage.getItem('authToken'); } catch (_) { return null; }
+      })();
+      if (!token) doLogout();
+    };
+
+    window.addEventListener('auth:logout', onAuthLogout);
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('focus', checkToken);
+    document.addEventListener('visibilitychange', checkToken);
+
+    return () => {
+      window.removeEventListener('auth:logout', onAuthLogout);
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', checkToken);
+      document.removeEventListener('visibilitychange', checkToken);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     applyThemeClasses(!!darkMode);
   }, [darkMode]);
 

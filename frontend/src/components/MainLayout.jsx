@@ -38,16 +38,19 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
   const [collapsed, setCollapsed] = useState(false);
   const [selectedKey, setSelectedKey] = useState('finance');
   const queryClient = useQueryClient();
-  const { data, isLoading } = useAppDataQuery();
+  const { data, isLoading } = useAppDataQuery(userData?.username);
 
   const refreshData = async () => {
-    await queryClient.invalidateQueries({ queryKey: APP_DATA_QUERY_KEY });
+    await queryClient.invalidateQueries({ queryKey: [...APP_DATA_QUERY_KEY, userData?.username || 'anonymous'] });
   };
 
   // Realtime: subscribe to socket events and invalidate cached data
   useEffect(() => {
     const s = getSocket();
-    const invalidate = () => queryClient.invalidateQueries({ queryKey: APP_DATA_QUERY_KEY });
+    const invalidate = () =>
+      queryClient.invalidateQueries({
+        queryKey: [...APP_DATA_QUERY_KEY, userData?.username || 'anonymous'],
+      });
     s.on('warehouse:changed', invalidate);
     s.on('transactions:changed', invalidate);
     s.on('users:changed', invalidate);
@@ -66,7 +69,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
       s.off('requests:changed', invalidate);
       
     };
-  }, [queryClient]);
+  }, [queryClient, userData?.username]);
 
   const onDataUpdate = async () => true;
 

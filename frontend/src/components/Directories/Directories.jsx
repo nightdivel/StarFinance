@@ -81,15 +81,6 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
         form.resetFields();
         return;
       }
-      if (directoryKey === 'warehouseLocations') {
-        await apiService.addWarehouseLocation(newItem);
-        message.success('Локация склада добавлена');
-        await onRefresh?.();
-        setEditingItem(null);
-        form.resetFields();
-        return;
-      }
-
       if (directoryKey === 'warehouseTypes') {
         await apiService.addWarehouseType(newItem);
         message.success('Тип склада добавлен');
@@ -156,13 +147,6 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
             await onRefresh?.();
             return;
           }
-          if (directoryKey === 'warehouseLocations') {
-            await apiService.deleteWarehouseLocation(current);
-            message.success('Локация склада удалена');
-            await onRefresh?.();
-            return;
-          }
-
           if (directoryKey === 'warehouseTypes') {
             await apiService.deleteWarehouseType(current);
             message.success('Тип склада удалён');
@@ -205,14 +189,11 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
   // Edit directory item (все справочники через API)
   const editDirectoryItem = async (directoryKey, itemIndex, newValue) => {
     try {
-      if (['showcaseStatuses', 'warehouseLocations', 'warehouseTypes'].includes(directoryKey)) {
+      if (['showcaseStatuses', 'warehouseTypes'].includes(directoryKey)) {
         const current = data.directories[directoryKey][itemIndex];
         if (directoryKey === 'showcaseStatuses') {
           await apiService.deleteShowcaseStatus(current);
           await apiService.addShowcaseStatus(newValue);
-        } else if (directoryKey === 'warehouseLocations') {
-          await apiService.deleteWarehouseLocation(current);
-          await apiService.addWarehouseLocation(newValue);
         } else if (directoryKey === 'warehouseTypes') {
           await apiService.deleteWarehouseType(current);
           await apiService.addWarehouseType(newValue);
@@ -301,11 +282,12 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
     <div style={{ padding: 4 }}>
       <Card title="Системные справочники">
         <Table
+          size="small"
+          tableLayout="auto"
           columns={columns}
           dataSource={directoryData}
           rowKey="key"
           pagination={false}
-          scroll={{ x: '100%' }}
         />
       </Card>
 

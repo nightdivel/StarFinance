@@ -884,6 +884,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               <div style={{ marginTop: 12 }}>
                 <Table
                   size="small"
+                  tableLayout="auto"
                   rowKey={(r, idx) => `${r.scope}|${r.value ?? ''}|${idx}`}
                   columns={[
                     {
