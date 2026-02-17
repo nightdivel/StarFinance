@@ -339,35 +339,49 @@ function App() {
       theme={{
         algorithm: [theme.compactAlgorithm, darkMode ? theme.darkAlgorithm : theme.defaultAlgorithm],
         token: {
+          colorPrimary: '#0f766e',
+          colorInfo: '#0f766e',
           fontSize: 14,
           paddingXS: 6,
           paddingSM: 8,
           padding: 12,
-          borderRadius: 4,
+          borderRadius: 10,
+          colorBgLayout: darkMode ? '#0b1220' : '#f3f6f8',
+          colorBorder: darkMode ? '#233042' : '#d7e1e8',
         },
         components: {
+          Layout: {
+            headerBg: 'transparent',
+            bodyBg: 'transparent',
+            siderBg: darkMode ? '#0f172a' : '#ffffff',
+          },
           Table: {
-            cellPaddingBlock: 4,
-            cellPaddingInline: 8,
-            fontSize: 12,
+            cellPaddingBlock: 8,
+            cellPaddingInline: 10,
+            fontSize: 13,
             headerSplitColor: 'transparent',
+            headerBg: darkMode ? '#132033' : '#eef3f6',
+            rowHoverBg: darkMode ? 'rgba(45, 212, 191, 0.08)' : '#e9f7f5',
+            borderColor: darkMode ? '#22344d' : '#d8e2e8',
           },
           Form: {
             itemMarginBottom: 8,
             verticalLabelPadding: 0,
           },
           Card: {
-            padding: 12,
-            headerHeight: 36,
+            padding: 14,
+            headerHeight: 42,
+            borderRadiusLG: 14,
           },
           Button: {
-            controlHeight: 28,
+            controlHeight: 32,
+            borderRadius: 10,
           },
           Input: {
-            controlHeight: 28,
+            controlHeight: 32,
           },
           Select: {
-            controlHeight: 28,
+            controlHeight: 32,
           },
         },
       }}

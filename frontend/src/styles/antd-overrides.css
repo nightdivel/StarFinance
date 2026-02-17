@@ -1,12 +1,12 @@
 /* App.css */
 .App {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #f3f6f8;
 }
 
 /* Global styles for Ant Design components */
 .ant-layout {
-  background: #f5f5f5;
+  background: transparent;
 }
 
 /* Dark theme root */
@@ -214,6 +214,9 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden; /* предотвращаем выливание содержимого за рамку */
+  border-radius: 14px;
+  border: 1px solid #d8e2e8;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
 }
 .ant-card-body {
   flex: 1 1 auto;
@@ -222,13 +225,14 @@
 }
 
 .ant-layout-header {
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
 }
 
 /* Global 5px border for all tables */
 .ant-table-wrapper {
-  border: 5px solid #f0f0f0;
-  border-radius: 8px;
+  border: 1px solid #d8e2e8;
+  border-radius: 14px;
+  background: #ffffff;
 }
 .dark-theme .ant-table-wrapper {
   border-color: rgba(148, 163, 184, 0.25);
@@ -349,7 +353,7 @@
 }
 
 .ant-layout-sider {
-  box-shadow: 2px 0 6px rgba(0, 21, 41, 0.08);
+  box-shadow: 1px 0 0 rgba(15, 23, 42, 0.08);
 }
 
 /* TableWithFullscreen helpers */
@@ -375,12 +379,12 @@
 }
 
 .ant-menu-item-selected {
-  background-color: #e6f7ff !important;
-  border-right: 3px solid #1890ff;
+  background-color: rgba(15, 118, 110, 0.12) !important;
+  border-right: 3px solid #0f766e;
 }
 
 .ant-menu-item:hover {
-  background-color: #f0f9ff;
+  background-color: rgba(15, 118, 110, 0.08);
 }
 
 /* Custom scrollbar */
@@ -444,10 +448,107 @@
 .ant-btn {
   height: 32px !important;
   line-height: 32px !important;
-  min-width: 80px;
+  min-width: 72px;
   padding: 0 12px !important;
   font-size: 14px;
-  border-radius: 6px;
+  border-radius: 10px;
+}
+
+/* ===== Modern workspace shell ===== */
+.sf-app-shell {
+  background:
+    radial-gradient(1200px 400px at -5% -10%, rgba(15, 118, 110, 0.1), transparent 60%),
+    radial-gradient(900px 320px at 110% -10%, rgba(14, 116, 144, 0.08), transparent 55%),
+    #f3f6f8;
+}
+
+.dark-theme .sf-app-shell {
+  background:
+    radial-gradient(1000px 380px at -10% -15%, rgba(45, 212, 191, 0.12), transparent 55%),
+    radial-gradient(900px 340px at 110% -5%, rgba(56, 189, 248, 0.1), transparent 52%),
+    #0b1220;
+}
+
+.sf-main-sider {
+  border-right: 1px solid #d7e1e8;
+  backdrop-filter: blur(6px);
+}
+
+.dark-theme .sf-main-sider {
+  border-right-color: #22344d;
+}
+
+.sf-main-header {
+  backdrop-filter: blur(8px);
+}
+
+.sf-main-content {
+  border: 1px solid #d7e1e8;
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(10px);
+}
+
+.dark-theme .sf-main-content {
+  border-color: #22344d;
+  background: rgba(15, 23, 42, 0.45) !important;
+}
+
+/* ===== Table usability refinements ===== */
+.ant-table {
+  font-size: 13px;
+}
+
+.ant-table-thead > tr > th {
+  position: relative;
+  background: #eef3f6 !important;
+  color: #0f172a !important;
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 1px solid #d8e2e8 !important;
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid #e3ebf0 !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: #f2fbf9 !important;
+}
+
+.ant-table-tbody > tr.ant-table-row-selected > td {
+  background: rgba(15, 118, 110, 0.14) !important;
+}
+
+.ant-table-pagination.ant-pagination {
+  margin: 12px 12px 10px;
+}
+
+.dark-theme .ant-table-wrapper {
+  border-color: #22344d;
+  background: #0b1220;
+}
+
+.dark-theme .ant-table-thead > tr > th {
+  background: #132033 !important;
+  color: #dbe7f3 !important;
+  border-bottom-color: #22344d !important;
+}
+
+.dark-theme .ant-table-tbody > tr > td {
+  border-bottom-color: #1c2e45 !important;
+}
+
+.dark-theme .ant-table-tbody > tr:hover > td {
+  background: rgba(45, 212, 191, 0.1) !important;
+}
+
+/* Compact controls for dense tabular workflows */
+.ant-input,
+.ant-select-selector,
+.ant-picker,
+.ant-input-number,
+.ant-btn {
+  box-shadow: none !important;
 }
 
 /* Ensure icon alignment */

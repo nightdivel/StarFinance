@@ -290,16 +290,16 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
   };
 
   return (
-    <Layout className="min-h-screen">
+    <Layout className="min-h-screen sf-app-shell">
       <Sider
         trigger={null}
         collapsible
         collapsed={collapsed}
         theme={darkMode ? 'dark' : 'light'}
-        className="relative h-screen flex flex-col"
+        className="relative h-screen flex flex-col sf-main-sider"
       >
         <div
-          className={`${collapsed ? 'px-2 py-3' : 'px-4 py-3'} text-center border-b border-gray-200`}
+          className={`${collapsed ? 'px-2 py-3' : 'px-4 py-4'} text-center border-b border-gray-200/70`}
         >
           <Title level={4} className="m-0">
             {collapsed ? 'BLSK SF' : 'BLSK Star Finance'}
@@ -328,12 +328,12 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
               </span>
             ),
           }))}
-          className="border-r-0 flex-1"
+          className="border-r-0 flex-1 px-2 pt-2"
         />
       </Sider>
       <Layout>
         <Header
-          className="px-4 bg-transparent flex justify-between items-center border-b border-gray-200 relative"
+          className="px-5 bg-transparent flex justify-between items-center border-b border-gray-200/70 relative sf-main-header"
         >
           {/* Left side: per-currency balance for current user */}
           <div className="flex items-center gap-2 flex-wrap py-1">
@@ -383,12 +383,10 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
             </Dropdown>
           </Space>
         </Header>
-        <Content
-          className="m-4 p-6 bg-transparent rounded-lg shadow"
-        >
+        <Content className="m-4 p-5 bg-transparent rounded-2xl shadow-sm sf-main-content">
           {renderContent()}
         </Content>
-        <Footer className="text-center py-2 px-4 bg-transparent">
+        <Footer className="text-center py-3 px-4 bg-transparent text-slate-500">
           Разработано Попов Е.Ф. (@StAim)
         </Footer>
       </Layout>
