@@ -17,8 +17,29 @@ const httpsConfig = fs.existsSync(keyPath) && fs.existsSync(certPathFile)
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+
+  const antdMergeSemanticPatch = {
+    name: 'antd-merge-semantic-patch',
+    transform(code, id) {
+      if (!id.includes('antd/es/date-picker/hooks/useMergedPickerSemantic.js')) return null;
+
+      return code.replace(
+        "import useMergeSemantic from '../../_util/hooks/useMergeSemantic';",
+        "import useMergeSemantic from 'antd/lib/_util/hooks/useMergeSemantic';"
+      );
+    },
+  };
+
   return {
-    plugins: [react()],
+    plugins: [react(), antdMergeSemanticPatch],
+    resolve: {
+      alias: {
+        'antd/es/_util/hooks/useMergeSemantic': 'antd/lib/_util/hooks/useMergeSemantic',
+        'antd/es/_util/hooks/useMergeSemantic.js': 'antd/lib/_util/hooks/useMergeSemantic.js',
+        'antd/es/date-picker/hooks/useMergedPickerSemantic': 'antd/lib/date-picker/hooks/useMergedPickerSemantic',
+        'antd/es/date-picker/hooks/useMergedPickerSemantic.js': 'antd/lib/date-picker/hooks/useMergedPickerSemantic.js',
+      },
+    },
     base: env.BASE_PATH || '/',
     server: {
       port: 5173,
