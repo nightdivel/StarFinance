@@ -71,11 +71,11 @@ const Auth = ({ onLogin }) => {
       <Card className="auth-card">
         <div className="auth-header">
           {authIconUrl && (
-            <div style={{ marginBottom: 12 }}>
+            <div className="mb-3">
               <img
                 src={authIconUrl}
                 alt="Auth icon"
-                style={{ maxWidth: 96, maxHeight: 96, objectFit: 'contain' }}
+                className="max-w-[96px] max-h-[96px] object-contain"
               />
             </div>
           )}
@@ -133,7 +133,7 @@ const Auth = ({ onLogin }) => {
         </Form>
 
         {serverDiscordEnabled && (
-          <div style={{ marginTop: 16 }}>
+          <div className="mt-4">
             <Button
               size="large"
               block

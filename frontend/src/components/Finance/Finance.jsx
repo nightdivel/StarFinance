@@ -298,7 +298,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       render: (_, r) => {
         const canAct = r.status === 'В обработке' && isRecipient(r);
         return (
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+          <div className="flex gap-2 justify-center">
             <Button size="small" type="primary" disabled={!canAct} onClick={async () => { await apiService.confirmFinanceRequest(r.id); await queryClient.invalidateQueries({ queryKey: APP_DATA_QUERY_KEY }); await loadFinanceRequests(); }}>Подтвердить</Button>
             <Button size="small" danger disabled={!canAct} onClick={async () => { await apiService.cancelFinanceRequest(r.id); await queryClient.invalidateQueries({ queryKey: APP_DATA_QUERY_KEY }); await loadFinanceRequests(); }}>Отменить</Button>
           </div>
@@ -488,7 +488,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       width: 180,
       align: 'center',
       render: (_, record) => (
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="flex gap-2">
           <Tooltip title="Редактировать">
             <Button
               size="small"
@@ -544,8 +544,8 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
   ];
 
   return (
-    <div style={{ padding: 4 }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+    <div className="p-1">
+      <div className="flex justify-end mb-2">
         <Button type="primary" icon={<ReloadOutlined />} onClick={handleResetLayout} size="small">
           Сбросить расположение
         </Button>
@@ -562,12 +562,17 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
         onLayoutChange={handleLayoutChange}
         draggableHandle=".card-draggable"
       >
-        <div key="stats" style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+        <div key="stats" className="flex flex-wrap gap-4">
           {data.system.currencies
             .slice()
             .sort((a, b) => compareDropdownStrings(a, b))
             .map((currency) => (
-            <Card key={currency} size="small" style={{ minWidth: 220, flex: '1 1 220px' }} title={<span className="card-draggable" style={{ cursor: 'move' }}>Баланс ({currency})</span>}>
+            <Card
+              key={currency}
+              size="small"
+              className="min-w-[220px] flex-[1_1_220px]"
+              title={<span className="card-draggable cursor-move">Баланс ({currency})</span>}
+            >
               <Statistic
                 value={balances[currency]}
                 precision={2}
@@ -581,15 +586,15 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
 
         <div key="transactions">
           <TableWithFullscreen
-            title={<span className="card-draggable" style={{ cursor: 'move' }}>Транзакции</span>}
+            title={<span className="card-draggable cursor-move">Транзакции</span>}
             extra={
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div className="flex gap-2 items-center">
                 <Input
                   allowClear
                   placeholder="Поиск по всем полям"
                   value={txSearch}
                   onChange={(e) => setTxSearch(e.target.value)}
-                  style={{ width: 260 }}
+                  className="w-[260px]"
                 />
                 <Button
                   type="primary"
@@ -640,7 +645,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
 
         <div key="currencies">
           <TableWithFullscreen
-            title={<span className="card-draggable" style={{ cursor: 'move' }}>Валюты</span>}
+            title={<span className="card-draggable cursor-move">Валюты</span>}
             tableProps={{
               columns: currencyColumns,
               dataSource: data.system.currencies
@@ -745,7 +750,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" style={{ marginRight: 8 }}>
+            <Button type="primary" htmlType="submit" className="mr-2">
               {editingTx ? 'Сохранить' : 'Добавить'}
             </Button>
             <Button onClick={() => setTransactionModalVisible(false)}>Отмена</Button>

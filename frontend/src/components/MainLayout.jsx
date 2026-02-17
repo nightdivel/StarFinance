@@ -176,14 +176,14 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
       // Skeleton layout: 3 stat cards + table placeholder
       return (
         <div className="fade-in">
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
-            <Card size="small" style={{ minWidth: 220, flex: '1 1 220px' }}>
+          <div className="flex flex-wrap gap-4 mb-4">
+            <Card size="small" className="min-w-[220px] flex-[1_1_220px]">
               <Skeleton active title={{ width: 120 }} paragraph={{ rows: 1 }} />
             </Card>
-            <Card size="small" style={{ minWidth: 220, flex: '1 1 220px' }}>
+            <Card size="small" className="min-w-[220px] flex-[1_1_220px]">
               <Skeleton active title={{ width: 160 }} paragraph={{ rows: 1 }} />
             </Card>
-            <Card size="small" style={{ minWidth: 260, flex: '1 1 260px' }}>
+            <Card size="small" className="min-w-[260px] flex-[1_1_260px]">
               <Skeleton active title={{ width: 180 }} paragraph={{ rows: 1 }} />
             </Card>
           </div>
@@ -197,7 +197,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
     const sec = rawMenuItems.find((i) => i.key === selectedKey)?.section;
     if (sec && !authService.hasPermission(sec, 'read')) {
       return (
-        <div style={{ padding: 16 }}>
+        <div className="p-4">
           <Card>
             <b>Нет доступа</b> к разделу
           </Card>
@@ -290,25 +290,27 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed} theme={darkMode ? 'dark' : 'light'} style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <Layout className="min-h-screen">
+      <Sider
+        trigger={null}
+        collapsible
+        collapsed={collapsed}
+        theme={darkMode ? 'dark' : 'light'}
+        className="relative h-screen flex flex-col"
+      >
         <div
-          style={{
-            padding: collapsed ? '12px 8px' : '12px 16px',
-            textAlign: 'center',
-            borderBottom: '1px solid #f0f0f0',
-          }}
+          className={`${collapsed ? 'px-2 py-3' : 'px-4 py-3'} text-center border-b border-gray-200`}
         >
-          <Title level={4} style={{ margin: 0 }}>
+          <Title level={4} className="m-0">
             {collapsed ? 'BLSK SF' : 'BLSK Star Finance'}
           </Title>
-          <div style={{ marginTop: 8 }}>
+          <div className="mt-2">
             <Button
               type="text"
               icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => setCollapsed(!collapsed)}
               shape={collapsed ? 'circle' : undefined}
-              style={{ fontSize: '16px', width: collapsed ? 36 : 48, height: 36, margin: '0 auto', display: 'block' }}
+              className={`text-base h-9 mx-auto block ${collapsed ? 'w-9' : 'w-12'}`}
             />
           </div>
         </div>
@@ -321,28 +323,20 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
           items={menuItems.map((mi) => ({
             ...mi,
             label: (
-              <span style={{ fontWeight: mi.key === selectedKey ? 600 : 500, fontSize: 16 }}>
+              <span className={`${mi.key === selectedKey ? 'font-semibold' : 'font-medium'} text-base`}>
                 {mi.label}
               </span>
             ),
           }))}
-          style={{ borderRight: 0, flex: 1 }}
+          className="border-r-0 flex-1"
         />
       </Sider>
       <Layout>
         <Header
-          style={{
-            padding: '0 16px',
-            background: 'transparent',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: '1px solid #f0f0f0',
-            position: 'relative',
-          }}
+          className="px-4 bg-transparent flex justify-between items-center border-b border-gray-200 relative"
         >
           {/* Left side: per-currency balance for current user */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '4px 0' }}>
+          <div className="flex items-center gap-2 flex-wrap py-1">
             {(data?.system?.currencies || []).map((c) => (
               <Tag key={`hdr-bal-${c}`} color={(userBalances[c] || 0) >= 0 ? 'green' : 'red'}>
                 {Number(userBalances[c] || 0).toFixed(2)} {c}
@@ -356,11 +350,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
                 aria-label={darkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}
                 icon={darkMode ? <MoonOutlined /> : <SunOutlined />}
                 onClick={() => onToggleTheme(!darkMode)}
-                style={{
-                  height: 'auto',
-                  padding: '4px 8px',
-                  color: darkMode ? '#60a5fa' : '#f59e0b', /* blue for dark, amber for light */
-                }}
+                className={`h-auto px-2 py-1 ${darkMode ? 'text-blue-400' : 'text-amber-500'}`}
               />
             </Tooltip>
             <Dropdown
@@ -383,9 +373,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
             >
               <Button
                 type="text"
-                style={{ height: 'auto', padding: '4px 8px' }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                className={`h-auto py-1 px-2 ${darkMode ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
               >
                 <Space>
                   <Avatar src={userData?.avatarUrl} icon={<UserOutlined />} />
@@ -396,17 +384,11 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
           </Space>
         </Header>
         <Content
-          style={{
-            margin: '16px',
-            padding: '24px',
-            background: 'transparent',
-            borderRadius: '8px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          }}
+          className="m-4 p-6 bg-transparent rounded-lg shadow"
         >
           {renderContent()}
         </Content>
-        <Footer style={{ textAlign: 'center', padding: '8px 16px', background: 'transparent' }}>
+        <Footer className="text-center py-2 px-4 bg-transparent">
           Разработано Попов Е.Ф. (@StAim)
         </Footer>
       </Layout>

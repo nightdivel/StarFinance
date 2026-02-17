@@ -142,7 +142,7 @@ const Requests = () => {
       onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
       render: (text) => (
         <Tooltip title={text}>
-          <span style={{ display: 'inline-block', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span className="inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis">
             {text}
           </span>
         </Tooltip>
@@ -203,14 +203,14 @@ const Requests = () => {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="flex flex-col gap-4">
       <Card title="Заявки на покупку (витрина)" extra={
         <Input
           allowClear
           placeholder="Поиск по всем полям"
           value={reqSearch}
           onChange={(e) => setReqSearch(e.target.value)}
-          style={{ width: 260 }}
+          className="w-[260px]"
         />
       }>
         <TableWithFullscreen
@@ -245,7 +245,7 @@ const Requests = () => {
           placeholder="Поиск по всем полям"
           value={frSearch}
           onChange={(e) => setFrSearch(e.target.value)}
-          style={{ width: 260 }}
+          className="w-[260px]"
         />
       }>
         <TableWithFullscreen

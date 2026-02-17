@@ -246,8 +246,8 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
       width: 200,
       render: (name, record) => (
         <div>
-          <div style={{ fontWeight: 600 }}>{name}</div>
-          <div style={{ fontSize: 12, color: '#8c8c8c' }}>{record.key}</div>
+          <div className="font-semibold">{name}</div>
+          <div className="text-xs text-neutral-500">{record.key}</div>
         </div>
       ),
     },
@@ -279,7 +279,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
   ];
 
   return (
-    <div style={{ padding: 4 }}>
+    <div className="p-1">
       <Card title="Системные справочники">
         <Table
           size="small"
@@ -302,13 +302,11 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
           try { form.resetFields(); } catch (_) {}
         }}
         width={900}
-        bodyStyle={{ maxHeight: '70vh', overflowY: 'auto' }}
-        style={{ top: 24 }}
         footer={null}
       >
         {currentDirectory && (
-          <div>
-            <div style={{ marginBottom: 16 }}>
+          <div className="max-h-[70vh] overflow-y-auto">
+            <div className="mb-4">
               {currentDirectory.key !== 'productTypes' && currentDirectory.key !== 'categories' && (
                 <Button
                   type="primary"
@@ -524,13 +522,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                             : 'Добавление элемента'
                         }
                         size="small"
-                        style={{
-                          marginBottom: 16,
-                          position: 'sticky',
-                          top: 0,
-                          zIndex: 2,
-                          background: 'transparent',
-                        }}
+                        className="mb-4 sticky top-0 z-[2] bg-transparent"
                       >
                         {editingItem.directory === 'accountTypes' ? (
                           <Form
@@ -688,7 +680,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                           placeholder={`Поиск по: ${currentDirectory.name}`}
                           value={dirSearch}
                           onChange={(e) => setDirSearch(e.target.value)}
-                          style={{ width: 260 }}
+                          className="w-[260px]"
                         />
                       }
                       infinite={true}

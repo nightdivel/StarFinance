@@ -7,6 +7,7 @@ import { ConfigProvider, theme, App as AntdApp } from 'antd';
 import ruRU from 'antd/locale/ru_RU';
 import App from './App.jsx';
 import './index.css';
+import './styles/antd-overrides.css';
 
 const root = createRoot(document.getElementById('root'));
 const queryClient = new QueryClient({

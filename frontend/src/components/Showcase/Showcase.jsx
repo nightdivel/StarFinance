@@ -59,13 +59,13 @@ const Showcase = ({ data, userData }) => {
         </Tooltip>
       ),
       filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-        <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
+        <div className="p-2" onKeyDown={(e) => e.stopPropagation()}>
           <Input
             placeholder="Поиск по названию"
             value={selectedKeys[0]}
             onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
             onPressEnter={() => confirm()}
-            style={{ marginBottom: 8, display: 'block' }}
+            className="mb-2 block"
           />
           <Space>
             <Button type="primary" size="small" onClick={() => confirm()}>
@@ -120,7 +120,7 @@ const Showcase = ({ data, userData }) => {
       width: 100,
       sorter: (a, b) => a.quantity - b.quantity,
       render: (quantity) => (
-        <span style={{ fontWeight: quantity > 0 ? 600 : 400 }}>
+        <span className={quantity > 0 ? 'font-semibold' : 'font-normal'}>
           {quantity > 0 ? quantity : 'Нет в наличии'}
         </span>
       ),
@@ -143,14 +143,14 @@ const Showcase = ({ data, userData }) => {
 
         return (
           <div>
-            <div style={{ fontWeight: 500 }}>
+            <div className="font-medium">
               {formatCurrency(primaryValue)} {primary}
             </div>
             {displays.slice(1).map((curr) => {
               const rate = (rates[curr] || 1) / (rates[from] || 1);
               const v = Math.ceil((Number(record.cost) || 0) * rate);
               return (
-                <div key={curr} style={{ fontSize: 12, color: '#8c8c8c' }}>
+                <div key={curr} className="text-xs text-neutral-500">
                   {formatCurrency(v)} {curr}
                 </div>
               );
@@ -190,7 +190,7 @@ const Showcase = ({ data, userData }) => {
               value={qtyMap[record.id] || 1}
               onChange={(v) => setQtyMap((m) => ({ ...m, [record.id]: v }))}
               disabled={maxQty === 0 || isOwn}
-              style={{ width: 96 }}
+              className="w-24"
             />
             <Button
               type="primary"
@@ -283,8 +283,8 @@ const Showcase = ({ data, userData }) => {
   };
 
   return (
-    <div style={{ padding: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+    <div className="p-2">
+      <div className="flex justify-end mb-2">
         <Button type="primary" onClick={handleResetLayout}>Сбросить расположение</Button>
       </div>
       <ResponsiveGridLayout
@@ -302,17 +302,17 @@ const Showcase = ({ data, userData }) => {
         <div key="stats">
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={8}>
-              <Card size="small" title={<span className="card-draggable" style={{ cursor: 'move' }}>Всего товаров</span>}>
+              <Card size="small" title={<span className="card-draggable cursor-move">Всего товаров</span>}>
                 <Statistic value={statistics.totalProducts} prefix={<ShopOutlined />} />
               </Card>
             </Col>
             <Col xs={24} sm={8}>
-              <Card size="small" title={<span className="card-draggable" style={{ cursor: 'move' }}>Доступно</span>}>
+              <Card size="small" title={<span className="card-draggable cursor-move">Доступно</span>}>
                 <Statistic value={statistics.availableProducts} />
               </Card>
             </Col>
             <Col xs={24} sm={8}>
-              <Card size="small" title={<span className="card-draggable" style={{ cursor: 'move' }}>Общая стоимость</span>}>
+              <Card size="small" title={<span className="card-draggable cursor-move">Общая стоимость</span>}>
                 <Statistic value={statistics.totalValue} precision={2} suffix={data.system.baseCurrency} />
               </Card>
             </Col>
@@ -321,7 +321,7 @@ const Showcase = ({ data, userData }) => {
 
         <div key="table">
           <TableWithFullscreen
-            title={<span className="card-draggable" style={{ cursor: 'move' }}>Витрина товаров</span>}
+            title={<span className="card-draggable cursor-move">Витрина товаров</span>}
             extra={
               <Space>
                 <Input
@@ -329,7 +329,7 @@ const Showcase = ({ data, userData }) => {
                   placeholder="Поиск по всем полям"
                   value={scSearch}
                   onChange={(e) => setScSearch(e.target.value)}
-                  style={{ width: 260 }}
+                  className="w-[260px]"
                 />
               </Space>
             }

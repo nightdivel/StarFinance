@@ -287,13 +287,13 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
         </Tooltip>
       ),
       filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-        <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
+        <div className="p-2" onKeyDown={(e) => e.stopPropagation()}>
           <Input
             placeholder="Поиск по названию"
             value={selectedKeys[0]}
             onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
             onPressEnter={() => confirm()}
-            style={{ marginBottom: 8, display: 'block' }}
+            className="mb-2 block"
           />
           <Space>
             <Button type="primary" size="small" onClick={() => confirm()}>
@@ -359,13 +359,13 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       width: 160,
       render: (v) => v || '-',
       filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-        <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
+        <div className="p-2" onKeyDown={(e) => e.stopPropagation()}>
           <Input
             placeholder="Поиск по владельцу"
             value={selectedKeys[0]}
             onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
             onPressEnter={() => confirm()}
-            style={{ marginBottom: 8, display: 'block' }}
+            className="mb-2 block"
           />
           <Space>
             <Button type="primary" size="small" onClick={() => confirm()}>Найти</Button>
@@ -386,7 +386,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
           value={record.quantity || 0}
           onChange={(v) => onChangeQty(record, v)}
           disabled={!canInlineEditQty(record)}
-          style={{ width: '100%' }}
+          className="w-full"
         />
       ),
     },
@@ -406,12 +406,12 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
         const primaryVal = Math.ceil((Number(record.cost) || 0) * toPrimaryRate);
         return (
           <div>
-            <div style={{ fontWeight: 500 }}>{formatInt(primaryVal)} {primary}</div>
+            <div className="font-medium">{formatInt(primaryVal)} {primary}</div>
             {displays.slice(1).map((curr) => {
               const rate = (rates[curr] || 1) / (rates[from] || 1);
               const v = Math.ceil((Number(record.cost) || 0) * rate);
               return (
-                <div key={`${record.id}-${curr}`} style={{ fontSize: 12, color: '#8c8c8c' }}>
+                <div key={`${record.id}-${curr}`} className="text-xs text-neutral-500">
                   {formatInt(v)} {curr}
                 </div>
               );
@@ -489,8 +489,8 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
   })();
 
   return (
-    <div style={{ padding: 4 }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+    <div className="p-1">
+      <div className="flex justify-end mb-2">
         <Button type="primary" onClick={handleResetLayout}>
           Сбросить расположение
         </Button>
@@ -507,26 +507,42 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
         onLayoutChange={handleLayoutChange}
         draggableHandle=".card-draggable"
       >
-        <div key="stats" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          <Card size="small" title={<span className="card-draggable" style={{ cursor: 'move' }}>Всего на складе</span>} style={{ minWidth: 220 }}>
-            <div style={{ fontSize: 20, fontWeight: 600 }}>{totalItems}</div>
+        <div key="stats" className="flex flex-wrap gap-4">
+          <Card
+            size="small"
+            title={<span className="card-draggable cursor-move">Всего на складе</span>}
+            className="min-w-[220px]"
+          >
+            <div className="text-[20px] font-semibold">{totalItems}</div>
           </Card>
-          <Card size="small" title={<span className="card-draggable" style={{ cursor: 'move' }}>На витрине</span>} style={{ minWidth: 220 }}>
-            <div style={{ fontSize: 20, fontWeight: 600 }}>{onShowcase}</div>
+          <Card
+            size="small"
+            title={<span className="card-draggable cursor-move">На витрине</span>}
+            className="min-w-[220px]"
+          >
+            <div className="text-[20px] font-semibold">{onShowcase}</div>
           </Card>
-          <Card size="small" title={<span className="card-draggable" style={{ cursor: 'move' }}>Общая стоимость (на витрине)</span>} style={{ minWidth: 260 }}>
-            <div style={{ fontSize: 20, fontWeight: 600 }}>
+          <Card
+            size="small"
+            title={<span className="card-draggable cursor-move">Общая стоимость (на витрине)</span>}
+            className="min-w-[260px]"
+          >
+            <div className="text-[20px] font-semibold">
               {formatCurrency(showcaseTotalValue)} {data.system.baseCurrency}
             </div>
           </Card>
-          <Card size="small" title={<span className="card-draggable" style={{ cursor: 'move' }}>Общее кол-во</span>} style={{ minWidth: 220 }}>
-            <div style={{ fontSize: 20, fontWeight: 600 }}>{totalQty}</div>
+          <Card
+            size="small"
+            title={<span className="card-draggable cursor-move">Общее кол-во</span>}
+            className="min-w-[220px]"
+          >
+            <div className="text-[20px] font-semibold">{totalQty}</div>
           </Card>
         </div>
 
         <div key="table">
           <TableWithFullscreen
-            title={<span className="card-draggable" style={{ cursor: 'move' }}>Управление складом</span>}
+            title={<span className="card-draggable cursor-move">Управление складом</span>}
             extra={
               <Space>
                 <Input
@@ -534,7 +550,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                   placeholder="Поиск по всем полям"
                   value={whSearch}
                   onChange={(e) => setWhSearch(e.target.value)}
-                  style={{ width: 260 }}
+                  className="w-[260px]"
                 />
                 <Button
                   type="primary"
@@ -668,7 +684,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                 label="Количество"
                 rules={[{ required: true, message: 'Введите количество' }]}
               >
-                <InputNumber min={0} placeholder="0" style={{ width: '100%' }} />
+                <InputNumber min={0} placeholder="0" className="w-full" />
               </Form.Item>
             </Col>
             <Col xs={12}>
@@ -677,7 +693,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                 label="Стоимость"
                 rules={[{ required: true, message: 'Введите стоимость' }]}
               >
-                <InputNumber min={0} step={0.01} placeholder="0.00" style={{ width: '100%' }} />
+                <InputNumber min={0} step={0.01} placeholder="0.00" className="w-full" />
               </Form.Item>
             </Col>
           </Row>
@@ -756,7 +772,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
           {/* description moved above */}
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" style={{ marginRight: 8 }}>
+            <Button type="primary" htmlType="submit" className="mr-2">
               {editingProduct ? 'Сохранить' : 'Добавить'}
             </Button>
             <Button onClick={() => setModalVisible(false)}>Отмена</Button>

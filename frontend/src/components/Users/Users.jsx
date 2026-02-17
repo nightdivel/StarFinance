@@ -235,13 +235,13 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
         </Tooltip>
       ),
       filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-        <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
+        <div className="p-2" onKeyDown={(e) => e.stopPropagation()}>
           <Input
             placeholder="Поиск по логину"
             value={selectedKeys[0]}
             onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
             onPressEnter={() => confirm()}
-            style={{ marginBottom: 8, display: 'block' }}
+            className="mb-2 block"
           />
           <Space>
             <Button type="primary" size="small" onClick={() => confirm()}>
@@ -285,13 +285,13 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
         </Tooltip>
       ),
       filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-        <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
+        <div className="p-2" onKeyDown={(e) => e.stopPropagation()}>
           <Input
             placeholder="Поиск по email"
             value={selectedKeys[0]}
             onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
             onPressEnter={() => confirm()}
-            style={{ marginBottom: 8, display: 'block' }}
+            className="mb-2 block"
           />
           <Space>
             <Button type="primary" size="small" onClick={() => confirm()}>
@@ -415,8 +415,8 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
   const discordUsers = (data.users || []).filter((u) => u.authType === 'discord').length;
 
   return (
-    <div style={{ padding: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+    <div className="p-2">
+      <div className="flex justify-end mb-2">
         <Button type="primary" onClick={handleResetLayout}>Сбросить расположение</Button>
       </div>
       <ResponsiveGridLayout
@@ -431,27 +431,27 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
         onLayoutChange={handleLayoutChange}
         draggableHandle=".card-draggable"
       >
-        <div key="stats" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          <Card size="small" title={<span className="card-draggable" style={{ cursor: 'move' }}>Всего пользователей</span>} style={{ minWidth: 220 }}>
-            <div style={{ fontSize: 20, fontWeight: 600 }}>{totalUsers}</div>
+        <div key="stats" className="flex flex-wrap gap-4">
+          <Card size="small" title={<span className="card-draggable cursor-move">Всего пользователей</span>} className="min-w-[220px]">
+            <div className="text-[20px] font-semibold">{totalUsers}</div>
           </Card>
-          <Card size="small" title={<span className="card-draggable" style={{ cursor: 'move' }}>Активные</span>} style={{ minWidth: 220 }}>
-            <div style={{ fontSize: 20, fontWeight: 600 }}>{activeUsers}</div>
+          <Card size="small" title={<span className="card-draggable cursor-move">Активные</span>} className="min-w-[220px]">
+            <div className="text-[20px] font-semibold">{activeUsers}</div>
           </Card>
-          <Card size="small" title={<span className="card-draggable" style={{ cursor: 'move' }}>Discord</span>} style={{ minWidth: 220 }}>
-            <div style={{ fontSize: 20, fontWeight: 600 }}>{discordUsers}</div>
+          <Card size="small" title={<span className="card-draggable cursor-move">Discord</span>} className="min-w-[220px]">
+            <div className="text-[20px] font-semibold">{discordUsers}</div>
           </Card>
         </div>
 
         <div key="table">
-          <Card size="small" title={<span className="card-draggable" style={{ cursor: 'move' }}>Пользователи</span>} extra={
+          <Card size="small" title={<span className="card-draggable cursor-move">Пользователи</span>} extra={
             <Space>
               <Input
                 allowClear
                 placeholder="Поиск по всем полям"
                 value={usersSearch}
                 onChange={(e) => setUsersSearch(e.target.value)}
-                style={{ width: 260 }}
+                className="w-[260px]"
               />
               <Button type="primary" onClick={() => setManageOpen(true)} disabled={!authService.hasPermission('users', 'write')}>
                 Управление пользователями
@@ -588,7 +588,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" style={{ marginRight: 8 }}>
+            <Button type="primary" htmlType="submit" className="mr-2">
               Сохранить
             </Button>
             <Button onClick={() => setModalVisible(false)}>Отмена</Button>
@@ -619,7 +619,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
           }}
           extra={
             <Space>
-              <Input allowClear placeholder="Поиск по всем полям" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} style={{ width: 260 }} />
+              <Input allowClear placeholder="Поиск по всем полям" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-[260px]" />
               <Button type="primary" icon={<PlusOutlined />} onClick={() => { setIsCreating(true); setEditingUser(null); form.resetFields(); form.setFieldsValue({ username: '', email: '', nickname: '', accountType: 'Пользователь', isActive: true, permissions: {}, }); setModalVisible(true); }} disabled={!authService.hasPermission('users', 'write')}>
                 Добавить
               </Button>

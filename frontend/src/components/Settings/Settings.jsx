@@ -471,11 +471,11 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
   };
 
   return (
-    <div style={{ padding: 8 }}>
+    <div className="p-2">
       <Card>
-        <div style={{ marginBottom: 24 }}>
+        <div className="mb-6">
           <Title level={3}>
-            <SettingOutlined style={{ marginRight: 12 }} />
+            <SettingOutlined className="mr-3" />
             Настройки системы
           </Title>
           <Text type="secondary">Управление базовыми настройками и параметрами системы</Text>
@@ -486,7 +486,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
             message="Есть несохраненные изменения"
             type="warning"
             showIcon
-            style={{ marginBottom: 24 }}
+            className="mb-6"
             action={
               <Button size="small" onClick={() => form.resetFields()} disabled={!canWrite}>
                 Сбросить
@@ -511,7 +511,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
             {/* Base Currency Settings */}
             <Card
               title="Основные настройки"
-              style={{ marginBottom: 24 }}
+              className="mb-6"
               extra={
                 <Button
                   type="primary"
@@ -552,7 +552,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
             {/* Currency Management + Rates */}
             <Card
               title="Управление валютами"
-              style={{ marginBottom: 24 }}
+              className="mb-6"
               extra={
                 <Button
                   type="primary"
@@ -564,13 +564,13 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                 </Button>
               }
             >
-              <div style={{ marginBottom: 16 }}>
+              <div className="mb-4">
                 <Row gutter={16} align="bottom">
                   <Col xs={24} sm={10}>
                     <Form.Item name="newCurrency" label="Добавить валюту">
                       <Input
                         placeholder="Код валюты (например: USD)"
-                        style={{ textTransform: 'uppercase' }}
+                        className="uppercase"
                         maxLength={6}
                         disabled={!canWrite}
                       />
@@ -583,13 +583,13 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     >
                       <Input
                         placeholder="1.0000"
-                        style={{ width: '100%' }}
+                        className="w-full"
                         disabled={!canWrite}
                       />
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={4}>
-                    <Button type="primary" onClick={addCurrency} style={{ width: '100%' }} disabled={!canWrite}>
+                    <Button type="primary" onClick={addCurrency} className="w-full" disabled={!canWrite}>
                       Добавить
                     </Button>
                   </Col>
@@ -610,7 +610,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                         closable && value !== form.getFieldValue('baseCurrency') && canWrite
                       }
                       onClose={() => removeCurrency(value)}
-                      style={{ margin: 4 }}
+                      className="m-1"
                     >
                       {value}
                     </Tag>
@@ -621,7 +621,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
 
               <Divider />
 
-              <div style={{ marginBottom: 8 }}>
+              <div className="mb-2">
                 <Text type="secondary">
                   Курсы указаны относительно базовой валюты (
                   {form.getFieldValue('baseCurrency') || data?.system.baseCurrency})
@@ -629,7 +629,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               </div>
 
               <Form.Item label="Курсы обмена">
-                <div style={{ display: 'grid', gap: 12 }}>
+                <div className="grid gap-3">
                   {(form.getFieldValue('currencies') || data?.system.currencies || [])
                     .slice()
                     .sort((a, b) => compareDropdownStrings(a, b))
@@ -641,7 +641,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                         <Col span={10}>
                           <Form.Item name={['rates', currency]} noStyle>
                             <Input
-                              style={{ width: '100%' }}
+                              className="w-full"
                               disabled={
                                 !canWrite ||
                                 currency ===
@@ -686,7 +686,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               <Text type="secondary">
                 Поддерживаются PNG, SVG, WebP. Максимальный размер файла — 15 MB. Рекомендуемое разрешение: ~1600×900.
               </Text>
-              <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="mt-3 flex gap-4 items-center flex-wrap">
                 <input
                   type="file"
                   accept="image/png,image/svg+xml,image/webp"
@@ -744,8 +744,8 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                   Удалить фон
                 </Button>
                 {authBgUrl && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <img src={authBgUrl} alt="Auth background" style={{ maxWidth: 220, maxHeight: 120, objectFit: 'cover', borderRadius: 8, border: '1px solid #eee' }} />
+                  <div className="flex items-center gap-2">
+                    <img src={authBgUrl} alt="Auth background" className="max-w-[220px] max-h-[120px] object-cover rounded-lg border border-neutral-200" />
                     <Button type="primary" size="small" onClick={() => window.open(authBgUrl, '_blank')}>Открыть</Button>
                   </div>
                 )}
@@ -757,7 +757,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               <Text type="secondary">
                 Поддерживаются PNG, SVG, WebP. Максимальный размер файла — 15 MB. Иконка отображается над логотипом BLSK Star Finance.
               </Text>
-              <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="mt-3 flex gap-4 items-center flex-wrap">
                 <input
                   type="file"
                   accept="image/png,image/svg+xml,image/webp"
@@ -821,8 +821,8 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                   Удалить иконку
                 </Button>
                 {authIconUrl && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <img src={authIconUrl} alt="Auth icon" style={{ maxWidth: 96, maxHeight: 96, objectFit: 'contain', borderRadius: 8, border: '1px solid #eee' }} />
+                  <div className="flex items-center gap-2">
+                    <img src={authIconUrl} alt="Auth icon" className="max-w-[96px] max-h-[96px] object-contain rounded-lg border border-neutral-200" />
                     <Button type="primary" size="small" onClick={() => window.open(authIconUrl, '_blank')}>Открыть</Button>
                   </div>
                 )}
@@ -881,7 +881,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                 Настройте назначение типа учетной записи по наличию выданных приложению Discord
                 прав (scope). Поле «Значение» — необязательно.
               </Text>
-              <div style={{ marginTop: 12 }}>
+              <div className="mt-3">
                 <Table
                   size="small"
                   tableLayout="auto"
@@ -900,13 +900,13 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     {
                       title: 'Значение', dataIndex: 'value', key: 'value', width: 220,
                       filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-                        <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
+                        <div className="p-2" onKeyDown={(e) => e.stopPropagation()}>
                           <Input
                             placeholder="Фильтр по значению"
                             value={selectedKeys[0]}
                             onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
                             onPressEnter={() => confirm()}
-                            style={{ marginBottom: 8, display: 'block' }}
+                            className="mb-2 block"
                           />
                           <Space>
                             <Button type="primary" size="small" onClick={() => confirm()}>Найти</Button>
@@ -997,7 +997,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                   dataSource={scopeMappings}
                   pagination={{ pageSize: 10, showSizeChanger: true }}
                 />
-                <Space style={{ marginTop: 8 }}>
+                <Space className="mt-2">
                   <Button onClick={async () => {
                     try {
                       const token = localStorage.getItem('authToken');

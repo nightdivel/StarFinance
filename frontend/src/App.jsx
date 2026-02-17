@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { ConfigProvider, theme, message } from 'antd';
 import Auth from './components/Auth/Auth.jsx';
 import MainLayout from './components/MainLayout.jsx';
-import './App.css';
-import './styles/buttons.css';
 import { API_BASE_URL } from './config';
 
 function App() {

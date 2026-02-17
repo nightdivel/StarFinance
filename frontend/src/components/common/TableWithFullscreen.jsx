@@ -15,6 +15,19 @@ const TableWithFullscreen = ({
   const [limit, setLimit] = useState(batchSize);
   const sentinelRef = useRef(null);
 
+  const {
+    className: cardClassName,
+    ...restCardProps
+  } = (cardProps || {});
+
+  const mergedCardClassName = [
+    cardClassName,
+    'mb-0',
+    'sf-card-pt-2',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   const fullData = Array.isArray(tableProps?.dataSource) ? tableProps.dataSource : [];
   const slicedData = useMemo(() => (infinite ? fullData.slice(0, limit) : fullData), [fullData, infinite, limit]);
 
@@ -63,7 +76,7 @@ const TableWithFullscreen = ({
   }, [infinite, fullData.length, batchSize]);
 
   const toolbar = (
-    <div style={{ display: 'flex', gap: 8 }}>
+    <div className="flex gap-2">
       {extra}
       <Button
         type="primary"
@@ -81,11 +94,8 @@ const TableWithFullscreen = ({
       <Card
         title={title}
         extra={toolbar}
-        {...{
-          bodyStyle: { paddingTop: 8, ...(cardProps?.bodyStyle || {}) },
-          style: { marginBottom: 0, ...(cardProps?.style || {}) },
-          ...cardProps,
-        }}
+        className={mergedCardClassName}
+        {...restCardProps}
       >
         <Table
           {...{
@@ -101,7 +111,7 @@ const TableWithFullscreen = ({
           }}
         />
         {infinite && (
-          <div ref={sentinelRef} style={{ height: 1 }} />
+          <div ref={sentinelRef} className="h-px" />
         )}
       </Card>
 
@@ -110,11 +120,10 @@ const TableWithFullscreen = ({
         onCancel={() => setOpen(false)}
         footer={null}
         width="100vw"
-        style={{ top: 0, padding: 0 }}
-        bodyStyle={{ height: 'calc(100vh - 55px)', padding: 12, overflow: 'auto' }}
+        wrapClassName="sf-fullscreen-modal"
         title={title}
       >
-        <div style={{ marginBottom: 12, textAlign: 'right' }}>
+        <div className="mb-3 text-right">
           <Button type="primary" icon={<CompressOutlined />} onClick={() => setOpen(false)}>
             Свернуть
           </Button>
@@ -133,7 +142,7 @@ const TableWithFullscreen = ({
           }}
         />
         {infinite && (
-          <div ref={sentinelRef} style={{ height: 1 }} />
+          <div ref={sentinelRef} className="h-px" />
         )}
       </Modal>
     </>

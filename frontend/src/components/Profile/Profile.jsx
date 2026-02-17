@@ -113,21 +113,21 @@ const Profile = ({ userData, onUpdateUser, data, onDataUpdate }) => {
   };
 
   return (
-    <div style={{ padding: 8 }}>
+    <div className="p-2">
       <Card>
-        <div style={{ marginBottom: 16 }}>
-          <Title level={3} style={{ margin: 0 }}>
+        <div className="mb-4">
+          <Title level={3} className="m-0">
             Настройки профиля
           </Title>
           <Text type="secondary">Изменение параметров вашей учётной записи</Text>
         </div>
 
         <Divider orientation="left">Баланс по валютам</Divider>
-        <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Row gutter={[12, 12]} className="mb-4">
           {(data?.system?.currencies || []).map((c) => (
             <Col key={c} xs={24} sm={12} md={8} lg={6}>
               <Card size="small" bordered>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="flex justify-between items-center">
                   <Text strong>{c}</Text>
                   <Tag color={balances[c] >= 0 ? 'green' : 'red'}>
                     {Number(balances[c] || 0).toFixed(2)} {c}
