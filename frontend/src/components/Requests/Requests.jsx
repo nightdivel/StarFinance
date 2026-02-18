@@ -57,7 +57,7 @@ const Requests = () => {
       const r = await apiService.getRelatedRequests();
       const arr = Array.isArray(r) ? r : [];
       // Backend: id, warehouse_item_id, quantity, status, created_at, buyer_user_id, buyer_username, name, cost, currency, owner_login
-      setRows(arr.filter((x) => x.buyer_username === currentUsername).map((x) => ({
+      setRows(arr.map((x) => ({
         id: x.id,
         itemName: x.name,
         quantity: Number(x.quantity) || 0,
@@ -162,7 +162,7 @@ const Requests = () => {
       render: (_, rec) => {
         const isOwner = rec.ownerLogin && currentUsername && rec.ownerLogin === currentUsername;
         const isBuyer = rec.buyerUsername && currentUsername && rec.buyerUsername === currentUsername;
-        const canConfirm = (isAdmin || isOwner) && isPending(rec.status) && !isBuyer;
+        const canConfirm = (isAdmin || isOwner) && !isBuyer && isPending(rec.status);
         const canCancel = (isAdmin || isBuyer) && isPending(rec.status);
         const canDelete = isAdmin || !isPending(rec.status);
         return (
@@ -204,7 +204,7 @@ const Requests = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card title="Мои заявки (покупки)" extra={
+      <Card title="Заявки на покупку (витрина)" extra={
         <Input
           allowClear
           placeholder="Поиск по всем полям"
