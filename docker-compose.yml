@@ -1,4 +1,94 @@
 services:
+  identity:
+    build: ./services/identity
+    container_name: sf_identity
+    restart: unless-stopped
+    environment:
+      PORT: 4001
+      DB_URL: postgres://identity:identity@pg-identity:5432/identity
+    depends_on:
+      pg-identity:
+        condition: service_healthy
+
+  directories:
+    build: ./services/directories
+    container_name: sf_directories
+    restart: unless-stopped
+    environment:
+      PORT: 4002
+      DB_URL: postgres://directories:directories@pg-directories:5432/directories
+    depends_on:
+      pg-directories:
+        condition: service_healthy
+
+  settings:
+    build: ./services/settings
+    container_name: sf_settings
+    restart: unless-stopped
+    environment:
+      PORT: 4003
+      DB_URL: postgres://settings:settings@pg-settings:5432/settings
+    depends_on:
+      pg-settings:
+        condition: service_healthy
+
+  warehouse:
+    build: ./services/warehouse
+    container_name: sf_warehouse
+    restart: unless-stopped
+    environment:
+      PORT: 4004
+      DB_URL: postgres://warehouse:warehouse@pg-warehouse:5432/warehouse
+    depends_on:
+      pg-warehouse:
+        condition: service_healthy
+
+  showcase:
+    build: ./services/showcase
+    container_name: sf_showcase
+    restart: unless-stopped
+    environment:
+      PORT: 4005
+      DB_URL: postgres://showcase:showcase@pg-showcase:5432/showcase
+    depends_on:
+      pg-showcase:
+        condition: service_healthy
+
+  requests:
+    build: ./services/requests
+    container_name: sf_requests
+    restart: unless-stopped
+    environment:
+      PORT: 4006
+      DB_URL: postgres://requests:requests@pg-requests:5432/requests
+      WAREHOUSE_URL: http://warehouse:4004
+      FINANCE_URL: http://finance:4007
+    depends_on:
+      pg-requests:
+        condition: service_healthy
+
+  finance:
+    build: ./services/finance
+    container_name: sf_finance
+    restart: unless-stopped
+    environment:
+      PORT: 4007
+      DB_URL: postgres://finance:finance@pg-finance:5432/finance
+    depends_on:
+      pg-finance:
+        condition: service_healthy
+
+  integration:
+    build: ./services/integration
+    container_name: sf_integration
+    restart: unless-stopped
+    environment:
+      PORT: 4008
+      DB_URL: postgres://integration:integration@pg-integration:5432/integration
+    depends_on:
+      pg-integration:
+        condition: service_healthy
+
   economy:
     build: .
     container_name: economy_app
@@ -73,7 +163,159 @@ services:
       retries: 5
       start_period: 40s
 
+  pg-integration:
+    image: postgres:15
+    container_name: sf_pg_integration
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: integration
+      POSTGRES_USER: integration
+      POSTGRES_PASSWORD: integration
+      TZ: Europe/Moscow
+    volumes:
+      - pg-integration:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U integration -d integration"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  pg-finance:
+    image: postgres:15
+    container_name: sf_pg_finance
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: finance
+      POSTGRES_USER: finance
+      POSTGRES_PASSWORD: finance
+      TZ: Europe/Moscow
+    volumes:
+      - pg-finance:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance -d finance"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  pg-requests:
+    image: postgres:15
+    container_name: sf_pg_requests
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: requests
+      POSTGRES_USER: requests
+      POSTGRES_PASSWORD: requests
+      TZ: Europe/Moscow
+    volumes:
+      - pg-requests:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U requests -d requests"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  pg-showcase:
+    image: postgres:15
+    container_name: sf_pg_showcase
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: showcase
+      POSTGRES_USER: showcase
+      POSTGRES_PASSWORD: showcase
+      TZ: Europe/Moscow
+    volumes:
+      - pg-showcase:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U showcase -d showcase"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  pg-warehouse:
+    image: postgres:15
+    container_name: sf_pg_warehouse
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: warehouse
+      POSTGRES_USER: warehouse
+      POSTGRES_PASSWORD: warehouse
+      TZ: Europe/Moscow
+    volumes:
+      - pg-warehouse:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warehouse -d warehouse"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  pg-settings:
+    image: postgres:15
+    container_name: sf_pg_settings
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: settings
+      POSTGRES_USER: settings
+      POSTGRES_PASSWORD: settings
+      TZ: Europe/Moscow
+    volumes:
+      - pg-settings:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U settings -d settings"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  pg-directories:
+    image: postgres:15
+    container_name: sf_pg_directories
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: directories
+      POSTGRES_USER: directories
+      POSTGRES_PASSWORD: directories
+      TZ: Europe/Moscow
+    volumes:
+      - pg-directories:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U directories -d directories"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  pg-identity:
+    image: postgres:15
+    container_name: sf_pg_identity
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: identity
+      POSTGRES_USER: identity
+      POSTGRES_PASSWORD: identity
+      TZ: Europe/Moscow
+    volumes:
+      - pg-identity:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U identity -d identity"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
 volumes:
   pgdata:
+  pg-identity:
+  pg-directories:
+  pg-settings:
+  pg-warehouse:
+  pg-showcase:
+  pg-requests:
+  pg-finance:
+  pg-integration:
   letsencrypt:
   certbot-www:
