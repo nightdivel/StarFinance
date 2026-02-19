@@ -14,14 +14,6 @@ export const APP_CONFIG = {
       // strip trailing slash to avoid '//endpoint'
       return String(v).replace(/\/$/, '');
     })(),
-    ENDPOINTS: {
-      DATA: '/api/data',
-      LOGIN: '/auth/login',
-      CHANGE_PASSWORD: '/api/change-password',
-      USERS: '/api/users',
-      DISCORD_AUTH: '/auth/discord',
-      ECONOMY: '/economy',
-    },
     TIMEOUT: 10000,
     RETRY_ATTEMPTS: 3,
   },

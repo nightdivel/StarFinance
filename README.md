@@ -203,6 +203,7 @@ npm run dev:down    # удалить контейнеры postgres
 - Логи запросов выполняются после парсинга тела (`express.json()`), чтобы `req.body` был заполнен.
 - Инициализация `data/starFinance.json`: при пустом/битом файле автоматически перезаписывается корректной структурой.
 - UI маппинга Discord: добавлена подсказка по `guilds.members.read` и обязательность `Guild ID` при `source=member`.
+- Удалены неиспользуемые фронтенд-конфиги `frontend/src/config/apiConfig.js` и `frontend/src/services/offlineService.js`.
 
 ---
 
