@@ -1,5 +1,6 @@
 /* eslint-disable no-empty */
 const express = require('express');
+
 const cors = require('cors');
 const axios = require('axios');
 const rateLimit = require('express-rate-limit');
@@ -71,12 +72,41 @@ const apiLimiter = rateLimit({
 app.use('/api', apiLimiter);
 app.use('/auth', apiLimiter);
 
+// Body parsers should be BEFORE routes so early-declared routes see req.body
+// Note: base64 increases size by ~33%, so allow headroom for 15MB files
+app.use(express.json({ limit: '32mb' }));
+app.use(express.urlencoded({ extended: true, limit: '32mb' }));
+
 // ---- UEX API proxy and sync ----
 // Base docs: https://uexcorp.space/api/documentation/
 // Public base URL (same as in frontend): https://api.uexcorp.uk/2.0
 const UEX_BASE_URL = (process.env.UEX_API_BASE_URL || 'https://api.uexcorp.uk/2.0').replace(/\/$/, '');
 const UEX_COMPANY_ID = process.env.UEX_COMPANY_ID || process.env.VITE_UEX_COMPANY_ID || null;
 const UEX_AXIOS_TIMEOUT_MS = Number(process.env.UEX_AXIOS_TIMEOUT_MS || 120000);
+
+async function ensureUexSyncTable() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS uex_sync_jobs (
+      id TEXT PRIMARY KEY,
+      status TEXT NOT NULL,
+      started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      finished_at TIMESTAMPTZ,
+      meta JSONB
+    );
+  `);
+}
+
+async function ensureCustomCategoriesTable() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS custom_categories (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      section TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (name, section)
+    );
+  `);
+}
 
 function buildUexUrl(resource = '', pathPart = '', params = {}) {
   const base = (UEX_BASE_URL || '').replace(/\/$/, '');
@@ -332,7 +362,16 @@ app.post(
   authenticateToken,
   requirePermission('directories', 'write'),
   async (req, res) => {
+    let jobId;
     try {
+      await ensureUexSyncTable();
+      jobId = `uex_${Date.now()}`;
+      await query('INSERT INTO uex_sync_jobs(id, status, meta) VALUES ($1, $2, $3)', [
+        jobId,
+        'processing',
+        JSON.stringify({ requestedBy: req.user?.id || null }),
+      ]);
+
       const { full } = req.body || {};
       const fullSync = !(full === false || full === 'false' || full === 0 || full === '0');
 
@@ -470,16 +509,40 @@ app.post(
       }
 
       if (isTimedOut()) {
+        await query('UPDATE uex_sync_jobs SET status = $2, finished_at = now(), meta = $3 WHERE id = $1', [
+          jobId,
+          'failed',
+          JSON.stringify({ error: 'UEX sync timeout' }),
+        ]);
         return res.status(503).json({ success: false, error: 'UEX sync timeout' });
       }
 
       const stats = await upsertUexDirectories({ categories, items });
 
-      // Раньше здесь сохранялось состояние синхронизации в uex_sync_state.
-      // Теперь мы не ведём отдельный журнал синка для директорий.
+      await query('UPDATE uex_sync_jobs SET status = $2, finished_at = now(), meta = $3 WHERE id = $1', [
+        jobId,
+        'success',
+        JSON.stringify({
+          syncedAt: new Date().toISOString(),
+          full: fullSync,
+          categories: categories.length,
+          items: items.length,
+          ...stats,
+        }),
+      ]);
+
       const now = new Date();
-      res.json({ success: true, syncedAt: now.toISOString(), ...stats });
+      res.json({ success: true, syncedAt: now.toISOString(), jobId, ...stats });
     } catch (e) {
+      try {
+        if (jobId) {
+          await query('UPDATE uex_sync_jobs SET status = $2, finished_at = now(), meta = $3 WHERE id = $1', [
+            jobId,
+            'failed',
+            JSON.stringify({ error: e?.message || 'UEX sync failed' }),
+          ]);
+        }
+      } catch (_) {}
       console.error('POST /api/uex/sync-directories error:', e?.response?.data || e);
       const status = e?.response?.status || 500;
       const body = e?.response?.data;
@@ -488,10 +551,75 @@ app.post(
   }
 );
 
-// Body parsers should be BEFORE routes so early-declared routes see req.body
-// Note: base64 increases size by ~33%, so allow headroom for 15MB files
-app.use(express.json({ limit: '32mb' }));
-app.use(express.urlencoded({ extended: true, limit: '32mb' }));
+// Custom Categories (non-UEX)
+app.post(
+  '/api/directories/categories',
+  authenticateToken,
+  requirePermission('directories', 'write'),
+  async (req, res) => {
+    try {
+      const { name, section } = req.body || {};
+      if (!name || typeof name !== 'string') {
+        return res.status(400).json({ error: 'Некорректное имя категории' });
+      }
+      await ensureCustomCategoriesTable();
+      await query(
+        'INSERT INTO custom_categories(name, section) VALUES ($1, $2) ON CONFLICT (name, section) DO NOTHING',
+        [name.trim(), section ? String(section).trim() : null]
+      );
+      const dirs = await loadDirectoriesFromDb();
+      return res.json({ success: true, directories: dirs });
+    } catch (e) {
+      console.error('POST /api/directories/categories error:', e);
+      return res.status(500).json({ error: 'Ошибка сохранения категории' });
+    }
+  }
+);
+
+app.put(
+  '/api/directories/categories/:id',
+  authenticateToken,
+  requirePermission('directories', 'write'),
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { name, section } = req.body || {};
+      if (!Number.isFinite(id)) return res.status(400).json({ error: 'Некорректный id категории' });
+      if (!name || typeof name !== 'string') {
+        return res.status(400).json({ error: 'Некорректное имя категории' });
+      }
+      await ensureCustomCategoriesTable();
+      await query(
+        'UPDATE custom_categories SET name = $2, section = $3 WHERE id = $1',
+        [id, name.trim(), section ? String(section).trim() : null]
+      );
+      const dirs = await loadDirectoriesFromDb();
+      return res.json({ success: true, directories: dirs });
+    } catch (e) {
+      console.error('PUT /api/directories/categories error:', e);
+      return res.status(500).json({ error: 'Ошибка обновления категории' });
+    }
+  }
+);
+
+app.delete(
+  '/api/directories/categories/:id',
+  authenticateToken,
+  requirePermission('directories', 'write'),
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id)) return res.status(400).json({ error: 'Некорректный id категории' });
+      await ensureCustomCategoriesTable();
+      await query('DELETE FROM custom_categories WHERE id = $1', [id]);
+      const dirs = await loadDirectoriesFromDb();
+      return res.json({ success: true, directories: dirs });
+    } catch (e) {
+      console.error('DELETE /api/directories/categories error:', e);
+      return res.status(500).json({ error: 'Ошибка удаления категории' });
+    }
+  }
+);
 
 // Request logging (after parsers so we can log body for POST/PUT)
 app.use((req, res, next) => {
@@ -2149,9 +2277,9 @@ app.post(
         name.trim(),
       ]);
       const dirs = await loadDirectoriesFromDb();
-      res.json({ success: true, directories: dirs });
-    } catch (e) {
-      res.status(500).json({ error: 'Ошибка сохранения типа' });
+      return res.json({ success: true, directories: dirs });
+    } catch (error) {
+      return res.status(500).json({ error: 'Ошибка сохранения типа' });
     }
   }
 );
@@ -2658,6 +2786,7 @@ const buildAggregatedData = async (userId) => {
         section: x.uex_category || null,
       }));
 
+      const excludedNames = new Set(['Запчасть', 'Комплект', 'Материал', 'Товар', 'Услуга']);
       const all = [...fromNames, ...fromTypes];
       // Уберём дубликаты по (name, section)
       const seen = new Set();
@@ -2665,9 +2794,26 @@ const buildAggregatedData = async (userId) => {
       for (const c of all) {
         const key = `${c.name || ''}__${c.section || ''}`;
         if (!c.name && !c.id) continue;
+        if (c.name && excludedNames.has(String(c.name))) continue;
         if (seen.has(key)) continue;
         seen.add(key);
-        result.push(c);
+        result.push({ ...c, isCustom: false, customId: null });
+      }
+
+      await ensureCustomCategoriesTable();
+      const customRows = await query('SELECT id, name, section FROM custom_categories ORDER BY name');
+      for (const row of customRows.rows) {
+        if (row.name && excludedNames.has(String(row.name))) continue;
+        const key = `${row.name || ''}__${row.section || ''}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push({
+          id: `custom:${row.id}`,
+          name: row.name,
+          section: row.section || null,
+          isCustom: true,
+          customId: row.id,
+        });
       }
       return result;
     } catch {
@@ -2934,7 +3080,7 @@ const getPermissionsForTypeDb = async (typeName) => {
       [typeName]
     );
     if (res.rows.length > 0) {
-      return Object.fromEntries(res.rows.map((r) => [r.resource, r.level]));
+      return Object.fromEntries(res.rows.map((row) => [row.resource, row.level]));
     }
   } catch (_) {}
   // Fallback default minimal permissions
@@ -2946,8 +3092,12 @@ const getPermissionsForTypeDb = async (typeName) => {
     directories: 'none',
     settings: 'none',
   };
+};
+
+async function loadDirectoriesFromDb(userId) {
+  const aggregated = await buildAggregatedData(userId);
+  return aggregated?.directories || {};
 }
-;
 
 const readDiscordEffective = async () => {
   try {

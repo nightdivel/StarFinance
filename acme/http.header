@@ -1,0 +1,16 @@
+HTTP/2 401 
+content-type: application/json
+content-length: 212
+date: Thu, 19 Feb 2026 21:43:08 GMT
+x-jets-call-count: 1
+x-amzn-requestid: fd8b4981-aad9-45b2-94bc-c754c9b6cf4b
+x-runtime: 0.074949
+x-jets-prewarm-count: 0
+x-jets-base64: no
+x-amz-apigw-id: ZDGMjFqnoAMET-A=
+x-amzn-trace-id: Root=1-699783e9-724af19629c3d559118ccbd3;Parent=6382078a4663e094;Sampled=0;Lineage=1:6068c6b4:0
+x-cache: Error from cloudfront
+via: 1.1 67ff75e05c92bc5ca2eabbdc5e6a1ae0.cloudfront.net (CloudFront)
+x-amz-cf-pop: ZRH52-P1
+x-amz-cf-id: B4g8iAyKL564r_V347pmqNU-WSCHJLet1e8FLlMX0zhxMuxFZAhuIA==
+

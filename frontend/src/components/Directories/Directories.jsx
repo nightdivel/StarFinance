@@ -115,6 +115,14 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
         form.resetFields();
         return;
       }
+      if (directoryKey === 'categories' && newItem && typeof newItem === 'object') {
+        await apiService.addCategory({ name: newItem.name, section: newItem.section });
+        message.success('Категория добавлена');
+        await onRefresh?.();
+        setEditingItem(null);
+        form.resetFields();
+        return;
+      }
       if (directoryKey === 'discordScopes') {
         await apiService.addDiscordScope(String(newItem));
         message.success('Scope добавлен');
@@ -130,7 +138,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
   };
 
   // Remove item from directory (все справочники через API)
-  const removeDirectoryItem = async (directoryKey, itemIndex) => {
+  const removeDirectoryItem = async (directoryKey, itemIndex, item) => {
     Modal.confirm({
       title: 'Удалить элемент?',
       content: 'Это действие нельзя отменить.',
@@ -171,6 +179,14 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
             await onRefresh?.();
             return;
           }
+          if (directoryKey === 'categories') {
+            const currentObj = item || data.directories.categories[itemIndex];
+            if (!currentObj?.isCustom || !currentObj?.customId) return;
+            await apiService.deleteCategory(currentObj.customId);
+            message.success('Категория удалена');
+            await onRefresh?.();
+            return;
+          }
           if (directoryKey === 'discordScopes') {
             const currentVal = scopes[itemIndex];
             await apiService.deleteDiscordScope(String(currentVal));
@@ -187,7 +203,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
   };
 
   // Edit directory item (все справочники через API)
-  const editDirectoryItem = async (directoryKey, itemIndex, newValue) => {
+  const editDirectoryItem = async (directoryKey, itemIndex, newValue, item) => {
     try {
       if (['showcaseStatuses', 'warehouseTypes'].includes(directoryKey)) {
         const current = data.directories[directoryKey][itemIndex];
@@ -212,6 +228,18 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
           type: newValue.type,
         });
         message.success('Наименование обновлено');
+        setEditingItem(null);
+        await onRefresh?.();
+        return;
+      }
+      if (directoryKey === 'categories') {
+        const current = item || data.directories.categories[itemIndex];
+        if (!current?.isCustom || !current?.customId) return;
+        await apiService.updateCategory(current.customId, {
+          name: newValue.name,
+          section: newValue.section,
+        });
+        message.success('Категория обновлена');
         setEditingItem(null);
         await onRefresh?.();
         return;
@@ -320,6 +348,19 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                   Добавить
                 </Button>
               )}
+              {currentDirectory.key === 'categories' && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    setEditingItem({ directory: currentDirectory.key, value: { name: '', section: '' } });
+                    form.setFieldsValue({ categoryName: '', categorySection: '' });
+                  }}
+                  disabled={!authService.hasPermission('directories', 'write')}
+                >
+                  Добавить
+                </Button>
+              )}
             </div>
 
             {
@@ -402,7 +443,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                               disabled={disabled}
                               onClick={() => {
                                 if (disabled) return;
-                                removeDirectoryItem(key, record.sourceIndex);
+                                removeDirectoryItem(key, record.sourceIndex, record);
                               }}
                             />
                           </Space>
@@ -421,7 +462,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                     };
                   });
                 } else if (key === 'categories') {
-                  // Категории UEX: read-only справочник
+                  // Категории: UEX read-only + кастомные с CRUD
                   columns = [
                     {
                       title: 'ID категории',
@@ -441,6 +482,55 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                       key: 'section',
                       width: 200,
                     },
+                    {
+                      title: 'Источник',
+                      dataIndex: 'source',
+                      key: 'source',
+                      width: 140,
+                      render: (_, record) => (
+                        <Tag color={record.isCustom ? 'green' : 'blue'}>
+                          {record.isCustom ? 'Custom' : 'UEX'}
+                        </Tag>
+                      ),
+                    },
+                    {
+                      title: 'Действия',
+                      key: 'actions',
+                      width: 120,
+                      render: (_, record) => {
+                        const canWrite = authService.hasPermission('directories', 'write');
+                        const disabled = !canWrite || !record.isCustom;
+                        return (
+                          <Space>
+                            <Button
+                              size="small"
+                              type="text"
+                              icon={<EditOutlined />}
+                              disabled={disabled}
+                              onClick={() => {
+                                if (disabled) return;
+                                setEditingItem({ directory: key, customId: record.customId, value: record });
+                                form.setFieldsValue({
+                                  categoryName: record.name,
+                                  categorySection: record.section,
+                                });
+                              }}
+                            />
+                            <Button
+                              size="small"
+                              type="text"
+                              danger
+                              icon={<DeleteOutlined />}
+                              disabled={disabled}
+                              onClick={() => {
+                                if (disabled) return;
+                                removeDirectoryItem(key, record.sourceIndex);
+                              }}
+                            />
+                          </Space>
+                        );
+                      },
+                    },
                   ];
                   dataSource = (data.directories.categories || [])
                     .slice()
@@ -450,6 +540,9 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                       id: c.id,
                       name: c.name,
                       section: c.section,
+                      isCustom: !!c.isCustom,
+                      customId: c.customId || null,
+                      sourceIndex: idx,
                     }));
                 } else if (key === 'discordScopes') {
                   columns = [
@@ -536,8 +629,12 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                                   ? values.allowedWarehouseTypes
                                   : [],
                               };
-                              if (editingItem.index !== undefined) {
-                                editDirectoryItem(editingItem.directory, editingItem.index, newObj);
+                              if (editingItem.customId !== undefined) {
+                                editDirectoryItem(editingItem.directory, editingItem.index, newObj, {
+                                  ...editingItem.value,
+                                  customId: editingItem.customId,
+                                  isCustom: true,
+                                });
                               } else {
                                 addDirectoryItem(editingItem.directory, newObj);
                               }
@@ -627,6 +724,51 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                                   rules={[{ required: true, message: 'Введите название' }]}
                                 >
                                   <Input placeholder="Введите название товара" />
+                                </Form.Item>
+                              </Col>
+                            </Row>
+                            <Form.Item>
+                              <Space>
+                                <Button type="primary" htmlType="submit">
+                                  {editingItem.index !== undefined ? 'Сохранить' : 'Добавить'}
+                                </Button>
+                                <Button onClick={() => setEditingItem(null)}>Отмена</Button>
+                              </Space>
+                            </Form.Item>
+                          </Form>
+                        ) : editingItem.directory === 'categories' ? (
+                          <Form
+                            form={form}
+                            layout="vertical"
+                            onFinish={(values) => {
+                              const newObj = {
+                                name: values.categoryName,
+                                section: values.categorySection,
+                              };
+                              if (editingItem.customId !== undefined) {
+                                editDirectoryItem(editingItem.directory, editingItem.index, newObj, {
+                                  ...editingItem.value,
+                                  customId: editingItem.customId,
+                                  isCustom: true,
+                                });
+                              } else {
+                                addDirectoryItem(editingItem.directory, newObj);
+                              }
+                            }}
+                          >
+                            <Row gutter={16}>
+                              <Col xs={24} sm={12}>
+                                <Form.Item
+                                  name="categoryName"
+                                  label="Название категории"
+                                  rules={[{ required: true, message: 'Введите название категории' }]}
+                                >
+                                  <Input placeholder="Введите название" />
+                                </Form.Item>
+                              </Col>
+                              <Col xs={24} sm={12}>
+                                <Form.Item name="categorySection" label="Раздел">
+                                  <Input placeholder="Опционально" />
                                 </Form.Item>
                               </Col>
                             </Row>

@@ -114,6 +114,25 @@ class ApiService {
     });
   }
 
+  // Custom Categories (non-UEX)
+  addCategory({ name, section }) {
+    return this.request('/api/directories/categories', {
+      method: 'POST',
+      body: JSON.stringify({ name, section }),
+    });
+  }
+  updateCategory(id, { name, section }) {
+    return this.request(`/api/directories/categories/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, section }),
+    });
+  }
+  deleteCategory(id) {
+    return this.request(`/api/directories/categories/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Currencies
   getCurrenciesConfig() {
     return this.request('/api/system/currencies', { method: 'GET' });

@@ -1,0 +1,53 @@
+{
+  email hitsnruns@gmail.com
+}
+
+blsk.fin-tech.com {
+  encode gzip
+
+  handle_path /economy/* {
+    reverse_proxy economy:3000
+  }
+
+  handle /auth/* {
+    reverse_proxy identity:4001
+  }
+  handle /api/users* {
+    reverse_proxy identity:4001
+  }
+  handle /api/account-types* {
+    reverse_proxy identity:4001
+  }
+  handle /api/directories* {
+    reverse_proxy directories:4002
+  }
+  handle /api/system/* {
+    reverse_proxy settings:4003
+  }
+  handle /api/discord/* {
+    reverse_proxy settings:4003
+  }
+  handle /api/warehouse* {
+    reverse_proxy warehouse:4004
+  }
+  handle /api/showcase* {
+    reverse_proxy showcase:4005
+  }
+  handle /api/requests* {
+    reverse_proxy requests:4006
+  }
+  handle /api/transactions* {
+    reverse_proxy finance:4007
+  }
+  handle /internal/integration/* {
+    reverse_proxy integration:4008
+  }
+
+  handle /favicon.ico {
+    reverse_proxy economy:3000
+  }
+
+  handle / {
+    redir /economy/ 302
+  }
+}

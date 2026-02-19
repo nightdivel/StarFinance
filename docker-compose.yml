@@ -194,43 +194,23 @@ services:
     logging: *default-logging
     networks: *internal-net
 
-  nginx:
-    image: nginx:1.25-alpine
-    container_name: economy_nginx
+  caddy:
+    image: caddy:2
+    container_name: economy_caddy
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./certs:/etc/nginx/certs:ro
-      # Shared with certbot: live certs and ACME webroot
-      - letsencrypt:/etc/letsencrypt
-      - certbot-www:/var/www/certbot
-      - ./scripts/docker-entrypoint/ensure-certs.sh:/docker-entrypoint.d/10-ensure-certs.sh:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
       - economy
     logging: *default-logging
     networks:
       - internal
       - public
-
-  certbot:
-    image: certbot/certbot:latest
-    container_name: economy_certbot
-    restart: unless-stopped
-    environment:
-      DOMAIN: ${DOMAIN}
-      EMAIL: ${EMAIL}
-      CERT_NAME: ${CERT_NAME}
-    volumes:
-      - letsencrypt:/etc/letsencrypt
-      - certbot-www:/var/www/certbot
-    entrypoint: /bin/sh
-    command: -c "if [ ! -f /etc/letsencrypt/live/$CERT_NAME/fullchain.pem ]; then certbot certonly --cert-name $CERT_NAME --webroot -w /var/www/certbot -d $DOMAIN --non-interactive --agree-tos -m $EMAIL; fi; trap exit TERM; while :; do certbot renew --cert-name $CERT_NAME --webroot -w /var/www/certbot --quiet; sleep 12h & wait $!; done"
-    logging: *default-logging
-    networks:
-      - internal
 
   postgres:
     image: postgres:15
@@ -442,8 +422,8 @@ volumes:
   pg-requests:
   pg-finance:
   pg-integration:
-  letsencrypt:
-  certbot-www:
+  caddy_data:
+  caddy_config:
 
 secrets:
   pg_postgres_password:
