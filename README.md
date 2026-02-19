@@ -116,6 +116,45 @@ npm run docker:up
 3. Пробросить домен:
 
 - Настройте DNS A-запись на ваш сервер.
+- Убедитесь, что порт **80** доступен из интернета (обязателен для Let's Encrypt HTTP‑challenge).
+
+### SSL/Let's Encrypt (автовыпуск при чистой сборке)
+
+Сертификаты выпускаются контейнером `certbot` при первом запуске и далее обновляются автоматически.
+
+1. Заполните переменные в корневом `.env`:
+
+```
+DOMAIN=blsk.fin-tech.com
+EMAIL=hitsnruns@gmail.com
+CERT_NAME=blsk.fin-tech.com
+```
+
+2. Чистая сборка (удалит тома, включая SSL и БД):
+
+```
+docker-compose down -v
+docker-compose up -d
+```
+
+3. Проверка webroot challenge (локально и снаружи):
+
+```
+curl -i http://localhost/.well-known/acme-challenge/test
+curl -i http://blsk.fin-tech.com/.well-known/acme-challenge/test
+```
+
+Если внешний `curl` не отвечает — проверьте DNS и доступность порта 80.
+
+4. Ручной перевыпуск (если нужно):
+
+```
+docker-compose run --rm --entrypoint certbot certbot certonly \
+  --cert-name blsk.fin-tech.com \
+  --webroot -w /var/www/certbot \
+  -d blsk.fin-tech.com \
+  --non-interactive --agree-tos -m hitsnruns@gmail.com
+```
 - `000_all.sql` — базовая схема и сиды (учётные записи, справочники, валюты, финансы, настройки).
 - `001_stage1.sql` — нормализация (учётные записи, настройки, Discord таблицы v1).
 - `002_stage2.sql` — справочники и сущности склада/витрины/финансов.
