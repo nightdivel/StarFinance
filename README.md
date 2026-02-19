@@ -66,6 +66,16 @@ VITE_API_BASE_URL=http://localhost:3000
 VITE_ENABLE_DISCORD_AUTH=false
 ```
 
+Корневой `.env` (для docker-compose, пример):
+
+```
+INTERNAL_TOKEN=change-me-long-random
+IDENTITY_URL=http://identity:4001
+```
+
+- `INTERNAL_TOKEN` используется для защиты внутренних `/internal/*` запросов между сервисами.
+- `IDENTITY_URL` нужен сервису `requests` для проверки прав через `identity /auth/profile`.
+
 Важно: бэкенд явно грузит переменные из `backend/.env` (см. `backend/config/serverConfig.js`).
 
 ---

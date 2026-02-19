@@ -6,9 +6,23 @@ services:
     environment:
       PORT: 4001
       DB_URL: postgres://identity:identity@pg-identity:5432/identity
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
       pg-identity:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4001/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: &internal-net
+      - internal
 
   directories:
     build: ./services/directories
@@ -17,9 +31,18 @@ services:
     environment:
       PORT: 4002
       DB_URL: postgres://directories:directories@pg-directories:5432/directories
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
       pg-directories:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4002/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+    networks: *internal-net
 
   settings:
     build: ./services/settings
@@ -28,9 +51,18 @@ services:
     environment:
       PORT: 4003
       DB_URL: postgres://settings:settings@pg-settings:5432/settings
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
       pg-settings:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4003/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+    networks: *internal-net
 
   warehouse:
     build: ./services/warehouse
@@ -39,9 +71,18 @@ services:
     environment:
       PORT: 4004
       DB_URL: postgres://warehouse:warehouse@pg-warehouse:5432/warehouse
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
       pg-warehouse:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4004/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+    networks: *internal-net
 
   showcase:
     build: ./services/showcase
@@ -50,9 +91,18 @@ services:
     environment:
       PORT: 4005
       DB_URL: postgres://showcase:showcase@pg-showcase:5432/showcase
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
       pg-showcase:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4005/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+    networks: *internal-net
 
   requests:
     build: ./services/requests
@@ -63,9 +113,19 @@ services:
       DB_URL: postgres://requests:requests@pg-requests:5432/requests
       WAREHOUSE_URL: http://warehouse:4004
       FINANCE_URL: http://finance:4007
+      IDENTITY_URL: http://identity:4001
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
       pg-requests:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4006/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+    networks: *internal-net
 
   finance:
     build: ./services/finance
@@ -74,9 +134,18 @@ services:
     environment:
       PORT: 4007
       DB_URL: postgres://finance:finance@pg-finance:5432/finance
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
       pg-finance:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4007/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+    networks: *internal-net
 
   integration:
     build: ./services/integration
@@ -85,14 +154,23 @@ services:
     environment:
       PORT: 4008
       DB_URL: postgres://integration:integration@pg-integration:5432/integration
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
       pg-integration:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4008/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+    networks: *internal-net
 
   economy:
     build: .
     container_name: economy_app
-    restart: always
+    restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -103,14 +181,18 @@ services:
       PG_DATABASE: starfinance
       PG_USER: postgres
       PG_PASSWORD: postgres
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
       postgres:
         condition: service_healthy
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+    networks: *internal-net
 
   nginx:
     image: nginx:1.25-alpine
@@ -128,6 +210,10 @@ services:
       - ./scripts/docker-entrypoint/ensure-certs.sh:/docker-entrypoint.d/10-ensure-certs.sh:ro
     depends_on:
       - economy
+    logging: *default-logging
+    networks:
+      - internal
+      - public
 
   certbot:
     image: certbot/certbot:latest
@@ -142,6 +228,9 @@ services:
       - certbot-www:/var/www/certbot
     entrypoint: /bin/sh
     command: -c "if [ ! -f /etc/letsencrypt/live/$CERT_NAME/fullchain.pem ]; then certbot certonly --cert-name $CERT_NAME --webroot -w /var/www/certbot -d $DOMAIN --non-interactive --agree-tos -m $EMAIL; fi; trap exit TERM; while :; do certbot renew --cert-name $CERT_NAME --webroot -w /var/www/certbot --quiet; sleep 12h & wait $!; done"
+    logging: *default-logging
+    networks:
+      - internal
 
   postgres:
     image: postgres:15
@@ -150,7 +239,7 @@ services:
     environment:
       POSTGRES_DB: starfinance
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_postgres_password
       TZ: Europe/Moscow
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -162,6 +251,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+    logging: *default-logging
+    networks: *internal-net
+    secrets:
+      - pg_postgres_password
 
   pg-integration:
     image: postgres:15
@@ -170,7 +263,7 @@ services:
     environment:
       POSTGRES_DB: integration
       POSTGRES_USER: integration
-      POSTGRES_PASSWORD: integration
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_integration_password
       TZ: Europe/Moscow
     volumes:
       - pg-integration:/var/lib/postgresql/data
@@ -180,6 +273,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+    logging: *default-logging
+    networks: *internal-net
+    secrets:
+      - pg_integration_password
 
   pg-finance:
     image: postgres:15
@@ -188,7 +285,7 @@ services:
     environment:
       POSTGRES_DB: finance
       POSTGRES_USER: finance
-      POSTGRES_PASSWORD: finance
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_finance_password
       TZ: Europe/Moscow
     volumes:
       - pg-finance:/var/lib/postgresql/data
@@ -198,6 +295,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+    logging: *default-logging
+    networks: *internal-net
+    secrets:
+      - pg_finance_password
 
   pg-requests:
     image: postgres:15
@@ -206,7 +307,7 @@ services:
     environment:
       POSTGRES_DB: requests
       POSTGRES_USER: requests
-      POSTGRES_PASSWORD: requests
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_requests_password
       TZ: Europe/Moscow
     volumes:
       - pg-requests:/var/lib/postgresql/data
@@ -216,6 +317,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+    logging: *default-logging
+    networks: *internal-net
+    secrets:
+      - pg_requests_password
 
   pg-showcase:
     image: postgres:15
@@ -224,7 +329,7 @@ services:
     environment:
       POSTGRES_DB: showcase
       POSTGRES_USER: showcase
-      POSTGRES_PASSWORD: showcase
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_showcase_password
       TZ: Europe/Moscow
     volumes:
       - pg-showcase:/var/lib/postgresql/data
@@ -234,6 +339,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+    logging: *default-logging
+    networks: *internal-net
+    secrets:
+      - pg_showcase_password
 
   pg-warehouse:
     image: postgres:15
@@ -242,7 +351,7 @@ services:
     environment:
       POSTGRES_DB: warehouse
       POSTGRES_USER: warehouse
-      POSTGRES_PASSWORD: warehouse
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_warehouse_password
       TZ: Europe/Moscow
     volumes:
       - pg-warehouse:/var/lib/postgresql/data
@@ -252,6 +361,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+    logging: *default-logging
+    networks: *internal-net
+    secrets:
+      - pg_warehouse_password
 
   pg-settings:
     image: postgres:15
@@ -260,7 +373,7 @@ services:
     environment:
       POSTGRES_DB: settings
       POSTGRES_USER: settings
-      POSTGRES_PASSWORD: settings
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_settings_password
       TZ: Europe/Moscow
     volumes:
       - pg-settings:/var/lib/postgresql/data
@@ -270,6 +383,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+    logging: *default-logging
+    networks: *internal-net
+    secrets:
+      - pg_settings_password
 
   pg-directories:
     image: postgres:15
@@ -278,7 +395,7 @@ services:
     environment:
       POSTGRES_DB: directories
       POSTGRES_USER: directories
-      POSTGRES_PASSWORD: directories
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_directories_password
       TZ: Europe/Moscow
     volumes:
       - pg-directories:/var/lib/postgresql/data
@@ -288,6 +405,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+    logging: *default-logging
+    networks: *internal-net
+    secrets:
+      - pg_directories_password
 
   pg-identity:
     image: postgres:15
@@ -296,7 +417,7 @@ services:
     environment:
       POSTGRES_DB: identity
       POSTGRES_USER: identity
-      POSTGRES_PASSWORD: identity
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_identity_password
       TZ: Europe/Moscow
     volumes:
       - pg-identity:/var/lib/postgresql/data
@@ -306,6 +427,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+    logging: *default-logging
+    networks: *internal-net
+    secrets:
+      - pg_identity_password
 
 volumes:
   pgdata:
@@ -319,3 +444,29 @@ volumes:
   pg-integration:
   letsencrypt:
   certbot-www:
+
+secrets:
+  pg_postgres_password:
+    file: ./secrets/pg_postgres_password.txt
+  pg_identity_password:
+    file: ./secrets/pg_identity_password.txt
+  pg_directories_password:
+    file: ./secrets/pg_directories_password.txt
+  pg_settings_password:
+    file: ./secrets/pg_settings_password.txt
+  pg_warehouse_password:
+    file: ./secrets/pg_warehouse_password.txt
+  pg_showcase_password:
+    file: ./secrets/pg_showcase_password.txt
+  pg_requests_password:
+    file: ./secrets/pg_requests_password.txt
+  pg_finance_password:
+    file: ./secrets/pg_finance_password.txt
+  pg_integration_password:
+    file: ./secrets/pg_integration_password.txt
+
+networks:
+  internal:
+    driver: bridge
+  public:
+    driver: bridge

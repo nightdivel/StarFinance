@@ -1,7 +1,25 @@
 import { Router } from 'express';
+import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 
 const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET;
+
+function authenticateToken(req, res, next) {
+  if (!JWT_SECRET) return res.status(500).json({ error: 'JWT_SECRET не настроен' });
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Токен доступа отсутствует' });
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.user = payload;
+    return next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Недействительный токен' });
+  }
+}
+
+router.use('/api', authenticateToken);
 
 async function fetchRows(table, fields = ['*']) {
   const cols = fields.join(', ');

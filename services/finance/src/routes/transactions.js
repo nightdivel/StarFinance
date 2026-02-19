@@ -1,7 +1,25 @@
 import { Router } from 'express';
+import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 
 const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET;
+
+function authenticateToken(req, res, next) {
+  if (!JWT_SECRET) return res.status(500).json({ error: 'JWT_SECRET не настроен' });
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Токен доступа отсутствует' });
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.user = payload;
+    return next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Недействительный токен' });
+  }
+}
+
+router.use('/api', authenticateToken);
 
 router.get('/api/transactions', async (_req, res) => {
   try {
@@ -18,11 +36,13 @@ router.post('/api/transactions', async (req, res) => {
   try {
     const { type, amount, currency, fromUser, toUser, itemId, meta } = req.body || {};
     if (!type || amount == null || !currency) return res.status(400).json({ error: 'Некорректные данные' });
+    const amountNum = Number(amount);
+    if (!Number.isFinite(amountNum)) return res.status(400).json({ error: 'Некорректная сумма' });
     const id = `t_${Date.now()}`;
     await pool.query(
       `INSERT INTO transactions(id, type, amount, currency, from_user, to_user, item_id, meta, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now())`,
-      [id, type, Number(amount), currency, fromUser || null, toUser || null, itemId || null, meta ? JSON.stringify(meta) : null]
+      [id, type, amountNum, currency, fromUser || null, toUser || null, itemId || null, meta ? JSON.stringify(meta) : null]
     );
     return res.json({ success: true, transactionId: id });
   } catch (error) {
@@ -82,10 +102,12 @@ router.put('/api/system/currencies/rates', async (req, res) => {
       return res.status(400).json({ error: 'Некорректные данные' });
     }
     for (const [code, rate] of Object.entries(rates)) {
+      const rateNum = Number(rate);
+      if (!Number.isFinite(rateNum)) return res.status(400).json({ error: 'Некорректный курс' });
       await pool.query(
         `INSERT INTO currency_rates(base_code, code, rate, updated_at) VALUES ($1,$2,$3, now())
          ON CONFLICT (base_code, code) DO UPDATE SET rate = EXCLUDED.rate, updated_at = now()`,
-        [baseCode, code, Number(rate)]
+        [baseCode, code, rateNum]
       );
     }
     return res.json({ success: true });

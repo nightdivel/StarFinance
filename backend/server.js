@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
@@ -60,6 +61,15 @@ app.use('/api', cors(corsOptions));
 app.use('/auth', cors(corsOptions));
 app.use('/public', cors(corsOptions));
 app.use('/health', cors(corsOptions));
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
+app.use('/auth', apiLimiter);
 
 // ---- UEX API proxy and sync ----
 // Base docs: https://uexcorp.space/api/documentation/
