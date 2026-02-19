@@ -5,10 +5,10 @@ services:
     restart: unless-stopped
     environment:
       PORT: 4001
-      DB_URL: postgres://identity:identity@pg-identity:5432/identity
+      DB_URL: postgres://identity:identity@pg-micro:5432/identity
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
-      pg-identity:
+      pg-micro:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4001/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
@@ -30,10 +30,10 @@ services:
     restart: unless-stopped
     environment:
       PORT: 4002
-      DB_URL: postgres://directories:directories@pg-directories:5432/directories
+      DB_URL: postgres://directories:directories@pg-micro:5432/directories
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
-      pg-directories:
+      pg-micro:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4002/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
@@ -50,10 +50,10 @@ services:
     restart: unless-stopped
     environment:
       PORT: 4003
-      DB_URL: postgres://settings:settings@pg-settings:5432/settings
+      DB_URL: postgres://settings:settings@pg-micro:5432/settings
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
-      pg-settings:
+      pg-micro:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4003/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
@@ -70,10 +70,10 @@ services:
     restart: unless-stopped
     environment:
       PORT: 4004
-      DB_URL: postgres://warehouse:warehouse@pg-warehouse:5432/warehouse
+      DB_URL: postgres://warehouse:warehouse@pg-micro:5432/warehouse
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
-      pg-warehouse:
+      pg-micro:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4004/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
@@ -90,10 +90,10 @@ services:
     restart: unless-stopped
     environment:
       PORT: 4005
-      DB_URL: postgres://showcase:showcase@pg-showcase:5432/showcase
+      DB_URL: postgres://showcase:showcase@pg-micro:5432/showcase
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
-      pg-showcase:
+      pg-micro:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4005/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
@@ -110,13 +110,13 @@ services:
     restart: unless-stopped
     environment:
       PORT: 4006
-      DB_URL: postgres://requests:requests@pg-requests:5432/requests
+      DB_URL: postgres://requests:requests@pg-micro:5432/requests
       WAREHOUSE_URL: http://warehouse:4004
       FINANCE_URL: http://finance:4007
       IDENTITY_URL: http://identity:4001
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
-      pg-requests:
+      pg-micro:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4006/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
@@ -133,10 +133,10 @@ services:
     restart: unless-stopped
     environment:
       PORT: 4007
-      DB_URL: postgres://finance:finance@pg-finance:5432/finance
+      DB_URL: postgres://finance:finance@pg-micro:5432/finance
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
-      pg-finance:
+      pg-micro:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4007/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
@@ -153,10 +153,10 @@ services:
     restart: unless-stopped
     environment:
       PORT: 4008
-      DB_URL: postgres://integration:integration@pg-integration:5432/integration
+      DB_URL: postgres://integration:integration@pg-micro:5432/integration
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
     depends_on:
-      pg-integration:
+      pg-micro:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4008/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
@@ -256,19 +256,20 @@ services:
     secrets:
       - pg_postgres_password
 
-  pg-integration:
+  pg-micro:
     image: postgres:15
-    container_name: sf_pg_integration
+    container_name: sf_pg_micro
     restart: unless-stopped
     environment:
-      POSTGRES_DB: integration
-      POSTGRES_USER: integration
-      POSTGRES_PASSWORD_FILE: /run/secrets/pg_integration_password
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_micro_password
       TZ: Europe/Moscow
     volumes:
-      - pg-integration:/var/lib/postgresql/data
+      - pg-micro:/var/lib/postgresql/data
+      - ./scripts/pg/init-microservices.sql:/docker-entrypoint-initdb.d/10-init-microservices.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U integration -d integration"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -276,194 +277,19 @@ services:
     logging: *default-logging
     networks: *internal-net
     secrets:
-      - pg_integration_password
-
-  pg-finance:
-    image: postgres:15
-    container_name: sf_pg_finance
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: finance
-      POSTGRES_USER: finance
-      POSTGRES_PASSWORD_FILE: /run/secrets/pg_finance_password
-      TZ: Europe/Moscow
-    volumes:
-      - pg-finance:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U finance -d finance"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
-    logging: *default-logging
-    networks: *internal-net
-    secrets:
-      - pg_finance_password
-
-  pg-requests:
-    image: postgres:15
-    container_name: sf_pg_requests
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: requests
-      POSTGRES_USER: requests
-      POSTGRES_PASSWORD_FILE: /run/secrets/pg_requests_password
-      TZ: Europe/Moscow
-    volumes:
-      - pg-requests:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U requests -d requests"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
-    logging: *default-logging
-    networks: *internal-net
-    secrets:
-      - pg_requests_password
-
-  pg-showcase:
-    image: postgres:15
-    container_name: sf_pg_showcase
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: showcase
-      POSTGRES_USER: showcase
-      POSTGRES_PASSWORD_FILE: /run/secrets/pg_showcase_password
-      TZ: Europe/Moscow
-    volumes:
-      - pg-showcase:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U showcase -d showcase"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
-    logging: *default-logging
-    networks: *internal-net
-    secrets:
-      - pg_showcase_password
-
-  pg-warehouse:
-    image: postgres:15
-    container_name: sf_pg_warehouse
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: warehouse
-      POSTGRES_USER: warehouse
-      POSTGRES_PASSWORD_FILE: /run/secrets/pg_warehouse_password
-      TZ: Europe/Moscow
-    volumes:
-      - pg-warehouse:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U warehouse -d warehouse"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
-    logging: *default-logging
-    networks: *internal-net
-    secrets:
-      - pg_warehouse_password
-
-  pg-settings:
-    image: postgres:15
-    container_name: sf_pg_settings
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: settings
-      POSTGRES_USER: settings
-      POSTGRES_PASSWORD_FILE: /run/secrets/pg_settings_password
-      TZ: Europe/Moscow
-    volumes:
-      - pg-settings:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U settings -d settings"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
-    logging: *default-logging
-    networks: *internal-net
-    secrets:
-      - pg_settings_password
-
-  pg-directories:
-    image: postgres:15
-    container_name: sf_pg_directories
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: directories
-      POSTGRES_USER: directories
-      POSTGRES_PASSWORD_FILE: /run/secrets/pg_directories_password
-      TZ: Europe/Moscow
-    volumes:
-      - pg-directories:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U directories -d directories"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
-    logging: *default-logging
-    networks: *internal-net
-    secrets:
-      - pg_directories_password
-
-  pg-identity:
-    image: postgres:15
-    container_name: sf_pg_identity
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: identity
-      POSTGRES_USER: identity
-      POSTGRES_PASSWORD_FILE: /run/secrets/pg_identity_password
-      TZ: Europe/Moscow
-    volumes:
-      - pg-identity:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U identity -d identity"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
-    logging: *default-logging
-    networks: *internal-net
-    secrets:
-      - pg_identity_password
+      - pg_micro_password
 
 volumes:
   pgdata:
-  pg-identity:
-  pg-directories:
-  pg-settings:
-  pg-warehouse:
-  pg-showcase:
-  pg-requests:
-  pg-finance:
-  pg-integration:
+  pg-micro:
   letsencrypt:
   certbot-www:
 
 secrets:
   pg_postgres_password:
     file: ./secrets/pg_postgres_password.txt
-  pg_identity_password:
-    file: ./secrets/pg_identity_password.txt
-  pg_directories_password:
-    file: ./secrets/pg_directories_password.txt
-  pg_settings_password:
-    file: ./secrets/pg_settings_password.txt
-  pg_warehouse_password:
-    file: ./secrets/pg_warehouse_password.txt
-  pg_showcase_password:
-    file: ./secrets/pg_showcase_password.txt
-  pg_requests_password:
-    file: ./secrets/pg_requests_password.txt
-  pg_finance_password:
-    file: ./secrets/pg_finance_password.txt
-  pg_integration_password:
-    file: ./secrets/pg_integration_password.txt
+  pg_micro_password:
+    file: ./secrets/pg_micro_password.txt
 
 networks:
   internal:
