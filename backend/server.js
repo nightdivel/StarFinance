@@ -334,6 +334,7 @@ app.post(
   async (req, res) => {
     try {
       const { full } = req.body || {};
+      const fullSync = !(full === false || full === 'false' || full === 0 || full === '0');
 
       const deadlineMs = Number(process.env.UEX_SYNC_DEADLINE_MS || 8 * 60 * 1000);
       const startedAt = Date.now();
@@ -341,6 +342,8 @@ app.post(
 
       const maxCategories = Number(process.env.UEX_SYNC_MAX_CATEGORIES || 200);
       const concurrency = Math.max(1, Number(process.env.UEX_SYNC_CONCURRENCY || 6));
+      const pageLimit = Number(process.env.UEX_SYNC_PAGE_LIMIT || 500);
+      const maxPages = Number(process.env.UEX_SYNC_MAX_PAGES || 500);
 
       const token = req.headers['x-uex-token'] || process.env.UEX_API_TOKEN || process.env.VITE_UEX_API_TOKEN;
       const clientVersion = req.headers['x-uex-client-version'] || process.env.UEX_CLIENT_VERSION || process.env.VITE_UEX_CLIENT_VERSION;
@@ -389,11 +392,27 @@ app.post(
       const catsRaw = await fetchUex('categories').catch(() => []);
       const categories = Array.isArray(catsRaw?.data) ? catsRaw.data : Array.isArray(catsRaw) ? catsRaw : [];
 
-      // 2) Пытаемся взять полный список items одним запросом (как рекомендует UEX API)
+      // 2) Пытаемся взять полный список items (постранично при fullSync)
       let items = [];
       try {
-        const itemsRaw = await fetchUex('items').catch(() => []);
-        items = Array.isArray(itemsRaw?.data) ? itemsRaw.data : Array.isArray(itemsRaw) ? itemsRaw : [];
+        if (fullSync) {
+          let page = 1;
+          while (page <= maxPages && !isTimedOut()) {
+            const itemsRaw = await fetchUex('items', { page, limit: pageLimit }).catch(() => []);
+            const pageItems = Array.isArray(itemsRaw?.data)
+              ? itemsRaw.data
+              : Array.isArray(itemsRaw)
+              ? itemsRaw
+              : [];
+            if (!pageItems.length) break;
+            items.push(...pageItems);
+            if (pageItems.length < pageLimit) break;
+            page += 1;
+          }
+        } else {
+          const itemsRaw = await fetchUex('items').catch(() => []);
+          items = Array.isArray(itemsRaw?.data) ? itemsRaw.data : Array.isArray(itemsRaw) ? itemsRaw : [];
+        }
       } catch (_) {
         items = [];
       }
@@ -402,7 +421,7 @@ app.post(
       // ВАЖНО: это может быть очень долго (много запросов). Для UI по умолчанию (full=false)
       // пропускаем fallback, чтобы не ловить 504 от прокси.
       if (
-        (full === true || full === 'true') &&
+        fullSync &&
         (!Array.isArray(items) || items.length === 0) &&
         Array.isArray(categories) &&
         categories.length > 0
