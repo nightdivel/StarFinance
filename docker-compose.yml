@@ -31,9 +31,11 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
       # Shared with certbot: live certs and ACME webroot
       - letsencrypt:/etc/letsencrypt
       - certbot-www:/var/www/certbot
+      - ./scripts/docker-entrypoint/ensure-certs.sh:/docker-entrypoint.d/10-ensure-certs.sh:ro
     depends_on:
       - economy
 
@@ -41,11 +43,15 @@ services:
     image: certbot/certbot:latest
     container_name: economy_certbot
     restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+      EMAIL: ${EMAIL}
+      CERT_NAME: ${CERT_NAME}
     volumes:
       - letsencrypt:/etc/letsencrypt
       - certbot-www:/var/www/certbot
     entrypoint: /bin/sh
-    command: -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $!; done"
+    command: -c "if [ ! -f /etc/letsencrypt/live/$CERT_NAME/fullchain.pem ]; then certbot certonly --cert-name $CERT_NAME --webroot -w /var/www/certbot -d $DOMAIN --non-interactive --agree-tos -m $EMAIL; fi; trap exit TERM; while :; do certbot renew --cert-name $CERT_NAME --webroot -w /var/www/certbot --quiet; sleep 12h & wait $!; done"
 
   postgres:
     image: postgres:15
