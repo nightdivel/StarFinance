@@ -79,7 +79,7 @@ const Auth = ({ onLogin }) => {
               />
             </div>
           )}
-          <Title level={2}>BLSK Star Finance</Title>
+          <Title level={2}>Star Finance</Title>
           <Text type="secondary">Система управления финансами и складом</Text>
         </div>
 

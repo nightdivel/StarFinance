@@ -2,7 +2,7 @@
   email hitsnruns@gmail.com
 }
 
-blsk.fin-tech.com {
+fin.blacksky.su {
   encode gzip
 
   handle_path /economy/* {

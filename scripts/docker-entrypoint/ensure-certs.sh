@@ -1,7 +1,7 @@
 #!/bin/sh
 set -euo pipefail
 
-CERT_NAME=${CERT_NAME:-blsk.fin-tech.com}
+CERT_NAME=${CERT_NAME:-fin.blacksky.su}
 CERT_DIR=/etc/letsencrypt/live/${CERT_NAME}
 FALLBACK_CERT=/etc/nginx/certs/cert.pem
 FALLBACK_KEY=/etc/nginx/certs/key.pem

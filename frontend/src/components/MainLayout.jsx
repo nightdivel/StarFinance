@@ -302,7 +302,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
           className={`${collapsed ? 'px-2 py-3' : 'px-4 py-4'} text-center border-b border-gray-200/70`}
         >
           <Title level={4} className="m-0">
-            {collapsed ? 'BLSK SF' : 'BLSK Star Finance'}
+            {collapsed ? 'SF' : 'Star Finance'}
           </Title>
           <div className="mt-2">
             <Button

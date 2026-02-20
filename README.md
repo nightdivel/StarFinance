@@ -121,7 +121,7 @@ npm run docker:up
 
 - `app` — Node.js-приложение (порт 3000 внутри контейнера).
 - `nginx` — реверс-прокси (порт 80/443 на хосте).
-- Публикация под путём `/economy` на домене `korjeek.ru` (см. `nginx.conf`).
+- Публикация под путём `/economy` на домене `fin.blacksky.su` (см. `nginx.conf`).
 
 3. Пробросить домен:
 
@@ -135,9 +135,9 @@ npm run docker:up
 1. Заполните переменные в корневом `.env`:
 
 ```
-DOMAIN=blsk.fin-tech.com
+DOMAIN=fin.blacksky.su
 EMAIL=hitsnruns@gmail.com
-CERT_NAME=blsk.fin-tech.com
+CERT_NAME=fin.blacksky.su
 ```
 
 2. Чистая сборка (удалит тома, включая SSL и БД):
@@ -151,7 +151,7 @@ docker-compose up -d
 
 ```
 curl -i http://localhost/.well-known/acme-challenge/test
-curl -i http://blsk.fin-tech.com/.well-known/acme-challenge/test
+curl -i http://fin.blacksky.su/.well-known/acme-challenge/test
 ```
 
 Если внешний `curl` не отвечает — проверьте DNS и доступность порта 80.
@@ -160,9 +160,9 @@ curl -i http://blsk.fin-tech.com/.well-known/acme-challenge/test
 
 ```
 docker-compose run --rm --entrypoint certbot certbot certonly \
-  --cert-name blsk.fin-tech.com \
+  --cert-name fin.blacksky.su \
   --webroot -w /var/www/certbot \
-  -d blsk.fin-tech.com \
+  -d fin.blacksky.su \
   --non-interactive --agree-tos -m hitsnruns@gmail.com
 ```
 - `000_all.sql` — базовая схема и сиды (учётные записи, справочники, валюты, финансы, настройки).
