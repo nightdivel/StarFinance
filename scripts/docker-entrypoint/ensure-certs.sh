@@ -1,5 +1,5 @@
 #!/bin/sh
-set -euo pipefail
+set -eu
 
 CERT_NAME=${CERT_NAME:-blsk.fin-tech.com}
 CERT_DIR=/etc/letsencrypt/live/${CERT_NAME}

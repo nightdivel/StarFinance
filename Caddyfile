@@ -1,0 +1,18 @@
+{
+	email {$EMAIL}
+}
+
+{$DOMAIN} {
+	encode gzip
+
+	@root path /
+	redir @root /economy/ 301
+
+	@economyNoSlash path /economy
+	redir @economyNoSlash /economy/ 301
+
+	handle /economy/* {
+		uri strip_prefix /economy
+		reverse_proxy economy:3000
+	}
+}
