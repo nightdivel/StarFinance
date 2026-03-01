@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Space, Form, Input, Button, Select, Typography, Alert, Divider, message } from 'antd';
+import { Card, Space, Form, Input, Button, Select, Typography, Alert, Divider, message, Switch } from 'antd';
 import { uexApi } from '../../services/uexApiService';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import { DownloadOutlined } from '@ant-design/icons';
@@ -177,7 +177,12 @@ const UEX = () => {
     setLoading(true);
     try {
       const values = await form.validateFields();
-      const { resource, path, paramsText } = values;
+      const { resource, path, paramsText, token, clientVersion, autoSyncDirectories } = values;
+
+      // Ensure token/version are applied even if user didn't blur the fields
+      uexApi.setToken(token || '');
+      uexApi.setClientVersion(clientVersion || '');
+
       let params = undefined;
       if (paramsText) {
         // parse simple key=value&k2=v2 pairs
@@ -226,6 +231,12 @@ const UEX = () => {
       }
       const data = await uexApi.get(resource, { path, params });
       setResult(data);
+
+      // Заполнение productNames/productTypes делается на бэкенде через sync-directories,
+      // поэтому после успешного запроса по ключевым ресурсам запускаем синк автоматически.
+      if (autoSyncDirectories && (resource === 'items' || resource === 'categories')) {
+        await onSyncDirectories();
+      }
     } catch (e) {
       if (e?.errorFields) {
         // form validation error
@@ -324,12 +335,16 @@ const UEX = () => {
             resource: 'categories',
             path: '',
             paramsText: '',
+            autoSyncDirectories: true,
           }}>
             <Form.Item label="Токен UEX API" name="token">
               <Input.Password placeholder="Вставьте токен" onBlur={onSaveCreds} />
             </Form.Item>
             <Form.Item label="X-Client-Version (опционально)" name="clientVersion">
               <Input placeholder="Напр. 1.0.0" onBlur={onSaveCreds} />
+            </Form.Item>
+            <Form.Item label="Авто-обновление справочников (productNames/productTypes)" name="autoSyncDirectories" valuePropName="checked">
+              <Switch />
             </Form.Item>
             <Form.Item label="Ресурс" name="resource" rules={[{ required: true, message: 'Выберите ресурс' }]}> 
               <Select options={RESOURCES} className="max-w-[360px]" onChange={onResourceChange} />
