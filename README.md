@@ -1,16 +1,22 @@
-# Star Finance — прод-развёртывание и инструкция
+# Star Finance — микросервисы + Caddy
 
 Веб-приложение управления финансами и складом (React + Ant Design + Node.js/Express). Поддерживает локальную авторизацию и OAuth2 через Discord с маппингом ролей гильдии.
+
+**Схема развёртывания:**
+- **Caddy** — TLS-терминатор, обратный прокси и роутинг микросервисов.
+- **PostgreSQL** — единая БД для всех сервисов.
+- **8 микросервисов** (Node.js/Express) — каждый обслуживает свою доменную область.
+- **Frontend** — Vite + React, публикуется через Caddy под `/economy`.
 
 ## Содержание
 
 - **Структура проекта**
 - **Переменные окружения**
 - **Локальный запуск (Dev)**
-- **Продакшн через Docker + Nginx (Интернет-доступ)**
+- **Продакшн через Docker + Caddy (HTTPS)**
 - **Настройка Discord OAuth2**
 - **Резервное копирование (бэкапы)**
-- **Заметки по чистому коду и изменениям**
+- **Архитектура микросервисов**
 
 ---
 
@@ -18,19 +24,30 @@
 
 ```
 .
-├─ backend/                 # Express-сервер, API, OAuth2 Discord
-│  ├─ .env                  # Переменные окружения бэкенда (секреты)
-│  ├─ server.js             # Входной файл сервера
-│  ├─ config/serverConfig.js# Загрузка env из backend/.env
-│  ├─ middleware/auth.js    # JWT и проверка прав
-│  └─ data/starFinance.json # Хранилище данных (инициализируется автоматически)
-├─ frontend/                # Vite + React (Ant Design)
-│  ├─ .env                  # VITE_* переменные (без секретов)
+├─ backend/
+│  ├─ .env                     # Переменные окружения бэкенда (секреты)
+│  ├─ server.js                # Монолит (оставлен для совместимости, socket.io)
+│  ├─ db.js                    # Общий модуль подключения к PostgreSQL
+│  ├─ middleware/auth.js       # JWT и проверка прав
+│  └─ services/                # Микросервисы
+│     ├─ _shared/
+│     │   ├─ createServiceApp.js   # Заготовка Express-приложения
+│     │   └─ permissions.js         # getPermissionsForTypeDb
+│     ├─ users/server.js           # Пользователи
+│     ├─ directories/server.js     # Справочники
+│     ├─ warehouse/server.js        # Склад
+│     ├─ showcase/server.js        # Витрина
+│     ├─ requests/server.js        # Заявки
+│     ├─ finance/server.js         # Финансы (transactions, finance-requests)
+│     ├─ uex/server.js             # UEX API
+│     └─ settings/server.js       # Настройки + public assets
+├─ frontend/                   # Vite + React (Ant Design)
+│  ├─ .env                     # VITE_* переменные (без секретов)
 │  └─ src/
-├─ Dockerfile               # Образ приложения (сборка фронта, запуск бэка)
-├─ docker-compose.yml       # Сервисы: app и nginx
-├─ nginx.conf               # Реверс-прокси для доступа из интернета
-└─ README.md                # Этот файл
+├─ docker-compose.yml         # Caddy, PostgreSQL, 8 сервисов
+├─ Caddyfile                  # Роутинг API и TLS
+├─ Dockerfile                 # Образ монолита (legacy)
+└─ README.md                  # Этот файл
 ```
 
 ---
@@ -41,32 +58,42 @@
 
 `backend/.env` (пример):
 
-```
+```bash
+# Server
 PORT=3000
 HOST=0.0.0.0
-BASE_URL=http://localhost:3000
-FRONTEND_URL=http://localhost:5173
+BASE_URL=https://blsk.fin-tech.com
+
+# Public URLs / domain
+DOMAIN=blsk.fin-tech.com
+EMAIL=hitsnruns@gmail.com
+CERT_NAME=blsk.fin-tech.com
+FRONTEND_URL=https://blsk.fin-tech.com/economy
+DISCORD_REDIRECT_URI=https://blsk.fin-tech.com/economy/auth/discord/callback
+
+# PostgreSQL (docker network)
+PG_HOST=postgres
+PG_PORT=5432
+PG_DATABASE=starfinance
+PG_USER=postgres
+PG_PASSWORD=postgres
+
+# Security
+JWT_SECRET=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+TOKEN_EXPIRY=24h
 
 # Discord OAuth (секреты)
 DISCORD_CLIENT_ID=xxxx
 DISCORD_CLIENT_SECRET=xxxxxx
-DISCORD_REDIRECT_URI=http://localhost:3000/auth/discord/callback
-
-# JWT
-JWT_SECRET=change-me
-TOKEN_EXPIRY=24h
 ```
 
 `frontend/.env` (пример):
 
-```
+```bash
 VITE_APP_TITLE=BLSK Star Finance
 VITE_API_BASE_URL=http://localhost:3000
-# Опционально: только как локальный фолбэк
 VITE_ENABLE_DISCORD_AUTH=false
 ```
-
-Важно: бэкенд явно грузит переменные из `backend/.env` (см. `backend/config/serverConfig.js`).
 
 ---
 
@@ -74,117 +101,62 @@ VITE_ENABLE_DISCORD_AUTH=false
 
 Требования: Node.js 18+
 
-```
+```bash
 npm install
 npm run dev
 ```
 
 Скрипт запустит:
-
 - бэкенд на `http://localhost:3000`
 - фронтенд на `http://localhost:5173`
 
-Войти в систему: логин `admin`, пароль `xxxx`.
+Войти в систему: логин `admin`, пароль `admin`.
 
 ---
 
-## Продакшн через Docker + Nginx (Интернет-доступ)
+## Продакшн через Docker + Caddy (HTTPS)
 
 1. Подготовить файлы:
-
 - Указать реальные значения в `backend/.env` (включая Discord OAuth и домен в `FRONTEND_URL`).
-- Опционально положить SSL-сертификаты в `./ssl` (`fullchain.pem`, `privkey.pem`) и раскомментировать HTTPS-блок в `nginx.conf`.
-- Публичный адрес приложения: `https://korjeek.ru/economy/` (публикация под поддиректорией `/economy`).
-  - В `docker-compose.yml` проброс портов `8080:3000` для сервиса `app`.
-  - В `backend/.env` или `docker-compose.yml` установите `FRONTEND_URL=https://korjeek.ru/economy`.
-  - В `docker-compose.yml` проброс портов `8080:3000` для сервиса `app`.
-  - В `backend/.env` или `docker-compose.yml` установите `FRONTEND_URL=https://korjeek.ru/economy`.
+- Убедиться, что `DOMAIN` и `EMAIL` заданы (для Let's Encrypt).
 
 2. Собрать и поднять:
 
-```
-npm run docker:build
-npm run docker:up
+```bash
+docker-compose up -d --build
 ```
 
 Сервисы:
-
-- `app` — Node.js-приложение (порт 3000 внутри контейнера).
-- `nginx` — реверс-прокси (порт 80/443 на хосте).
-- Публикация под путём `/economy` на домене `korjeek.ru` (см. `nginx.conf`).
+- `caddy` — TLS-терминатор и роутинг (порты 80/443 на хосте).
+- `postgres` — база данных (порт 5433 на хосте).
+- `economy` — монолит (legacy, socket.io, фронтенд).
+- `users`, `directories`, `warehouse`, `showcase`, `requests`, `finance`, `uex`, `settings` — микросервисы.
 
 3. Пробросить домен:
-
 - Настройте DNS A-запись на ваш сервер.
 - Убедитесь, что порт **80** доступен из интернета (обязателен для Let's Encrypt HTTP‑challenge).
 
-### SSL/Let's Encrypt (автовыпуск при чистой сборке)
+### SSL/Let's Encrypt (автовыпуск)
 
-Сертификаты выпускаются контейнером `certbot` при первом запуске и далее обновляются автоматически.
+Сертификаты выпускаются Caddy автоматически при первом запуске и хранятся в volume `caddy_data`.
 
-1. Заполните переменные в корневом `.env`:
-
-```
-DOMAIN=blsk.fin-tech.com
-EMAIL=hitsnruns@gmail.com
-CERT_NAME=blsk.fin-tech.com
+Проверка:
+```bash
+curl -I https://blsk.fin-tech.com/economy/
 ```
 
-2. Чистая сборка (удалит тома, включая SSL и БД):
-
-```
-docker-compose down -v
-docker-compose up -d
-```
-
-3. Проверка webroot challenge (локально и снаружи):
-
-```
-curl -i http://localhost/.well-known/acme-challenge/test
-curl -i http://blsk.fin-tech.com/.well-known/acme-challenge/test
-```
-
-Если внешний `curl` не отвечает — проверьте DNS и доступность порта 80.
-
-4. Ручной перевыпуск (если нужно):
-
-```
-docker-compose run --rm --entrypoint certbot certbot certonly \
-  --cert-name blsk.fin-tech.com \
-  --webroot -w /var/www/certbot \
-  -d blsk.fin-tech.com \
-  --non-interactive --agree-tos -m hitsnruns@gmail.com
-```
-- `000_all.sql` — базовая схема и сиды (учётные записи, справочники, валюты, финансы, настройки).
-- `001_stage1.sql` — нормализация (учётные записи, настройки, Discord таблицы v1).
-- `002_stage2.sql` — справочники и сущности склада/витрины/финансов.
-- `003_add_theme_preference.sql` — поле `users.theme_preference`.
-- `003_showcase_and_warehouse.sql` — права `showcase`, словарь `warehouse_types`, поля владельца/типа склада.
-- `004_user_layouts_and_discord_scopes.sql` — таблицы `user_layouts`, `discord_scopes`, `discord_scope_mappings`.
-
-Полезно: для разработки можно поднять только БД
-
-```
-npm run dev:db      # поднять postgres (порт 5433 на хосте)
-npm run dev:stop:db # остановить postgres
-npm run dev:down    # удалить контейнеры postgres
-```
-
-Примечание: значения портов/URL по умолчанию согласованы — сервер слушает `:3000` (см. `backend/config/serverConfig.js`), фронтенд в dev на `:5173`.
+---
 
 ## Настройка Discord OAuth2
 
 1. В Discord Developer Portal:
-
 - Создайте приложение, включите OAuth2.
-- Добавьте Redirect URI: `http://<ваш_домен>/auth/discord/callback` (для локали — `http://localhost:3000/auth/discord/callback`).
+- Добавьте Redirect URI: `https://blsk.fin-tech.com/economy/auth/discord/callback`.
 - Выдайте права (Scopes): `identify`, `email`, `guilds.members.read`.
 
 2. В админке приложения (Настройки → Системные параметры):
-
 - Включите «Авторизация через Discord».
 - Заполните `Client ID`, `Client Secret`, `Redirect URI` и нажмите «Сохранить».
-  - Значения сохранятся в `data/system.discord` и продублируются в `backend/.env`.
 - Для маппинга по ролям:
   - Источник: `member`
   - Атрибут: `roles`
@@ -193,23 +165,64 @@ npm run dev:down    # удалить контейнеры postgres
 
 ---
 
-## Заметки по чистому коду и изменениям
+## Резервное копирование (бэкапы)
 
-- Удалены неиспользуемые импорты в `frontend/src/components/Settings/Settings.jsx`.
-- Защита от затирания пустыми значениями при сохранении Discord-параметров:
-  - Фронтенд `saveSystemSettings()` мержит payload с текущими значениями формы.
-  - Бэкенд `PUT /api/system/discord` сохраняет существующие значения, если пришли пустые строки.
-- Валидация `/auth/discord`: при отсутствии `clientId`/`redirectUri` возвращает понятное `400` JSON, а не редирект с ошибкой.
-- Логи запросов выполняются после парсинга тела (`express.json()`), чтобы `req.body` был заполнен.
-- Инициализация `data/starFinance.json`: при пустом/битом файле автоматически перезаписывается корректной структурой.
-- UI маппинга Discord: добавлена подсказка по `guilds.members.read` и обязательность `Guild ID` при `source=member`.
-- Удалены неиспользуемые фронтенд-конфиги `frontend/src/config/apiConfig.js` и `frontend/src/services/offlineService.js`.
+```bash
+# Создать бэкап
+docker-compose exec -T postgres pg_dump -U postgres starfinance > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Восстановить бэкап
+docker-compose exec -T postgres psql -U postgres starfinance < backup.sql
+```
+
+---
+
+## Архитектура микросервисов
+
+### Роутинг API через Caddy
+
+```
+/economy/api/users/*      → users:3001
+/economy/api/directories/* → directories:3002
+/economy/api/warehouse/*   → warehouse:3003
+/economy/api/showcase/*   → showcase:3004
+/economy/api/requests/*   → requests:3005
+/economy/api/transactions/* → finance:3006
+/economy/api/finance-requests/* → finance:3006
+/economy/api/uex/*        → uex:3007
+/economy/api/system/*     → settings:3008
+/economy/socket.io/*      → economy:3000 (монолит, realtime)
+/economy/*                 → economy:3000 (монолит, фронтенд)
+```
+
+### Общие зависимости
+
+- **База данных** — единая PostgreSQL для всех сервисов.
+- **Аутентификация** — JWT middleware `authenticateToken` и `requirePermission`.
+- **Права доступа** — `getPermissionsForTypeDb` из `backend/services/_shared/permissions.js`.
+- **Socket.io** — пока оставлен в монолите (`economy`), события между сервисами не реализованы.
+
+### Что вынесено из монолита
+
+- **UEX API** (`/api/uex`, `/api/uex/sync-directories`)
+- **Справочники** (`/api/directories/*`)
+- **Пользователи** (`/api/users/*`, `/api/change-password`)
+- **Настройки** (`/api/system/*`, `/public/auth/*`)
+- **Склад** (`/api/warehouse/*`)
+- **Витрина** (`/api/showcase/*`)
+- **Заявки** (`/api/requests/*`, `/api/my/requests`)
+- **Финансы** (`/api/transactions`, `/api/finance-requests/*`)
+
+Осталось в монолите:
+- Фронтенд (статика)
+- Socket.io realtime
+- Некоторые legacy эндпойнты (если есть)
 
 ---
 
 ## Полезные команды
 
-```
+```bash
 # Dev
 npm run dev
 
@@ -217,9 +230,9 @@ npm run dev
 npm run build
 
 # Docker
-npm run docker:build
-npm run docker:up
-npm run docker:down
+docker-compose up -d --build
+docker-compose logs -f caddy
+docker-compose exec -T postgres psql -U postgres starfinance
 ```
 
 ---
