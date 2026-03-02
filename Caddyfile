@@ -11,8 +11,72 @@
 	@economyNoSlash path /economy
 	redir @economyNoSlash /economy/ 301
 
-	handle /economy/* {
+	# Socket.IO websocket/polling must be proxied to the economy app explicitly
+	handle /economy/socket.io* {
+		uri strip_prefix /economy
+		reverse_proxy economy:3000 {
+			lb_try_duration 10s
+			lb_try_interval 250ms
+		}
+	}
+
+	handle /economy/api/users/* {
+		uri strip_prefix /economy
+		reverse_proxy users:3001
+	}
+
+	handle /economy/api/directories/* {
+		uri strip_prefix /economy
+		reverse_proxy directories:3002
+	}
+
+	handle /economy/api/warehouse/* {
+		uri strip_prefix /economy
+		reverse_proxy warehouse:3003
+	}
+
+	handle /economy/api/showcase/* {
+		uri strip_prefix /economy
+		reverse_proxy showcase:3004
+	}
+
+	handle /economy/api/requests/* {
+		uri strip_prefix /economy
+		reverse_proxy requests:3005
+	}
+
+	handle /economy/api/finance/* {
+		uri strip_prefix /economy
+		reverse_proxy finance:3006
+	}
+
+	handle /economy/api/uex* {
+		uri strip_prefix /economy
+		reverse_proxy uex:3007
+	}
+
+	handle /economy/api/system/* {
+		uri strip_prefix /economy
+		reverse_proxy settings:3008
+	}
+
+	# Public assets (auth background/icon) are served by settings service
+	# Public flag for Discord auth is served by economy service
+	handle /economy/public/discord-enabled {
 		uri strip_prefix /economy
 		reverse_proxy economy:3000
+	}
+
+	handle /economy/public/* {
+		uri strip_prefix /economy
+		reverse_proxy settings:3008
+	}
+
+	handle /economy/* {
+		uri strip_prefix /economy
+		reverse_proxy economy:3000 {
+			lb_try_duration 10s
+			lb_try_interval 250ms
+		}
 	}
 }

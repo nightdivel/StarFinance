@@ -493,6 +493,60 @@
   background: rgba(15, 23, 42, 0.45) !important;
 }
 
+@media (max-width: 768px) {
+  /* We use Drawer for navigation on mobile */
+  .sf-main-sider {
+    display: none !important;
+  }
+
+  .sf-main-header {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    gap: 8px;
+  }
+
+  .sf-header-balances {
+    flex: 1 1 auto;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sf-header-balances::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .sf-main-content {
+    margin: 10px !important;
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+
+  /* Tables: allow horizontal scroll on narrow screens */
+  .ant-table-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Compact tables for more fields to fit */
+  .ant-table {
+    font-size: 11px !important;
+  }
+  .ant-table .ant-table-thead > tr > th,
+  .ant-table .ant-table-tbody > tr > td {
+    padding: 6px 4px !important;
+    white-space: nowrap;
+  }
+
+  /* Smaller buttons for mobile */
+  .ant-btn {
+    height: 28px !important;
+    font-size: 12px !important;
+    padding: 0 8px !important;
+  }
+}
+
 /* ===== Table usability refinements ===== */
 .ant-table {
   font-size: 13px;

@@ -40,7 +40,7 @@ export default defineConfig(({ mode }) => {
         'antd/es/date-picker/hooks/useMergedPickerSemantic.js': 'antd/lib/date-picker/hooks/useMergedPickerSemantic.js',
       },
     },
-    base: env.BASE_PATH || '/',
+    base: env.BASE_PATH || process.env.BASE_PATH || '/',
     server: {
       port: 5173,
       host: '0.0.0.0',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Card, Tooltip, Tag, Skeleton } from 'antd';
+import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Card, Tooltip, Tag, Skeleton, Drawer, Grid } from 'antd';
 import {
   UserOutlined,
   SettingOutlined,
@@ -14,6 +14,7 @@ import {
   BulbOutlined,
   MoonOutlined,
   SunOutlined,
+  MenuOutlined,
 } from '@ant-design/icons';
 import Finance from './Finance/Finance';
 import Directories from './Directories/Directories';
@@ -33,10 +34,15 @@ import { getSocket } from '../lib/realtime/socket';
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Title } = Typography;
+const { useBreakpoint } = Grid;
 
 const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [selectedKey, setSelectedKey] = useState('finance');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const screens = useBreakpoint();
+  const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isMobile = isMobileDevice || !screens.md;
   const queryClient = useQueryClient();
   const { data, isLoading } = useAppDataQuery(userData?.username);
 
@@ -125,6 +131,11 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
   };
 
   const menuItems = rawMenuItems.filter((item) => canRead(item.section));
+
+  const onSelectMenuKey = (key) => {
+    setSelectedKey(key);
+    if (isMobile) setMobileMenuOpen(false);
+  };
 
   // Если текущий выбранный раздел недоступен, переключимся на первый доступный
   useEffect(() => {
@@ -291,52 +302,63 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
 
   return (
     <Layout className="min-h-screen sf-app-shell">
-      <Sider
-        trigger={null}
-        collapsible
-        collapsed={collapsed}
-        theme={darkMode ? 'dark' : 'light'}
-        className="relative h-screen flex flex-col sf-main-sider"
-      >
-        <div
-          className={`${collapsed ? 'px-2 py-3' : 'px-4 py-4'} text-center border-b border-gray-200/70`}
-        >
-          <Title level={4} className="m-0">
-            {collapsed ? 'BLSK SF' : 'BLSK Star Finance'}
-          </Title>
-          <div className="mt-2">
-            <Button
-              type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
-              shape={collapsed ? 'circle' : undefined}
-              className={`text-base h-9 mx-auto block ${collapsed ? 'w-9' : 'w-12'}`}
-            />
-          </div>
-        </div>
-        <Menu
+      {!isMobile && (
+        <Sider
+          trigger={null}
+          collapsible
+          collapsed={collapsed}
           theme={darkMode ? 'dark' : 'light'}
-          mode="inline"
-          inlineIndent={16}
-          selectedKeys={[selectedKey]}
-          onClick={({ key }) => setSelectedKey(key)}
-          items={menuItems.map((mi) => ({
-            ...mi,
-            label: (
-              <span className={`${mi.key === selectedKey ? 'font-semibold' : 'font-medium'} text-base`}>
-                {mi.label}
-              </span>
-            ),
-          }))}
-          className="border-r-0 flex-1 px-2 pt-2"
-        />
-      </Sider>
+          className="relative h-screen flex flex-col sf-main-sider"
+        >
+          <div
+            className={`${collapsed ? 'px-2 py-3' : 'px-4 py-4'} text-center border-b border-gray-200/70`}
+          >
+            <Title level={4} className="m-0">
+              {collapsed ? 'BLSK SF' : 'BLSK Star Finance'}
+            </Title>
+            <div className="mt-2">
+              <Button
+                type="text"
+                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={() => setCollapsed(!collapsed)}
+                shape={collapsed ? 'circle' : undefined}
+                className={`text-base h-9 mx-auto block ${collapsed ? 'w-9' : 'w-12'}`}
+              />
+            </div>
+          </div>
+          <Menu
+            theme={darkMode ? 'dark' : 'light'}
+            mode="inline"
+            inlineIndent={16}
+            selectedKeys={[selectedKey]}
+            onClick={({ key }) => onSelectMenuKey(key)}
+            items={menuItems.map((mi) => ({
+              ...mi,
+              label: (
+                <span className={`${mi.key === selectedKey ? 'font-semibold' : 'font-medium'} text-base`}>
+                  {mi.label}
+                </span>
+              ),
+            }))}
+            className="border-r-0 flex-1 px-2 pt-2"
+          />
+        </Sider>
+      )}
       <Layout>
         <Header
           className="px-5 bg-transparent flex justify-between items-center border-b border-gray-200/70 relative sf-main-header"
         >
+          {isMobile && (
+            <Button
+              type="text"
+              aria-label="Открыть меню"
+              icon={<MenuOutlined />}
+              onClick={() => setMobileMenuOpen(true)}
+              className="mr-2"
+            />
+          )}
           {/* Left side: per-currency balance for current user */}
-          <div className="flex items-center gap-2 flex-wrap py-1">
+          <div className="flex items-center gap-2 flex-wrap py-1 sf-header-balances">
             {(data?.system?.currencies || []).map((c) => (
               <Tag key={`hdr-bal-${c}`} color={(userBalances[c] || 0) >= 0 ? 'green' : 'red'}>
                 {Number(userBalances[c] || 0).toFixed(2)} {c}
@@ -383,6 +405,25 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
             </Dropdown>
           </Space>
         </Header>
+        <Drawer
+          title="Меню"
+          placement="left"
+          open={isMobile && mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
+          bodyStyle={{ padding: 0 }}
+        >
+          <Menu
+            theme={darkMode ? 'dark' : 'light'}
+            mode="inline"
+            inlineIndent={16}
+            selectedKeys={[selectedKey]}
+            onClick={({ key }) => onSelectMenuKey(key)}
+            items={menuItems.map((mi) => ({
+              ...mi,
+              label: <span className="text-base">{mi.label}</span>,
+            }))}
+          />
+        </Drawer>
         <Content className="m-4 p-5 bg-transparent rounded-2xl shadow-sm sf-main-content">
           {renderContent()}
         </Content>

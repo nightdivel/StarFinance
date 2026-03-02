@@ -36,6 +36,49 @@ function buildDiscordAuthorizeUrl(eff) {
   )}&response_type=code&redirect_uri=${redirectUri}&scope=${encodeURIComponent(scopes.join(' '))}`;
 }
 
+function normalizeBasePath(p) {
+  const s = String(p || '').trim();
+  if (!s) return '';
+  if (s === '/') return '';
+  const withSlash = s.startsWith('/') ? s : `/${s}`;
+  return withSlash.endsWith('/') ? withSlash.slice(0, -1) : withSlash;
+}
+
+function detectPublicBasePath() {
+  // Priority 1: explicit BASE_PATH (/economy)
+  const explicit = normalizeBasePath(process.env.BASE_PATH || process.env.PUBLIC_BASE_PATH);
+  if (explicit) return explicit;
+
+  // Priority 2: FRONTEND_URL (may be https://host/economy)
+  try {
+    const fu = process.env.FRONTEND_URL;
+    if (fu && typeof fu === 'string' && /^https?:\/\//i.test(fu)) {
+      const u = new URL(fu);
+      const p = normalizeBasePath(u.pathname);
+      if (p) return p;
+    }
+  } catch {}
+
+  // Priority 3: DISCORD_REDIRECT_URI (often contains /economy/auth/discord/callback)
+  try {
+    const ru = process.env.DISCORD_REDIRECT_URI;
+    if (ru && typeof ru === 'string' && /^https?:\/\//i.test(ru)) {
+      const u = new URL(ru);
+      const p = String(u.pathname || '');
+      const marker = '/auth/discord/callback';
+      const idx = p.indexOf(marker);
+      if (idx >= 0) {
+        const prefix = normalizeBasePath(p.slice(0, idx));
+        if (prefix) return prefix;
+      }
+      const full = normalizeBasePath(p);
+      if (full) return full;
+    }
+  } catch {}
+
+  return '';
+}
+
 const app = express();
 // behind reverse proxy (Caddy/Nginx) trust X-Forwarded-* to correctly detect https and client IP
 app.set('trust proxy', 1);
@@ -501,7 +544,9 @@ app.get('/public/auth/background', async (req, res) => {
     const stat = await fs.stat(filePath).catch(() => null);
     const fileName = path.basename(filePath);
     // Serve via dedicated send endpoint below
-    return res.json({ url: `/public/auth/background/file/${encodeURIComponent(fileName)}`, updatedAt: stat ? stat.mtimeMs : null });
+    const bp = detectPublicBasePath();
+    const rel = `/public/auth/background/file/${encodeURIComponent(fileName)}`;
+    return res.json({ url: `${bp}${rel}`, updatedAt: stat ? stat.mtimeMs : null });
   } catch (e) {
     return res.json({ url: null, updatedAt: null });
   }
@@ -514,7 +559,9 @@ app.get('/public/auth/icon', async (req, res) => {
     if (!filePath) return res.json({ url: null, updatedAt: null });
     const stat = await fs.stat(filePath).catch(() => null);
     const fileName = path.basename(filePath);
-    return res.json({ url: `/public/auth/icon/file/${encodeURIComponent(fileName)}`, updatedAt: stat ? stat.mtimeMs : null });
+    const bp = detectPublicBasePath();
+    const rel = `/public/auth/icon/file/${encodeURIComponent(fileName)}`;
+    return res.json({ url: `${bp}${rel}`, updatedAt: stat ? stat.mtimeMs : null });
   } catch (e) {
     return res.json({ url: null, updatedAt: null });
   }
@@ -588,7 +635,9 @@ app.put('/api/system/auth/background', authenticateToken, requirePermission('set
     } catch (_) {}
     const target = path.join(AUTH_PUBLIC_DIR, `${AUTH_BG_NAME}.${ext}`);
     await fs.writeFile(target, buf);
-    return res.json({ success: true, url: `/public/auth/background/file/${AUTH_BG_NAME}.${ext}` });
+    const bp = detectPublicBasePath();
+    const rel = `/public/auth/background/file/${AUTH_BG_NAME}.${ext}`;
+    return res.json({ success: true, url: `${bp}${rel}` });
   } catch (e) {
     console.error('PUT /api/system/auth/background error:', e);
     return res.status(500).json({ error: 'Ошибка сохранения фона' });
@@ -643,7 +692,9 @@ app.put('/api/system/auth/icon', authenticateToken, requirePermission('settings'
     } catch (_) {}
     const target = path.join(AUTH_PUBLIC_DIR, `${AUTH_ICON_NAME}.${ext}`);
     await fs.writeFile(target, buf);
-    return res.json({ success: true, url: `/public/auth/icon/file/${AUTH_ICON_NAME}.${ext}` });
+    const bp = detectPublicBasePath();
+    const rel = `/public/auth/icon/file/${AUTH_ICON_NAME}.${ext}`;
+    return res.json({ success: true, url: `${bp}${rel}` });
   } catch (e) {
     console.error('PUT /api/system/auth/icon error:', e);
     return res.status(500).json({ error: 'Ошибка сохранения иконки' });

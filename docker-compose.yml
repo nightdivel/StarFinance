@@ -1,6 +1,7 @@
 services:
   economy:
     build: .
+    image: starfinance_v2-economy
     container_name: economy_app
     restart: always
     environment:
@@ -22,6 +23,150 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  users:
+    image: starfinance_v2-economy
+    container_name: users_service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      ECONOMY_BASE_URL: http://economy:3000
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: starfinance
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+    command: ["sh", "-c", "cd backend && node services/users/server.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  directories:
+    image: starfinance_v2-economy
+    container_name: directories_service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      ECONOMY_BASE_URL: http://economy:3000
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: starfinance
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+    command: ["sh", "-c", "cd backend && node services/directories/server.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  warehouse:
+    image: starfinance_v2-economy
+    container_name: warehouse_service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      ECONOMY_BASE_URL: http://economy:3000
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: starfinance
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+    command: ["sh", "-c", "cd backend && node services/warehouse/server.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  showcase:
+    image: starfinance_v2-economy
+    container_name: showcase_service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3004
+      ECONOMY_BASE_URL: http://economy:3000
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: starfinance
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+    command: ["sh", "-c", "cd backend && node services/showcase/server.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  requests:
+    image: starfinance_v2-economy
+    container_name: requests_service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      ECONOMY_BASE_URL: http://economy:3000
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: starfinance
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+    command: ["sh", "-c", "cd backend && node services/requests/server.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  finance:
+    image: starfinance_v2-economy
+    container_name: finance_service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3006
+      ECONOMY_BASE_URL: http://economy:3000
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: starfinance
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+    command: ["sh", "-c", "cd backend && node services/finance/server.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  uex:
+    image: starfinance_v2-economy
+    container_name: uex_service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3007
+      ECONOMY_BASE_URL: http://economy:3000
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: starfinance
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+    command: ["sh", "-c", "cd backend && node services/uex/server.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  settings:
+    image: starfinance_v2-economy
+    container_name: settings_service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3008
+      ECONOMY_BASE_URL: http://economy:3000
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: starfinance
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+    command: ["sh", "-c", "cd backend && node services/settings/server.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   caddy:
     image: caddy:2.8-alpine
     container_name: economy_caddy
@@ -38,6 +183,14 @@ services:
       - caddy_config:/config
     depends_on:
       - economy
+      - users
+      - directories
+      - warehouse
+      - showcase
+      - requests
+      - finance
+      - uex
+      - settings
 
   postgres:
     image: postgres:15
