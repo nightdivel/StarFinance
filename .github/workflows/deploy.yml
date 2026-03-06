@@ -26,18 +26,13 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.PORT }}
         script: |
-          # Создаем директорию для проекта если нет
-          mkdir -p /var/www/starfinance
-          cd /var/www/starfinance
+          # Переходим в директорию проекта
+          cd c:\StarFinanceProject\StarFinance_v2
           
-          # Клонируем или обновляем репозиторий
-          if [ ! -d .git ]; then
-            git clone https://github.com/nightdivel/StarFinance.git .
-          else
-            git fetch origin
-            git checkout main
-            git pull origin main
-          fi
+          # Выкачиваем последние изменения
+          git fetch origin
+          git checkout main
+          git pull origin main
           
           # Останавливаем и пересобираем контейнеры
           docker-compose down
