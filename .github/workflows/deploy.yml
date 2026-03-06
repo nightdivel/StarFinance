@@ -1,14 +1,15 @@
 # .github/workflows/deploy.yml
-name: Deploy Economy App
+name: Deploy StarFinance
 
 on:
   push:
     branches:
       - main # или любая другая ветка для деплоя
+  workflow_dispatch: # Разрешить запуск вручную
 
 jobs:
   deploy:
-    name: Deploy to Server
+    name: Deploy to Production Server
     runs-on: ubuntu-latest
 
     steps:
@@ -17,12 +18,33 @@ jobs:
         mkdir -p ~/.ssh
         ssh-keyscan -p ${{ secrets.PORT }} -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
 
-    - name: Execute deployment script on server
+    - name: Deploy to server
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.PORT }}
-        
-        script: /usr/local/bin/deploy_economy.sh
+        script: |
+          # Создаем директорию для проекта если нет
+          mkdir -p /var/www/starfinance
+          cd /var/www/starfinance
+          
+          # Клонируем или обновляем репозиторий
+          if [ ! -d .git ]; then
+            git clone https://github.com/nightdivel/StarFinance.git .
+          else
+            git fetch origin
+            git checkout main
+            git pull origin main
+          fi
+          
+          # Останавливаем и пересобираем контейнеры
+          docker-compose down
+          docker-compose build --no-cache
+          docker-compose up -d
+          
+          # Очищаем старые образы
+          docker system prune -f
+          
+          echo "Deployment completed!"
