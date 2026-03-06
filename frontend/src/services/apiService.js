@@ -334,6 +334,9 @@ class ApiService {
   deleteDiscordScope(name) {
     return this.request(`/api/discord/scopes/${encodeURIComponent(name)}`, { method: 'DELETE' });
   }
+  deleteUexSync(resource) {
+    return this.request(`/api/directories/uex_sync/${encodeURIComponent(resource)}`, { method: 'DELETE' });
+  }
 
   // ----- Auth background management -----
   // Public metadata (no auth needed)

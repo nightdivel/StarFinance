@@ -19,8 +19,8 @@ app.use(express.urlencoded({ extended: true, limit: '32mb' }));
 
 // ---- UEX API proxy and sync ----
 // Base docs: https://uexcorp.space/api/documentation/
-// Public base URL: https://api.uexcorp.uk/2.0
-const UEX_BASE_URL = (process.env.UEX_API_BASE_URL || 'https://api.uexcorp.uk/2.0').replace(/\/$/, '');
+// Public base URL: https://api.uexcorp.space/2.0
+const UEX_BASE_URL = (process.env.UEX_API_BASE_URL || 'https://api.uexcorp.space/2.0').replace(/\/$/, '');
 const UEX_COMPANY_ID = process.env.UEX_COMPANY_ID || process.env.VITE_UEX_COMPANY_ID || null;
 const UEX_AXIOS_TIMEOUT_MS = Number(process.env.UEX_AXIOS_TIMEOUT_MS || 120000);
 
@@ -108,6 +108,7 @@ async function upsertUexDirectories({ categories, items }) {
   }
 
   if (Array.isArray(items)) {
+    console.log(`[UEX SYNC] Processing ${items.length} items for database...`);
     for (const it of items) {
       const name = (it?.name || it?.title || '').toString().trim();
       if (!name) continue;
@@ -196,6 +197,32 @@ async function upsertUexDirectories({ categories, items }) {
         productNamesUpdated += 1;
       }
     }
+  }
+
+  // Записываем результат синхронизации в uex_sync_state
+  try {
+    const now = new Date().toISOString();
+    await query(`
+      INSERT INTO uex_sync_state (resource, last_sync_at, last_uex_marker, meta)
+      VALUES ('directories', $1, $2, $3)
+      ON CONFLICT (resource) DO UPDATE SET
+        last_sync_at = EXCLUDED.last_sync_at,
+        last_uex_marker = EXCLUDED.last_uex_marker,
+        meta = EXCLUDED.meta
+    `, [
+      now,
+      now,
+      JSON.stringify({
+        productTypesCreated,
+        productTypesUpdated,
+        productNamesCreated,
+        productNamesUpdated,
+        timestamp: now
+      })
+    ]);
+    console.log(`[UEX SYNC] Sync state updated: ${now}`);
+  } catch (e) {
+    console.error('[UEX SYNC] Error updating sync state:', e);
   }
 
   return { productTypesCreated, productTypesUpdated, productNamesCreated, productNamesUpdated };
@@ -319,19 +346,8 @@ app.post(
       const categories = Array.isArray(catsRaw?.data) ? catsRaw.data : Array.isArray(catsRaw) ? catsRaw : [];
 
       let items = [];
-      try {
-        const itemsRaw = await fetchUex('items').catch(() => []);
-        items = Array.isArray(itemsRaw?.data) ? itemsRaw.data : Array.isArray(itemsRaw) ? itemsRaw : [];
-      } catch (_) {
-        items = [];
-      }
-
-      if (
-        (full === true || full === 'true') &&
-        (!Array.isArray(items) || items.length === 0) &&
-        Array.isArray(categories) &&
-        categories.length > 0
-      ) {
+      if (Array.isArray(categories) && categories.length > 0) {
+        console.log(`[UEX SYNC] Processing ${categories.length} categories for items...`);
         const byCat = [];
 
         const mapLimit = async (arr, limit, mapper) => {
@@ -362,17 +378,32 @@ app.post(
               : cat?.category_id != null
               ? String(cat.category_id)
               : null;
-          if (!catId) return null;
+          if (!catId) {
+            console.log(`[UEX SYNC] Skipping category without ID:`, cat);
+            return null;
+          }
           try {
             const raw = await fetchUex('items', { id_category: catId }).catch(() => []);
             const arr = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
+            console.log(`[UEX SYNC] Category ${catId} (${cat.name || 'unnamed'}): ${arr.length} items`);
             if (Array.isArray(arr) && arr.length > 0) byCat.push(...arr);
             return arr.length;
-          } catch (_) {
+          } catch (e) {
+            console.error(`[UEX SYNC] Error fetching items for category ${catId}:`, e.message);
             return null;
           }
         });
+        console.log(`[UEX SYNC] Total items collected: ${byCat.length}`);
         if (byCat.length > 0) items = byCat;
+      }
+
+      if (
+        (full === true || full === 'true') &&
+        (!Array.isArray(items) || items.length === 0) &&
+        Array.isArray(categories) &&
+        categories.length > 0
+      ) {
+        // Additional full sync logic if needed (already covered above)
       }
 
       if (isTimedOut()) {

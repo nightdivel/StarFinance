@@ -107,7 +107,7 @@ app.use('/health', cors(corsOptions));
 // ---- UEX API proxy and sync ----
 // Base docs: https://uexcorp.space/api/documentation/
 // Public base URL (same as in frontend): https://api.uexcorp.uk/2.0
-const UEX_BASE_URL = (process.env.UEX_API_BASE_URL || 'https://api.uexcorp.uk/2.0').replace(/\/$/, '');
+const UEX_BASE_URL = (process.env.UEX_API_BASE_URL || 'https://api.uexcorp.space/2.0').replace(/\/$/, '');
 const UEX_COMPANY_ID = process.env.UEX_COMPANY_ID || process.env.VITE_UEX_COMPANY_ID || null;
 const UEX_AXIOS_TIMEOUT_MS = Number(process.env.UEX_AXIOS_TIMEOUT_MS || 120000);
 
@@ -265,6 +265,8 @@ async function upsertUexDirectories({ categories, items }) {
       const name = (it?.name || it?.title || '').toString().trim();
       if (!name) continue;
 
+      console.log('Processing UEX item:', name, 'id:', it?.id);
+
       const catIdRaw =
         it?.id_category != null
           ? String(it.id_category)
@@ -359,148 +361,29 @@ async function upsertUexDirectories({ categories, items }) {
   return { productTypesCreated, productTypesUpdated, productNamesCreated, productNamesUpdated };
 }
 
-// Sync UEX directories into local DB
-app.post(
-  '/api/uex/sync-directories',
-  authenticateToken,
-  requirePermission('directories', 'write'),
-  async (req, res) => {
-    try {
-      const { full } = req.body || {};
+// Test endpoint for debugging
+app.post('/api/uex/test', authenticateToken, requirePermission('directories', 'write'), async (req, res) => {
+  console.log('[TEST] UEX test endpoint reached!');
+  res.json({ success: true, message: 'Test endpoint working' });
+});
 
-      const deadlineMs = Number(process.env.UEX_SYNC_DEADLINE_MS || 8 * 60 * 1000);
-      const startedAt = Date.now();
-      const isTimedOut = () => Date.now() - startedAt > deadlineMs;
-
-      const maxCategories = Number(process.env.UEX_SYNC_MAX_CATEGORIES || 200);
-      const concurrency = Math.max(1, Number(process.env.UEX_SYNC_CONCURRENCY || 6));
-
-      const token = req.headers['x-uex-token'] || process.env.UEX_API_TOKEN || process.env.VITE_UEX_API_TOKEN;
-      const clientVersion = req.headers['x-uex-client-version'] || process.env.UEX_CLIENT_VERSION || process.env.VITE_UEX_CLIENT_VERSION;
-      const baseHeaders = {
-        Accept: 'application/json',
-        ...(clientVersion ? { 'X-Client-Version': String(clientVersion) } : {}),
-      };
-
-      const attempts = [];
-      if (token) {
-        const t = String(token).trim();
-        attempts.push({ ...baseHeaders, Authorization: `Bearer ${t}`, 'X-API-Key': t });
-        attempts.push({ ...baseHeaders, 'X-API-Key': t });
-        attempts.push({ ...baseHeaders, Authorization: `Token ${t}` });
-      } else {
-        attempts.push(baseHeaders);
-      }
-
-      async function fetchUex(resource, params = {}) {
-        const finalParams = { ...params };
-        if (resource === 'items' && UEX_COMPANY_ID) {
-          if (!finalParams.id_company) {
-            finalParams.id_company = UEX_COMPANY_ID;
-          }
-        }
-        const url = buildUexUrl(resource, '', finalParams);
-        let lastErr;
-        for (const h of attempts) {
-          try {
-            const resp = await axios.get(url, { headers: h, timeout: UEX_AXIOS_TIMEOUT_MS });
-            return resp.data;
-          } catch (e) {
-            const status = e?.response?.status;
-            if (status === 401 || status === 403) {
-              lastErr = e;
-              continue;
-            }
-            throw e;
-          }
-        }
-        if (lastErr) throw lastErr;
-        throw new Error('UEX request failed');
-      }
-
-      // 1) Всегда тянем полный список категорий (categories)
-      const catsRaw = await fetchUex('categories').catch(() => []);
-      const categories = Array.isArray(catsRaw?.data) ? catsRaw.data : Array.isArray(catsRaw) ? catsRaw : [];
-
-      // 2) Пытаемся взять полный список items одним запросом (как рекомендует UEX API)
-      let items = [];
-      try {
-        const itemsRaw = await fetchUex('items').catch(() => []);
-        items = Array.isArray(itemsRaw?.data) ? itemsRaw.data : Array.isArray(itemsRaw) ? itemsRaw : [];
-      } catch (_) {
-        items = [];
-      }
-
-      // 3) Если общий список items пустой, пробуем по категориям (id_category)
-      // ВАЖНО: это может быть очень долго (много запросов). Для UI по умолчанию (full=false)
-      // пропускаем fallback, чтобы не ловить 504 от прокси.
-      if (
-        (full === true || full === 'true') &&
-        (!Array.isArray(items) || items.length === 0) &&
-        Array.isArray(categories) &&
-        categories.length > 0
-      ) {
-        const byCat = [];
-
-        const mapLimit = async (arr, limit, mapper) => {
-          const results = new Array(arr.length);
-          let idx = 0;
-          const workers = new Array(Math.min(limit, arr.length)).fill(0).map(async () => {
-            while (idx < arr.length) {
-              const cur = idx++;
-              if (isTimedOut()) return;
-              try {
-                results[cur] = await mapper(arr[cur], cur);
-              } catch (e) {
-                results[cur] = null;
-              }
-            }
-          });
-          await Promise.all(workers);
-          return results;
-        };
-
-        await mapLimit(categories.slice(0, maxCategories), concurrency, async (cat) => {
-          if (isTimedOut()) return null;
-          const catId =
-            cat?.id != null
-              ? String(cat.id)
-              : cat?.uuid != null
-              ? String(cat.uuid)
-              : cat?.category_id != null
-              ? String(cat.category_id)
-              : null;
-          if (!catId) return null;
-          try {
-            const raw = await fetchUex('items', { id_category: catId }).catch(() => []);
-            const arr = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
-            if (Array.isArray(arr) && arr.length > 0) byCat.push(...arr);
-            return arr.length;
-          } catch (_) {
-            return null;
-          }
-        });
-        if (byCat.length > 0) items = byCat;
-      }
-
-      if (isTimedOut()) {
-        return res.status(503).json({ success: false, error: 'UEX sync timeout' });
-      }
-
-      const stats = await upsertUexDirectories({ categories, items });
-
-      // Раньше здесь сохранялось состояние синхронизации в uex_sync_state.
-      // Теперь мы не ведём отдельный журнал синка для директорий.
-      const now = new Date();
-      res.json({ success: true, syncedAt: now.toISOString(), ...stats });
-    } catch (e) {
-      console.error('POST /api/uex/sync-directories error:', e?.response?.data || e);
-      const status = e?.response?.status || 500;
-      const body = e?.response?.data;
-      res.status(status).json({ success: false, error: 'Ошибка синхронизации UEX', detail: body });
-    }
+// Proxy UEX sync requests to uex-service
+app.post('/api/uex/sync-directories', authenticateToken, requirePermission('directories', 'write'), async (req, res) => {
+  try {
+    const uexServiceUrl = `http://uex-service:3007/api/uex/sync-directories`;
+    const response = await axios.post(uexServiceUrl, req.body, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(req.headers['x-uex-token'] ? { 'x-uex-token': req.headers['x-uex-token'] } : {}),
+        ...(req.headers['x-uex-client-version'] ? { 'x-uex-client-version': req.headers['x-uex-client-version'] } : {}),
+      },
+      timeout: 10 * 60 * 1000, // 10 минут
+    });
+    res.json(response.data);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: 'Ошибка синхронизации UEX' });
   }
-);
+});
 
 // Body parsers should be BEFORE routes so early-declared routes see req.body
 // Note: base64 increases size by ~33%, so allow headroom for 15MB files
@@ -512,6 +395,13 @@ app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} ${req.method} ${req.url}`);
   if ((req.method === 'POST' || req.method === 'PUT') && req.body !== undefined) {
     console.log('Request body:', req.body);
+  }
+  // Special logging for UEX sync
+  if (req.url.includes('/api/uex')) {
+    console.log('[UEX] Request detected:', req.method, req.url);
+  }
+  if (req.url === '/api/uex/sync-directories' && req.method === 'POST') {
+    console.log('[UEX SYNC] Request detected!');
   }
   next();
 });
@@ -2369,6 +2259,25 @@ app.put(
       }
     } catch (e) {
       res.status(500).json({ error: 'Ошибка обновления наименования' });
+    }
+  }
+);
+
+// Delete uex sync record
+app.delete(
+  '/api/directories/uex_sync/:resource',
+  authenticateToken,
+  requirePermission('directories', 'write'),
+  async (req, res) => {
+    try {
+      const resource = decodeURIComponent(req.params.resource || '');
+      if (!resource) return res.status(400).json({ error: 'Ресурс не указан' });
+      
+      await query('DELETE FROM uex_sync_state WHERE resource = $1', [resource]);
+      const dirs = await loadDirectoriesFromDb();
+      res.json({ success: true, directories: dirs });
+    } catch (e) {
+      res.status(500).json({ error: 'Ошибка удаления записи uex_sync' });
     }
   }
 );

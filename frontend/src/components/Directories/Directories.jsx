@@ -51,7 +51,8 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
       categories: 'Категории',
       accountTypes: 'Типы учетной записи',
       warehouseTypes: 'Тип склада',
-      discordScopes: 'Scopes'
+      discordScopes: 'Scopes',
+      uex_sync: 'uexSync'
     };
     return names[key] || key;
   }
@@ -177,6 +178,18 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
             message.success('Scope удалён');
             const resp = await apiService.getDiscordScopes();
             setScopes(Array.isArray(resp) ? resp : []);
+            return;
+          }
+          if (directoryKey === 'uex_sync') {
+            const current = data.directories.uex_sync[itemIndex];
+            const resource = current?.resource;
+            if (!resource) {
+              message.error('Ресурс не указан');
+              return;
+            }
+            await apiService.deleteUexSync(resource);
+            message.success('Запись uex_sync удалена');
+            await onRefresh?.();
             return;
           }
         } catch (error) {
@@ -307,7 +320,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
         {currentDirectory && (
           <div className="max-h-[70vh] overflow-y-auto">
             <div className="mb-4">
-              {currentDirectory.key !== 'productTypes' && currentDirectory.key !== 'categories' && (
+              {currentDirectory.key !== 'productTypes' && currentDirectory.key !== 'categories' && currentDirectory.key !== 'uex_sync' && (
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
@@ -476,6 +489,40 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                     .slice()
                     .sort((a, b) => compareDropdownStrings(a, b))
                     .map((s, idx) => ({ key: idx, value: s }));
+                } else if (key === 'uex_sync') {
+                  // uex_sync: только просмотр и удаление с правами directories
+                  columns = [
+                    {
+                      title: 'Ресурс', dataIndex: 'resource', key: 'resource', width: 150,
+                    },
+                    {
+                      title: 'Последняя синхронизация', dataIndex: 'last_sync_at', key: 'last_sync_at', width: 180,
+                      render: (val) => val ? new Date(val).toLocaleString('ru-RU') : '—',
+                    },
+                    {
+                      title: 'Результат', dataIndex: 'meta', key: 'meta', width: 300,
+                      render: (meta) => {
+                        if (!meta || typeof meta !== 'object') return '—';
+                        const { productTypesCreated, productTypesUpdated, productNamesCreated, productNamesUpdated } = meta;
+                        return `Типы: +${productTypesCreated || 0}/${productTypesUpdated || 0}, Товары: +${productNamesCreated || 0}/${productNamesUpdated || 0}`;
+                      },
+                    },
+                    {
+                      title: 'Действия', key: 'actions', width: 100, align: 'center',
+                      render: (_, record, index) => (
+                        <Space>
+                          <Button size="small" type="text" danger icon={<DeleteOutlined />} 
+                            disabled={!authService.hasPermission('directories', 'write')}
+                            onClick={() => removeDirectoryItem(key, index)}
+                          />
+                        </Space>
+                      ),
+                    },
+                  ];
+                  dataSource = (data.directories[key] || [])
+                    .slice()
+                    .sort((a, b) => new Date(b.last_sync_at || 0) - new Date(a.last_sync_at || 0))
+                    .map((it, idx) => ({ key: idx, ...it }));
                 } else {
                   // Простые справочники как таблица из одной колонки
                   columns = [

@@ -153,6 +153,15 @@ async function loadDirectoriesFromDb() {
     }
   } catch (_) {}
 
+  const uexSync = await (async () => {
+    try {
+      const r = await query('SELECT resource, last_sync_at, last_uex_marker, meta FROM uex_sync_state ORDER BY last_sync_at DESC');
+      return r.rows;
+    } catch {
+      return [];
+    }
+  })();
+
   return {
     productTypes,
     showcaseStatuses,
@@ -160,6 +169,7 @@ async function loadDirectoriesFromDb() {
     productNames,
     categories,
     accountTypes,
+    uex_sync: uexSync,
   };
 }
 

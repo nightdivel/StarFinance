@@ -1,8 +1,8 @@
 // UEX API client for GET endpoints
 // Base docs: https://uexcorp.space/api/documentation/
-// Usage patterns: https://api.uexcorp.uk/2.0/{resource}/?param=value
+// Usage patterns: https://api.uexcorp.space/2.0/{resource}/?param=value
 
-const UEX_BASE_URL = (import.meta.env.VITE_UEX_API_BASE_URL || 'https://api.uexcorp.uk/2.0').replace(/\/$/, '');
+const UEX_BASE_URL = (import.meta.env.VITE_UEX_API_BASE_URL || 'https://api.uexcorp.space/2.0').replace(/\/$/, '');
 const USE_PROXY = String(import.meta.env.VITE_UEX_USE_PROXY ?? 'true') !== 'false';
 let RUNTIME_TOKEN = '';
 let RUNTIME_CLIENT_VERSION = '';
