@@ -20,6 +20,7 @@ jobs:
         username: root
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.PORT }}
+        debug: true
         script: |
           # Переходим в директорию проекта
           cd c:\StarFinanceProject\StarFinance_v2
