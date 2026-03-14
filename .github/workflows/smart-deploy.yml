@@ -112,19 +112,24 @@ jobs:
         # Определяем какие сервисы нужно обновить
         $SERVICES_TO_UPDATE = ""
         
-        if ("${{ needs.detect-changes.outputs.frontend }}" -eq "true") {
+        $frontend_changed = "${{ needs.detect-changes.outputs.frontend }}"
+        $backend_changed = "${{ needs.detect-changes.outputs.backend }}"
+        $docker_changed = "${{ needs.detect-changes.outputs.docker }}"
+        $database_changed = "${{ needs.detect-changes.outputs.database }}"
+        
+        if ($frontend_changed -eq "true") {
           $SERVICES_TO_UPDATE += " economy"
         }
         
-        if ("${{ needs.detect-changes.outputs.backend }}" -eq "true") {
+        if ($backend_changed -eq "true") {
           $SERVICES_TO_UPDATE += " users directories warehouse showcase requests finance uex settings"
         }
         
-        if ("${{ needs.detect-changes.outputs.docker }}" -eq "true") {
+        if ($docker_changed -eq "true") {
           $SERVICES_TO_UPDATE += " caddy"
         }
         
-        if ("${{ needs.detect-changes.outputs.database }}" -eq "true") {
+        if ($database_changed -eq "true") {
           $SERVICES_TO_UPDATE += " postgres"
         }
         
@@ -142,7 +147,8 @@ jobs:
         }
         
         # Если есть изменения в Docker файлах, пересобираем все образы
-        if ("${{ needs.detect-changes.outputs.docker }}" -eq "true" -or "${{ github.event.inputs.force_rebuild }}" -eq "true") {
+        $force_rebuild = "${{ github.event.inputs.force_rebuild }}"
+        if ($docker_changed -eq "true" -or $force_rebuild -eq "true") {
           Write-Host "🔨 Пересобираем все образы..."
           try {
             Invoke-Expression "$COMPOSE_CMD build --no-cache --parallel"
@@ -188,7 +194,7 @@ jobs:
         }
         
         # Если были изменения в БД, применяем миграции
-        if ("${{ needs.detect-changes.outputs.database }}" -eq "true") {
+        if ($database_changed -eq "true") {
           Write-Host "🗄️ Применяем миграции базы данных..."
           try {
             Invoke-Expression "$COMPOSE_CMD exec postgres psql -U postgres -d starfinance -c `"SELECT 1;`""
