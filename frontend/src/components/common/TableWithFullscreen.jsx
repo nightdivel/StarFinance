@@ -76,8 +76,10 @@ const TableWithFullscreen = ({
   }, [infinite, fullData.length, batchSize]);
 
   const toolbar = (
-    <div className="flex gap-2">
-      {extra}
+    <div className="flex justify-between items-center w-full">
+      <div className="flex gap-2">
+        {extra}
+      </div>
       <Button
         type="primary"
         size="small"
