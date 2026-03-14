@@ -61,7 +61,10 @@ jobs:
           
           while IFS= read -r file; do
             case "$file" in
-              "frontend/"*|*.jsx|*.js|*.css|*.html)
+              "frontend/"*)
+                FRONTEND_CHANGED=true
+                ;;
+              "src/"*|*.jsx|*.js|*.css|*.html)
                 FRONTEND_CHANGED=true
                 ;;
               "backend/services/"*|"backend/middleware/"*|"backend/config/"*|"backend/db.js"|"backend/package.json")
