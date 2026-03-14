@@ -29,10 +29,14 @@ jobs:
         shell: powershell
         run: |
           if (Get-Command "docker-compose" -ErrorAction SilentlyContinue) {
-            docker-compose down
+            docker-compose down --remove-orphans
+            if ($LASTEXITCODE -ne 0) { Write-Host "docker-compose down failed (ignored)" }
+            docker rm -f economy_db economy_caddy economy_app users_service directories_service warehouse_service showcase_service requests_service finance_service uex_service settings_service 2>$null
             docker-compose up -d --build
           } else {
-            docker compose down
+            docker compose down --remove-orphans
+            if ($LASTEXITCODE -ne 0) { Write-Host "docker compose down failed (ignored)" }
+            docker rm -f economy_db economy_caddy economy_app users_service directories_service warehouse_service showcase_service requests_service finance_service uex_service settings_service 2>$null
             docker compose up -d --build
           }
 
