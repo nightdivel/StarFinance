@@ -6,6 +6,7 @@ services:
     restart: always
     volumes:
       - backend_data:/app/backend/data
+      - backend_public:/app/backend/public
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -31,6 +32,7 @@ services:
     restart: unless-stopped
     volumes:
       - backend_data:/app/backend/data
+      - backend_public:/app/backend/public
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -235,5 +237,7 @@ volumes:
     name: starfinance_pgdata
   backend_data:
     name: starfinance_backend_data
+  backend_public:
+    name: starfinance_backend_public
   caddy_data:
   caddy_config:
