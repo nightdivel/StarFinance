@@ -145,7 +145,7 @@ jobs:
           Write-Host "Services stopped successfully"
         } catch {
           $errorMsg = $_.Exception.Message
-          Write-Host "Warning: Error stopping services: $errorMsg"
+          Write-Host "Warning: Error stopping services: ${errorMsg}"
           # Принудительно убиваем контейнеры
           docker ps -q | ForEach-Object { docker stop $_ }
           docker ps -aq | ForEach-Object { docker rm $_ }
@@ -160,7 +160,7 @@ jobs:
             Write-Host "Images built successfully"
           } catch {
             $errorMsg = $_.Exception.Message
-            Write-Host "Error building images: $errorMsg"
+            Write-Host "Error building images: ${errorMsg}"
             exit 1
           }
         } else {
@@ -174,7 +174,7 @@ jobs:
                 Write-Host "$service built successfully"
               } catch {
                 $errorMsg = $_.Exception.Message
-                Write-Host "Error building $service: $errorMsg"
+                Write-Host "Error building ${service}: ${errorMsg}"
                 exit 1
               }
             }
@@ -196,7 +196,7 @@ jobs:
             }
           } catch {
             $errorMsg = $_.Exception.Message
-            Write-Host "Error starting $service: $errorMsg"
+            Write-Host "Error starting ${service}: ${errorMsg}"
             exit 1
           }
         }
@@ -209,7 +209,7 @@ jobs:
             Write-Host "Database connection successful"
           } catch {
             $errorMsg = $_.Exception.Message
-            Write-Host "Database connection error: $errorMsg"
+            Write-Host "Database connection error: ${errorMsg}"
             exit 1
           }
         }
