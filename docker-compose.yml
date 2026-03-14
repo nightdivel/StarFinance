@@ -4,6 +4,8 @@ services:
     image: starfinance_v2-economy
     container_name: economy_app
     restart: always
+    volumes:
+      - backend_data:/app/backend/data
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -27,6 +29,8 @@ services:
     image: starfinance_v2-economy
     container_name: users_service
     restart: unless-stopped
+    volumes:
+      - backend_data:/app/backend/data
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -45,6 +49,8 @@ services:
     image: starfinance_v2-economy
     container_name: directories_service
     restart: unless-stopped
+    volumes:
+      - backend_data:/app/backend/data
     environment:
       NODE_ENV: production
       PORT: 3002
@@ -63,6 +69,8 @@ services:
     image: starfinance_v2-economy
     container_name: warehouse_service
     restart: unless-stopped
+    volumes:
+      - backend_data:/app/backend/data
     environment:
       NODE_ENV: production
       PORT: 3003
@@ -81,6 +89,8 @@ services:
     image: starfinance_v2-economy
     container_name: showcase_service
     restart: unless-stopped
+    volumes:
+      - backend_data:/app/backend/data
     environment:
       NODE_ENV: production
       PORT: 3004
@@ -99,6 +109,8 @@ services:
     image: starfinance_v2-economy
     container_name: requests_service
     restart: unless-stopped
+    volumes:
+      - backend_data:/app/backend/data
     environment:
       NODE_ENV: production
       PORT: 3005
@@ -117,6 +129,8 @@ services:
     image: starfinance_v2-economy
     container_name: finance_service
     restart: unless-stopped
+    volumes:
+      - backend_data:/app/backend/data
     environment:
       NODE_ENV: production
       PORT: 3006
@@ -135,6 +149,8 @@ services:
     image: starfinance_v2-economy
     container_name: uex_service
     restart: unless-stopped
+    volumes:
+      - backend_data:/app/backend/data
     environment:
       NODE_ENV: production
       PORT: 3007
@@ -153,6 +169,8 @@ services:
     image: starfinance_v2-economy
     container_name: settings_service
     restart: unless-stopped
+    volumes:
+      - backend_data:/app/backend/data
     environment:
       NODE_ENV: production
       PORT: 3008
@@ -214,5 +232,8 @@ services:
 
 volumes:
   pgdata:
+    name: starfinance_pgdata
+  backend_data:
+    name: starfinance_backend_data
   caddy_data:
   caddy_config:
