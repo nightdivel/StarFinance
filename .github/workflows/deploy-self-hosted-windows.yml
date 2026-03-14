@@ -19,13 +19,22 @@ jobs:
         shell: pwsh
         run: |
           docker --version
-          docker compose version
+          if (Get-Command "docker-compose" -ErrorAction SilentlyContinue) {
+            docker-compose version
+          } else {
+            docker compose version
+          }
 
       - name: Deploy with Docker Compose
         shell: pwsh
         run: |
-          docker compose down
-          docker compose up -d --build
+          if (Get-Command "docker-compose" -ErrorAction SilentlyContinue) {
+            docker-compose down
+            docker-compose up -d --build
+          } else {
+            docker compose down
+            docker compose up -d --build
+          }
 
       - name: Prune unused images
         shell: pwsh
