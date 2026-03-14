@@ -2,9 +2,6 @@
 name: Deploy StarFinance
 
 on:
-  push:
-    branches:
-      - main # или любая другая ветка для деплоя
   workflow_dispatch: # Разрешить запуск вручную
 
 jobs:
