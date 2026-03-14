@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Show versions
-        shell: pwsh
+        shell: powershell
         run: |
           docker --version
           if (Get-Command "docker-compose" -ErrorAction SilentlyContinue) {
@@ -26,7 +26,7 @@ jobs:
           }
 
       - name: Deploy with Docker Compose
-        shell: pwsh
+        shell: powershell
         run: |
           if (Get-Command "docker-compose" -ErrorAction SilentlyContinue) {
             docker-compose down
@@ -37,5 +37,5 @@ jobs:
           }
 
       - name: Prune unused images
-        shell: pwsh
+        shell: powershell
         run: docker image prune -f
