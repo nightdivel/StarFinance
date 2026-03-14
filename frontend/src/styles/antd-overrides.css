@@ -102,7 +102,7 @@
 .dark-theme .ant-table-tbody > tr > td {
   background-color: #0b1220 !important; /* базовый фон для нечётных */
   color: #ffffff !important;
-  border-bottom: 1px solid #1e293b !important;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.2) !important; /* indigo с прозрачностью */
 }
 .dark-theme .ant-table .ant-table-tbody > tr > td.ant-table-cell { background-color: #0b1220 !important; }
 .dark-theme .ant-table .ant-table-tbody > tr > td > .ant-table-cell-content { background-color: transparent !important; }
@@ -156,7 +156,7 @@
 .dark-theme .ant-table-thead > tr > th {
   background: #1e293b !important; /* Темный цвет для заголовков */
   color: #ffffff !important;
-  border-bottom: 1px solid #334155 !important;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.4) !important; /* indigo-400 */
   padding: 6px 8px !important; /* compact header */
   white-space: nowrap !important; /* keep titles on one line */
   line-height: 1.2 !important;
@@ -235,7 +235,8 @@
   background: #ffffff;
 }
 .dark-theme .ant-table-wrapper {
-  border-color: rgba(148, 163, 184, 0.25);
+  border-color: rgba(99, 102, 241, 0.4); /* indigo-400 с прозрачностью */
+  background-color: #0b1220 !important;
 }
 
 /* AntD v5 dev-only wrapper класс: убираем белый фон в тёмной теме */

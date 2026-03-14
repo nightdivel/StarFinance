@@ -163,13 +163,36 @@ const Showcase = ({ data, userData }) => {
       title: 'Описание',
       dataIndex: 'description',
       key: 'description',
-      width: 240,
-      ellipsis: true,
+      width: 300,
+      minWidth: 200,
+      maxWidth: 400,
+      ellipsis: false,
       render: (text, record) => {
         const val = text || record?.meta?.desc || '-';
         return (
-          <Tooltip title={val}>
-            <span>{val}</span>
+          <Tooltip title={val} placement="topLeft">
+            <div style={{
+              whiteSpace: 'normal',
+              wordBreak: 'break-word',
+              lineHeight: '1.4',
+              maxHeight: '60px',
+              overflow: 'hidden',
+              position: 'relative'
+            }}>
+              {val}
+              {val.length > 100 && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  right: 0,
+                  background: 'linear-gradient(to right, transparent, var(--ant-color-bg-container))',
+                  paddingLeft: '20px',
+                  color: 'var(--ant-color-primary)'
+                }}>
+                  ...
+                </div>
+              )}
+            </div>
           </Tooltip>
         );
       },

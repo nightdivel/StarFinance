@@ -2,6 +2,8 @@
 name: Deploy StarFinance
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch: # Разрешить запуск вручную
 
 jobs:
@@ -27,12 +29,6 @@ jobs:
           git checkout main
           git pull origin main
           
-          # Останавливаем и пересобираем контейнеры
-          docker-compose down
-          docker-compose build --no-cache
-          docker-compose up -d
-          
-          # Очищаем старые образы
-          docker system prune -f
-          
-          echo "Deployment completed!"
+          # Запускаем умный деплой
+          chmod +x scripts/smart-deploy.sh
+          ./scripts/smart-deploy.sh

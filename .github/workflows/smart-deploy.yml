@@ -1,0 +1,162 @@
+name: Smart Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Принудительно пересобрать все образы'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.changes.outputs.frontend }}
+      backend: ${{ steps.changes.outputs.backend }}
+      docker: ${{ steps.changes.outputs.docker }}
+      database: ${{ steps.changes.outputs.database }}
+      has_changes: ${{ steps.changes.outputs.has_changes }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+
+    - name: Get changed files
+      id: changes
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force_rebuild }}" = "true" ]; then
+          echo "force_rebuild=true" >> $GITHUB_OUTPUT
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "frontend=true" >> $GITHUB_OUTPUT
+          echo "backend=true" >> $GITHUB_OUTPUT
+          echo "docker=true" >> $GITHUB_OUTPUT
+          echo "database=true" >> $GITHUB_OUTPUT
+        else
+          # Получаем измененные файлы
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES"
+          
+          # Определяем типы изменений
+          FRONTEND_CHANGED=false
+          BACKEND_CHANGED=false
+          DOCKER_CHANGED=false
+          DATABASE_CHANGED=false
+          
+          while IFS= read -r file; do
+            case "$file" in
+              "frontend/"*|*.jsx|*.js|*.css|*.html)
+                FRONTEND_CHANGED=true
+                ;;
+              "backend/services/"*|"backend/middleware/"*|"backend/config/"*|"backend/db.js"|"backend/package.json")
+                BACKEND_CHANGED=true
+                ;;
+              "Dockerfile"|".dockerignore"|"docker-compose.yml"|"Caddyfile")
+                DOCKER_CHANGED=true
+                ;;
+              "backend/migrations/"*)
+                DATABASE_CHANGED=true
+                ;;
+            esac
+          done <<< "$CHANGED_FILES"
+          
+          echo "frontend=$FRONTEND_CHANGED" >> $GITHUB_OUTPUT
+          echo "backend=$BACKEND_CHANGED" >> $GITHUB_OUTPUT
+          echo "docker=$DOCKER_CHANGED" >> $GITHUB_OUTPUT
+          echo "database=$DATABASE_CHANGED" >> $GITHUB_OUTPUT
+        fi
+
+  deploy:
+    name: Deploy Changes
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+
+    steps:
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.HOST }}
+        username: root
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.PORT }}
+        debug: true
+        script: |
+          cd c:\StarFinanceProject\StarFinance_v2
+          
+          # Выкачиваем последние изменения
+          git fetch origin
+          git checkout main
+          git pull origin main
+          
+          # Определяем какие сервисы нужно обновить
+          SERVICES_TO_UPDATE=""
+          
+          if [ "${{ needs.detect-changes.outputs.frontend }}" = "true" ]; then
+            SERVICES_TO_UPDATE="$SERVICES_TO_UPDATE economy"
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.backend }}" = "true" ]; then
+            SERVICES_TO_UPDATE="$SERVICES_TO_UPDATE users directories warehouse showcase requests finance uex settings"
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.docker }}" = "true" ]; then
+            SERVICES_TO_UPDATE="$SERVICES_TO_UPDATE caddy"
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.database }}" = "true" ]; then
+            SERVICES_TO_UPDATE="$SERVICES_TO_UPDATE postgres"
+          fi
+          
+          echo "🔄 Обновляем сервисы: $SERVICES_TO_UPDATE"
+          
+          # Если есть изменения в Docker файлах, пересобираем все образы
+          if [ "${{ needs.detect-changes.outputs.docker }}" = "true" ] || [ "${{ github.event.inputs.force_rebuild }}" = "true" ]; then
+            echo "🔨 Пересобираем все образы..."
+            docker-compose build --no-cache
+          else
+            echo "🔨 Пересобираем только измененные сервисы..."
+            for service in $SERVICES_TO_UPDATE; do
+              if [ "$service" != "postgres" ] && [ "$service" != "caddy" ]; then
+                docker-compose build "$service"
+              fi
+            done
+          fi
+          
+          # Перезапускаем только нужные сервисы
+          for service in $SERVICES_TO_UPDATE; do
+            echo "🔄 Перезапускаем $service..."
+            docker-compose up -d "$service"
+            
+            # Ждем запуска сервиса
+            if [ "$service" != "caddy" ] && [ "$service" != "postgres" ]; then
+              sleep 10
+            fi
+          done
+          
+          # Если были изменения в БД, применяем миграции
+          if [ "${{ needs.detect-changes.outputs.database }}" = "true" ]; then
+            echo "🗄️ Применяем миграции базы данных..."
+            docker-compose exec postgres psql -U postgres -d starfinance -c "SELECT 1;" || exit 1
+          fi
+          
+          # Проверяем состояние
+          docker-compose ps
+          
+          # Очищаем старые образы
+          docker system prune -f
+          
+          echo "✅ Деплой завершен!"
