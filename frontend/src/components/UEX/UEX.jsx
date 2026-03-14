@@ -299,9 +299,9 @@ const UEX = () => {
 
   return (
     <div className="fade-in">
-      <Space direction="vertical" size={16} className="w-full">
+      <Space direction="vertical" size={16} className="w-100">
         <Card size="small">
-          <div className="flex justify-between items-center gap-3">
+          <div className="d-flex justify-content-between align-items-center gap-3">
             <div>
               <Title level={4} className="m-0">UEX API</Title>
               <Text type="secondary">GET эндпойнты UEX. Введите токен и выполните запрос.</Text>
@@ -347,10 +347,10 @@ const UEX = () => {
               <Switch />
             </Form.Item>
             <Form.Item label="Ресурс" name="resource" rules={[{ required: true, message: 'Выберите ресурс' }]}> 
-              <Select options={RESOURCES} className="max-w-[360px]" onChange={onResourceChange} />
+              <Select options={RESOURCES} className="sf-maxw-360" onChange={onResourceChange} />
             </Form.Item>
             <Form.Item label="Путь (опционально)" name="path">
-              <Input placeholder="например: stanton" className="max-w-[480px]" />
+              <Input placeholder="например: stanton" className="sf-maxw-480" />
             </Form.Item>
             <Form.Item label="Параметры (URLSearchParams формат)" name="paramsText">
               <Input placeholder="key=value&k2=v2" />
@@ -364,7 +364,7 @@ const UEX = () => {
                   allowClear
                   showSearch
                   optionFilterProp="label"
-                  className="min-w-[260px]"
+                  className="sf-minw-260"
                   options={(categories || []).map(c => ({ value: c.id, label: `${c.id} • ${c.section} / ${c.name}` }))}
                 />
               </Form.Item>
@@ -374,7 +374,7 @@ const UEX = () => {
                   allowClear
                   showSearch
                   optionFilterProp="label"
-                  className="min-w-[300px]"
+                  className="sf-minw-300"
                   options={(terminals || []).map(t => ({ value: t.id, label: `${t.id} • ${t.name}` }))}
                 />
               </Form.Item>
@@ -384,7 +384,7 @@ const UEX = () => {
                   allowClear
                   showSearch
                   optionFilterProp="label"
-                  className="min-w-[300px]"
+                  className="sf-minw-300"
                   options={(commodities || []).map(c => ({ value: c.id, label: `${c.id} • ${c.name}` }))}
                 />
               </Form.Item>
@@ -394,7 +394,7 @@ const UEX = () => {
                   allowClear
                   showSearch
                   optionFilterProp="label"
-                  className="min-w-[300px]"
+                  className="sf-minw-300"
                   options={(terminals || []).map(t => ({ value: t.id, label: `${t.id} • ${t.name}` }))}
                 />
               </Form.Item>
@@ -404,7 +404,7 @@ const UEX = () => {
                   allowClear
                   showSearch
                   optionFilterProp="label"
-                  className="min-w-[300px]"
+                  className="sf-minw-300"
                   options={(terminals || []).map(t => ({ value: t.id, label: `${t.id} • ${t.name}` }))}
                 />
               </Form.Item>
@@ -414,7 +414,7 @@ const UEX = () => {
                   allowClear
                   showSearch
                   optionFilterProp="label"
-                  className="min-w-[260px]"
+                  className="sf-minw-260"
                   options={(companies || []).map(c => ({ value: c.id, label: `${c.id} • ${c.name}` }))}
                 />
               </Form.Item>
@@ -424,15 +424,15 @@ const UEX = () => {
                   allowClear
                   showSearch
                   optionFilterProp="label"
-                  className="min-w-[260px]"
+                  className="sf-minw-260"
                   options={(vehicles || []).map(v => ({ value: v.id, label: `${v.id} • ${v.name}` }))}
                 />
               </Form.Item>
               <Form.Item label="uuid" name="uuid" tooltip="UUID предмета (для items)" hidden={!visibleFor('uuid')}>
-                <Input className="min-w-[260px]" placeholder="uuid" />
+                <Input className="sf-minw-260" placeholder="uuid" />
               </Form.Item>
               <Form.Item label="id_item" name="id_item" tooltip="ID предмета (для items_attributes)" hidden={!visibleFor('id_item')}>
-                <Input className="min-w-[180px]" placeholder="id_item" />
+                <Input className="sf-minw-180" placeholder="id_item" />
               </Form.Item>
               <Form.Item label="id_category_attribute" name="id_category_attribute" tooltip="Атрибут категории (для items_attributes)" hidden={!visibleFor('id_category_attribute')}>
                 <Select
@@ -440,7 +440,7 @@ const UEX = () => {
                   allowClear
                   showSearch
                   optionFilterProp="label"
-                  className="min-w-[300px]"
+                  className="sf-minw-300"
                   options={(catAttributes || [])
                     .filter(a => {
                       const selectedCat = form.getFieldValue('id_category');
@@ -468,7 +468,7 @@ const UEX = () => {
             description={
               <div>
                 {error.url ? (<div className="mb-2"><Text code>{error.url}</Text></div>) : null}
-                <pre className="whitespace-pre-wrap">{error.body || error.message}</pre>
+                <pre style={{ whiteSpace: 'pre-wrap' }}>{error.body || error.message}</pre>
               </div>
             }
             showIcon
@@ -477,7 +477,7 @@ const UEX = () => {
 
         {tableData ? (
           <TableWithFullscreen
-            title={<div className="flex gap-2 items-center">
+            title={<div className="d-flex gap-2 align-items-center">
               <span>Результаты</span>
               <Input
                 allowClear
@@ -485,7 +485,7 @@ const UEX = () => {
                 placeholder="Поиск по всем полям"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="max-w-[260px]"
+                className="sf-maxw-260"
               />
               <Button size="small" icon={<DownloadOutlined />} onClick={exportExcel} disabled={!filteredData || filteredData.length === 0}>
                 Экспорт Excel
@@ -502,7 +502,7 @@ const UEX = () => {
           />
         ) : result ? (
           <Card size="small">
-            <pre className="m-0 whitespace-pre-wrap">{typeof result === 'string' ? result : JSON.stringify(result, null, 2)}</pre>
+            <pre className="m-0" style={{ whiteSpace: 'pre-wrap' }}>{typeof result === 'string' ? result : JSON.stringify(result, null, 2)}</pre>
           </Card>
         ) : null}
       </Space>

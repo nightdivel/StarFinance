@@ -259,8 +259,8 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
       width: 200,
       render: (name, record) => (
         <div>
-          <div className="font-semibold">{name}</div>
-          <div className="text-xs text-neutral-500">{record.key}</div>
+          <div className="fw-semibold">{name}</div>
+          <div className="text-muted" style={{ fontSize: 12 }}>{record.key}</div>
         </div>
       ),
     },
@@ -318,7 +318,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
         footer={null}
       >
         {currentDirectory && (
-          <div className="max-h-[70vh] overflow-y-auto">
+          <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
             <div className="mb-4">
               {currentDirectory.key !== 'productTypes' && currentDirectory.key !== 'categories' && currentDirectory.key !== 'uex_sync' && (
                 <Button
@@ -727,7 +727,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                           placeholder={`Поиск по: ${currentDirectory.name}`}
                           value={dirSearch}
                           onChange={(e) => setDirSearch(e.target.value)}
-                          className="w-[260px]"
+                          className="sf-w-260"
                         />
                       }
                       infinite={true}

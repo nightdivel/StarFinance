@@ -1,7 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 body {
   margin: 0;
   font-family:
@@ -10,6 +6,25 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.sf-w-260 { width: 260px; }
+.sf-minw-180 { min-width: 180px; }
+.sf-minw-220 { min-width: 220px; }
+.sf-minw-260 { min-width: 260px; }
+.sf-minw-300 { min-width: 300px; }
+.sf-maxw-96 { max-width: 96px; }
+.sf-maxw-220 { max-width: 220px; }
+.sf-maxw-260 { max-width: 260px; }
+.sf-maxw-360 { max-width: 360px; }
+.sf-maxw-480 { max-width: 480px; }
+.sf-maxh-96 { max-height: 96px; }
+.sf-maxh-120 { max-height: 120px; }
+.sf-text-20 { font-size: 20px; }
+.sf-object-cover { object-fit: cover; }
+.sf-object-contain { object-fit: contain; }
+.sf-w-36 { width: 36px; }
+.sf-w-48 { width: 48px; }
+.cursor-move { cursor: move; }
 
 /* --- Dark theme overrides to remove any white rows/headers from index.css --- */
 .dark-theme .ant-table .ant-table-thead > tr > th { background: #1e293b !important; color: #ffffff !important; }

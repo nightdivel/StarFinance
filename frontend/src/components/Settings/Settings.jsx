@@ -583,13 +583,13 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     >
                       <Input
                         placeholder="1.0000"
-                        className="w-full"
+                        className="w-100"
                         disabled={!canWrite}
                       />
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={4}>
-                    <Button type="primary" onClick={addCurrency} className="w-full" disabled={!canWrite}>
+                    <Button type="primary" onClick={addCurrency} className="w-100" disabled={!canWrite}>
                       Добавить
                     </Button>
                   </Col>
@@ -629,7 +629,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               </div>
 
               <Form.Item label="Курсы обмена">
-                <div className="grid gap-3">
+                <div className="d-grid gap-3">
                   {(form.getFieldValue('currencies') || data?.system.currencies || [])
                     .slice()
                     .sort((a, b) => compareDropdownStrings(a, b))
@@ -641,7 +641,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                         <Col span={10}>
                           <Form.Item name={['rates', currency]} noStyle>
                             <Input
-                              className="w-full"
+                              className="w-100"
                               disabled={
                                 !canWrite ||
                                 currency ===
@@ -686,7 +686,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               <Text type="secondary">
                 Поддерживаются PNG, SVG, WebP. Максимальный размер файла — 15 MB. Рекомендуемое разрешение: ~1600×900.
               </Text>
-              <div className="mt-3 flex gap-4 items-center flex-wrap">
+              <div className="mt-3 d-flex gap-3 align-items-center flex-wrap">
                 <input
                   type="file"
                   accept="image/png,image/svg+xml,image/webp"
@@ -744,8 +744,8 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                   Удалить фон
                 </Button>
                 {authBgUrl && (
-                  <div className="flex items-center gap-2">
-                    <img src={authBgUrl} alt="Auth background" className="max-w-[220px] max-h-[120px] object-cover rounded-lg border border-neutral-200" />
+                  <div className="d-flex align-items-center gap-2">
+                    <img src={authBgUrl} alt="Auth background" className="sf-maxw-220 sf-maxh-120 sf-object-cover rounded border" />
                     <Button type="primary" size="small" onClick={() => window.open(authBgUrl, '_blank')}>Открыть</Button>
                   </div>
                 )}
@@ -757,7 +757,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               <Text type="secondary">
                 Поддерживаются PNG, SVG, WebP. Максимальный размер файла — 15 MB. Иконка отображается над логотипом BLSK Star Finance.
               </Text>
-              <div className="mt-3 flex gap-4 items-center flex-wrap">
+              <div className="mt-3 d-flex gap-3 align-items-center flex-wrap">
                 <input
                   type="file"
                   accept="image/png,image/svg+xml,image/webp"
@@ -821,8 +821,8 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                   Удалить иконку
                 </Button>
                 {authIconUrl && (
-                  <div className="flex items-center gap-2">
-                    <img src={authIconUrl} alt="Auth icon" className="max-w-[96px] max-h-[96px] object-contain rounded-lg border border-neutral-200" />
+                  <div className="d-flex align-items-center gap-2">
+                    <img src={authIconUrl} alt="Auth icon" className="sf-maxw-96 sf-maxh-96 sf-object-contain rounded border" />
                     <Button type="primary" size="small" onClick={() => window.open(authIconUrl, '_blank')}>Открыть</Button>
                   </div>
                 )}

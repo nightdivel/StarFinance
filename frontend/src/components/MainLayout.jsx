@@ -187,14 +187,14 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
       // Skeleton layout: 3 stat cards + table placeholder
       return (
         <div className="fade-in">
-          <div className="flex flex-wrap gap-4 mb-4">
-            <Card size="small" className="min-w-[220px] flex-[1_1_220px]">
+          <div className="d-flex flex-wrap gap-3 mb-3">
+            <Card size="small" className="sf-minw-220">
               <Skeleton active title={{ width: 120 }} paragraph={{ rows: 1 }} />
             </Card>
-            <Card size="small" className="min-w-[220px] flex-[1_1_220px]">
+            <Card size="small" className="sf-minw-220">
               <Skeleton active title={{ width: 160 }} paragraph={{ rows: 1 }} />
             </Card>
-            <Card size="small" className="min-w-[260px] flex-[1_1_260px]">
+            <Card size="small" className="sf-minw-260">
               <Skeleton active title={{ width: 180 }} paragraph={{ rows: 1 }} />
             </Card>
           </div>
@@ -301,17 +301,17 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
   };
 
   return (
-    <Layout className="min-h-screen sf-app-shell">
+    <Layout className="min-vh-100 sf-app-shell">
       {!isMobile && (
         <Sider
           trigger={null}
           collapsible
           collapsed={collapsed}
           theme={darkMode ? 'dark' : 'light'}
-          className="relative h-screen flex flex-col sf-main-sider"
+          className="position-relative vh-100 d-flex flex-column sf-main-sider"
         >
           <div
-            className={`${collapsed ? 'px-2 py-3' : 'px-4 py-4'} text-center border-b border-gray-200/70`}
+            className={`${collapsed ? 'px-2 py-3' : 'px-4 py-4'} text-center border-bottom`}
           >
             <Title level={4} className="m-0">
               {collapsed ? 'BLSK SF' : 'BLSK Star Finance'}
@@ -322,7 +322,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
                 icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                 onClick={() => setCollapsed(!collapsed)}
                 shape={collapsed ? 'circle' : undefined}
-                className={`text-base h-9 mx-auto block ${collapsed ? 'w-9' : 'w-12'}`}
+                className={`mx-auto d-block ${collapsed ? 'sf-w-36' : 'sf-w-48'}`}
               />
             </div>
           </div>
@@ -335,18 +335,18 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
             items={menuItems.map((mi) => ({
               ...mi,
               label: (
-                <span className={`${mi.key === selectedKey ? 'font-semibold' : 'font-medium'} text-base`}>
+                <span className={`${mi.key === selectedKey ? 'fw-semibold' : 'fw-medium'}`}>
                   {mi.label}
                 </span>
               ),
             }))}
-            className="border-r-0 flex-1 px-2 pt-2"
+            className="border-end-0 flex-grow-1 px-2 pt-2"
           />
         </Sider>
       )}
       <Layout>
         <Header
-          className="px-5 bg-transparent flex justify-between items-center border-b border-gray-200/70 relative sf-main-header"
+          className="px-4 bg-transparent d-flex justify-content-between align-items-center border-bottom position-relative sf-main-header"
         >
           {isMobile && (
             <Button
@@ -358,7 +358,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
             />
           )}
           {/* Left side: per-currency balance for current user */}
-          <div className="flex items-center gap-2 flex-wrap py-1 sf-header-balances">
+          <div className="d-flex align-items-center gap-2 flex-wrap py-1 sf-header-balances">
             {(data?.system?.currencies || []).map((c) => (
               <Tag key={`hdr-bal-${c}`} color={(userBalances[c] || 0) >= 0 ? 'green' : 'red'}>
                 {Number(userBalances[c] || 0).toFixed(2)} {c}
@@ -372,7 +372,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
                 aria-label={darkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}
                 icon={darkMode ? <MoonOutlined /> : <SunOutlined />}
                 onClick={() => onToggleTheme(!darkMode)}
-                className={`h-auto px-2 py-1 ${darkMode ? 'text-blue-400' : 'text-amber-500'}`}
+                className={`h-auto px-2 py-1 ${darkMode ? 'text-primary' : 'text-warning'}`}
               />
             </Tooltip>
             <Dropdown
@@ -395,7 +395,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
             >
               <Button
                 type="text"
-                className={`h-auto py-1 px-2 ${darkMode ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
+                className="h-auto py-1 px-2"
               >
                 <Space>
                   <Avatar src={userData?.avatarUrl} icon={<UserOutlined />} />
@@ -420,14 +420,14 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
             onClick={({ key }) => onSelectMenuKey(key)}
             items={menuItems.map((mi) => ({
               ...mi,
-              label: <span className="text-base">{mi.label}</span>,
+              label: <span>{mi.label}</span>,
             }))}
           />
         </Drawer>
-        <Content className="m-4 p-5 bg-transparent rounded-2xl shadow-sm sf-main-content">
+        <Content className="m-4 p-4 bg-transparent rounded-3 shadow-sm sf-main-content">
           {renderContent()}
         </Content>
-        <Footer className="text-center py-3 px-4 bg-transparent text-slate-500">
+        <Footer className="text-center py-3 px-4 bg-transparent text-muted">
           Разработано Попов Е.Ф. (@StAim)
         </Footer>
       </Layout>

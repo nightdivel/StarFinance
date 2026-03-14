@@ -386,7 +386,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
           value={record.quantity || 0}
           onChange={(v) => onChangeQty(record, v)}
           disabled={!canInlineEditQty(record)}
-          className="w-full"
+          className="w-100"
         />
       ),
     },
@@ -406,12 +406,12 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
         const primaryVal = Math.ceil((Number(record.cost) || 0) * toPrimaryRate);
         return (
           <div>
-            <div className="font-medium">{formatInt(primaryVal)} {primary}</div>
+            <div className="fw-medium">{formatInt(primaryVal)} {primary}</div>
             {displays.slice(1).map((curr) => {
               const rate = (rates[curr] || 1) / (rates[from] || 1);
               const v = Math.ceil((Number(record.cost) || 0) * rate);
               return (
-                <div key={`${record.id}-${curr}`} className="text-xs text-neutral-500">
+                <div key={`${record.id}-${curr}`} className="text-muted" style={{ fontSize: 12 }}>
                   {formatInt(v)} {curr}
                 </div>
               );
@@ -490,7 +490,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
 
   return (
     <div className="p-1">
-      <div className="flex justify-end mb-2">
+      <div className="d-flex justify-content-end mb-2">
         <Button type="primary" onClick={handleResetLayout}>
           Сбросить расположение
         </Button>
@@ -507,36 +507,36 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
         onLayoutChange={handleLayoutChange}
         draggableHandle=".card-draggable"
       >
-        <div key="stats" className="flex flex-wrap gap-4">
+        <div key="stats" className="d-flex flex-wrap gap-3">
           <Card
             size="small"
             title={<span className="card-draggable cursor-move">Всего на складе</span>}
-            className="min-w-[220px]"
+            className="sf-minw-220"
           >
-            <div className="text-[20px] font-semibold">{totalItems}</div>
+            <div className="sf-text-20 fw-semibold">{totalItems}</div>
           </Card>
           <Card
             size="small"
             title={<span className="card-draggable cursor-move">На витрине</span>}
-            className="min-w-[220px]"
+            className="sf-minw-220"
           >
-            <div className="text-[20px] font-semibold">{onShowcase}</div>
+            <div className="sf-text-20 fw-semibold">{onShowcase}</div>
           </Card>
           <Card
             size="small"
             title={<span className="card-draggable cursor-move">Общая стоимость (на витрине)</span>}
-            className="min-w-[260px]"
+            className="sf-minw-260"
           >
-            <div className="text-[20px] font-semibold">
+            <div className="sf-text-20 fw-semibold">
               {formatCurrency(showcaseTotalValue)} {data.system.baseCurrency}
             </div>
           </Card>
           <Card
             size="small"
             title={<span className="card-draggable cursor-move">Общее кол-во</span>}
-            className="min-w-[220px]"
+            className="sf-minw-220"
           >
-            <div className="text-[20px] font-semibold">{totalQty}</div>
+            <div className="sf-text-20 fw-semibold">{totalQty}</div>
           </Card>
         </div>
 
@@ -550,7 +550,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                   placeholder="Поиск по всем полям"
                   value={whSearch}
                   onChange={(e) => setWhSearch(e.target.value)}
-                  className="w-[260px]"
+                  className="sf-w-260"
                 />
                 <Button
                   type="primary"
@@ -684,7 +684,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                 label="Количество"
                 rules={[{ required: true, message: 'Введите количество' }]}
               >
-                <InputNumber min={0} placeholder="0" className="w-full" />
+                <InputNumber min={0} placeholder="0" className="w-100" />
               </Form.Item>
             </Col>
             <Col xs={12}>
@@ -693,7 +693,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                 label="Стоимость"
                 rules={[{ required: true, message: 'Введите стоимость' }]}
               >
-                <InputNumber min={0} step={0.01} placeholder="0.00" className="w-full" />
+                <InputNumber min={0} step={0.01} placeholder="0.00" className="w-100" />
               </Form.Item>
             </Col>
           </Row>

@@ -416,7 +416,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
 
   return (
     <div className="p-2">
-      <div className="flex justify-end mb-2">
+      <div className="d-flex justify-content-end mb-2">
         <Button type="primary" onClick={handleResetLayout}>Сбросить расположение</Button>
       </div>
       <ResponsiveGridLayout
@@ -431,15 +431,15 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
         onLayoutChange={handleLayoutChange}
         draggableHandle=".card-draggable"
       >
-        <div key="stats" className="flex flex-wrap gap-4">
-          <Card size="small" title={<span className="card-draggable cursor-move">Всего пользователей</span>} className="min-w-[220px]">
-            <div className="text-[20px] font-semibold">{totalUsers}</div>
+        <div key="stats" className="d-flex flex-wrap gap-3">
+          <Card size="small" title={<span className="card-draggable cursor-move">Всего пользователей</span>} className="sf-minw-220">
+            <div className="sf-text-20 fw-semibold">{totalUsers}</div>
           </Card>
-          <Card size="small" title={<span className="card-draggable cursor-move">Активные</span>} className="min-w-[220px]">
-            <div className="text-[20px] font-semibold">{activeUsers}</div>
+          <Card size="small" title={<span className="card-draggable cursor-move">Активные</span>} className="sf-minw-220">
+            <div className="sf-text-20 fw-semibold">{activeUsers}</div>
           </Card>
-          <Card size="small" title={<span className="card-draggable cursor-move">Discord</span>} className="min-w-[220px]">
-            <div className="text-[20px] font-semibold">{discordUsers}</div>
+          <Card size="small" title={<span className="card-draggable cursor-move">Discord</span>} className="sf-minw-220">
+            <div className="sf-text-20 fw-semibold">{discordUsers}</div>
           </Card>
         </div>
 
@@ -451,7 +451,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
                 placeholder="Поиск по всем полям"
                 value={usersSearch}
                 onChange={(e) => setUsersSearch(e.target.value)}
-                className="w-[260px]"
+                className="sf-w-260"
               />
               <Button type="primary" onClick={() => setManageOpen(true)} disabled={!authService.hasPermission('users', 'write')}>
                 Управление пользователями
@@ -619,7 +619,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
           }}
           extra={
             <Space>
-              <Input allowClear placeholder="Поиск по всем полям" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-[260px]" />
+              <Input allowClear placeholder="Поиск по всем полям" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="sf-w-260" />
               <Button type="primary" icon={<PlusOutlined />} onClick={() => { setIsCreating(true); setEditingUser(null); form.resetFields(); form.setFieldsValue({ username: '', email: '', nickname: '', accountType: 'Пользователь', isActive: true, permissions: {}, }); setModalVisible(true); }} disabled={!authService.hasPermission('users', 'write')}>
                 Добавить
               </Button>

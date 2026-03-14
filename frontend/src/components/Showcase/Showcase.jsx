@@ -120,7 +120,7 @@ const Showcase = ({ data, userData }) => {
       width: 100,
       sorter: (a, b) => a.quantity - b.quantity,
       render: (quantity) => (
-        <span className={quantity > 0 ? 'font-semibold' : 'font-normal'}>
+        <span className={quantity > 0 ? 'fw-semibold' : 'fw-normal'}>
           {quantity > 0 ? quantity : 'Нет в наличии'}
         </span>
       ),
@@ -143,14 +143,14 @@ const Showcase = ({ data, userData }) => {
 
         return (
           <div>
-            <div className="font-medium">
+            <div className="fw-medium">
               {formatCurrency(primaryValue)} {primary}
             </div>
             {displays.slice(1).map((curr) => {
               const rate = (rates[curr] || 1) / (rates[from] || 1);
               const v = Math.ceil((Number(record.cost) || 0) * rate);
               return (
-                <div key={curr} className="text-xs text-neutral-500">
+                <div key={curr} className="text-muted" style={{ fontSize: 12 }}>
                   {formatCurrency(v)} {curr}
                 </div>
               );
@@ -284,7 +284,7 @@ const Showcase = ({ data, userData }) => {
 
   return (
     <div className="p-2">
-      <div className="flex justify-end mb-2">
+      <div className="d-flex justify-content-end mb-2">
         <Button type="primary" onClick={handleResetLayout}>Сбросить расположение</Button>
       </div>
       <ResponsiveGridLayout
@@ -329,7 +329,7 @@ const Showcase = ({ data, userData }) => {
                   placeholder="Поиск по всем полям"
                   value={scSearch}
                   onChange={(e) => setScSearch(e.target.value)}
-                  className="w-[260px]"
+                  className="sf-w-260"
                 />
               </Space>
             }

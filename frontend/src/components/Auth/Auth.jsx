@@ -75,7 +75,7 @@ const Auth = ({ onLogin }) => {
               <img
                 src={authIconUrl}
                 alt="Auth icon"
-                className="max-w-[96px] max-h-[96px] object-contain"
+                className="sf-maxw-96 sf-maxh-96 sf-object-contain"
               />
             </div>
           )}

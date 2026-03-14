@@ -127,7 +127,7 @@ const Profile = ({ userData, onUpdateUser, data, onDataUpdate }) => {
           {(data?.system?.currencies || []).map((c) => (
             <Col key={c} xs={24} sm={12} md={8} lg={6}>
               <Card size="small" bordered>
-                <div className="flex justify-between items-center">
+                <div className="d-flex justify-content-between align-items-center">
                   <Text strong>{c}</Text>
                   <Tag color={balances[c] >= 0 ? 'green' : 'red'}>
                     {Number(balances[c] || 0).toFixed(2)} {c}

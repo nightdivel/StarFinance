@@ -298,7 +298,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       render: (_, r) => {
         const canAct = r.status === 'В обработке' && isRecipient(r);
         return (
-          <div className="flex gap-2 justify-center">
+          <div className="d-flex gap-2 justify-content-center">
             <Button size="small" type="primary" disabled={!canAct} onClick={async () => { await apiService.confirmFinanceRequest(r.id); await queryClient.invalidateQueries({ queryKey: APP_DATA_QUERY_KEY }); await loadFinanceRequests(); }}>Подтвердить</Button>
             <Button size="small" danger disabled={!canAct} onClick={async () => { await apiService.cancelFinanceRequest(r.id); await queryClient.invalidateQueries({ queryKey: APP_DATA_QUERY_KEY }); await loadFinanceRequests(); }}>Отменить</Button>
           </div>
@@ -488,7 +488,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       width: 180,
       align: 'center',
       render: (_, record) => (
-        <div className="flex gap-2">
+        <div className="d-flex gap-2">
           <Tooltip title="Редактировать">
             <Button
               size="small"
@@ -545,7 +545,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
 
   return (
     <div className="p-1">
-      <div className="flex justify-end mb-2">
+      <div className="d-flex justify-content-end mb-2">
         <Button type="primary" icon={<ReloadOutlined />} onClick={handleResetLayout} size="small">
           Сбросить расположение
         </Button>
@@ -562,39 +562,37 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
         onLayoutChange={handleLayoutChange}
         draggableHandle=".card-draggable"
       >
-        <div key="stats" className="flex flex-wrap gap-4">
+        <div key="stats" className="d-flex flex-wrap gap-3">
           {data.system.currencies
             .slice()
             .sort((a, b) => compareDropdownStrings(a, b))
             .map((currency) => (
-            <Card
-              key={currency}
-              size="small"
-              className="min-w-[220px] flex-[1_1_220px]"
-              title={<span className="card-draggable cursor-move">Баланс ({currency})</span>}
-            >
-              <Statistic
-                value={balances[currency]}
-                precision={2}
-                valueStyle={{ color: balances[currency] >= 0 ? '#52c41a' : '#f5222d' }}
-                prefix={balances[currency] >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-                suffix={currency}
-              />
-            </Card>
-          ))}
+              <Card
+                key={currency}
+                size="small"
+                className="sf-minw-220"
+                title={<span className="card-draggable cursor-move">Баланс ({currency})</span>}
+              >
+                <Statistic
+                  value={Number((balances && balances[currency]) || 0)}
+                  precision={2}
+                  suffix={currency}
+                />
+              </Card>
+            ))}
         </div>
 
         <div key="transactions">
           <TableWithFullscreen
             title={<span className="card-draggable cursor-move">Транзакции</span>}
             extra={
-              <div className="flex gap-2 items-center">
+              <div className="d-flex gap-2 align-items-center">
                 <Input
                   allowClear
                   placeholder="Поиск по всем полям"
                   value={txSearch}
                   onChange={(e) => setTxSearch(e.target.value)}
-                  className="w-[260px]"
+                  className="sf-w-260"
                 />
                 <Button
                   type="primary"

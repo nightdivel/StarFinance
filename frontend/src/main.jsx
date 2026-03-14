@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ConfigProvider, theme, App as AntdApp } from 'antd';
 import ruRU from 'antd/locale/ru_RU';
 import App from './App.jsx';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 import './styles/antd-overrides.css';
 
