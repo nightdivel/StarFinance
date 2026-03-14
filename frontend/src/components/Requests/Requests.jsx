@@ -134,6 +134,13 @@ const Requests = () => {
 
   const columns = [
     {
+      title: '#',
+      key: 'index',
+      width: 50,
+      align: 'center',
+      render: (_, __, index) => index + 1,
+    },
+    {
       title: 'Товар',
       dataIndex: 'itemName',
       key: 'itemName',
@@ -179,6 +186,13 @@ const Requests = () => {
   ];
 
   const financeColumns = [
+    {
+      title: '#',
+      key: 'index',
+      width: 50,
+      align: 'center',
+      render: (_, __, index) => index + 1,
+    },
     { title: 'Дата', key: 'created_at', width: 180, align: 'center', render: (_, r) => formatServerDateTime(r.created_at) },
     { title: 'Отправитель', key: 'from_username', width: 160, render: (_, r) => r?.from_username || '-' },
     { title: 'Получатель', key: 'to_username', width: 160, render: (_, r) => r?.to_username || '-' },

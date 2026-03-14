@@ -230,6 +230,13 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
 
   const currencyColumns = [
     {
+      title: '#',
+      key: 'index',
+      width: 50,
+      align: 'center',
+      render: (_, __, index) => index + 1,
+    },
+    {
       title: 'Валюта',
       dataIndex: 'currency',
       key: 'currency',
@@ -251,6 +258,13 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
   ];
 
   const frColumns = [
+    {
+      title: '#',
+      key: 'index',
+      width: 50,
+      align: 'center',
+      render: (_, __, index) => index + 1,
+    },
     {
       title: 'Дата',
       key: 'created_at',
@@ -400,6 +414,13 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
   }, [data.transactions, myUsernameL, myId, toUsername]);
 
   const transactionColumns = [
+    {
+      title: '#',
+      key: 'index',
+      width: 50,
+      align: 'center',
+      render: (_, __, index) => index + 1,
+    },
     {
       title: 'Дата (сервер)',
       key: 'date',

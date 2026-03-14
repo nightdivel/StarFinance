@@ -253,6 +253,13 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
 
   const columns = [
     {
+      title: '#',
+      key: 'index',
+      width: 50,
+      align: 'center',
+      render: (_, __, index) => index + 1,
+    },
+    {
       title: 'Наименование',
       dataIndex: 'name',
       key: 'name',

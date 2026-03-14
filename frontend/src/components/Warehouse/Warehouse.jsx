@@ -276,6 +276,13 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
 
   const columns = [
     {
+      title: '#',
+      key: 'index',
+      width: 50,
+      align: 'center',
+      render: (_, __, index) => index + 1,
+    },
+    {
       title: 'Название',
       dataIndex: 'name',
       key: 'name',

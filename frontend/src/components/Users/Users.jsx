@@ -207,6 +207,14 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
 
   const manageColumns = [
     {
+      title: '#',
+      key: 'index',
+      width: 50,
+      align: 'center',
+      fixed: 'left',
+      render: (_, __, index) => index + 1,
+    },
+    {
       title: '',
       key: 'avatar',
       width: 48,
@@ -364,6 +372,14 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
 
   // Summary table columns for workspace
   const summaryColumns = [
+    {
+      title: '#',
+      key: 'index',
+      width: 50,
+      align: 'center',
+      fixed: 'left',
+      render: (_, __, index) => index + 1,
+    },
     {
       title: 'Аватарка', key: 'avatar', width: 56, fixed: 'left',
       render: (_, r) => <Avatar size={32} src={r.avatarUrl} icon={<UserOutlined />} />,

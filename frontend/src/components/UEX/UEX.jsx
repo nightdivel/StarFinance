@@ -265,7 +265,20 @@ const UEX = () => {
       return false;
     });
   }, [tableData, search]);
-  const columns = useMemo(() => guessColumns(filteredData || []), [filteredData]);
+  const columns = useMemo(() => {
+  const dynamicColumns = guessColumns(filteredData || []);
+  // Добавляем колонку индексации в начало
+  return [
+    {
+      title: '#',
+      key: 'index',
+      width: 50,
+      align: 'center',
+      render: (_, __, index) => index + 1,
+    },
+    ...dynamicColumns
+  ];
+}, [filteredData]);
 
   const exportExcel = () => {
     try {
