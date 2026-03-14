@@ -15,86 +15,16 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  detect-changes:
-    name: Detect Changes
-    runs-on: ubuntu-latest
-    outputs:
-      frontend: ${{ steps.changes.outputs.frontend }}
-      backend: ${{ steps.changes.outputs.backend }}
-      docker: ${{ steps.changes.outputs.docker }}
-      database: ${{ steps.changes.outputs.database }}
-      has_changes: ${{ steps.changes.outputs.has_changes }}
-
+  deploy:
+    name: Deploy to Production
+    runs-on: self-hosted
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 2
 
-    - name: Get changed files
-      id: changes
-      run: |
-        if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force_rebuild }}" = "true" ]; then
-          echo "force_rebuild=true" >> $GITHUB_OUTPUT
-          echo "has_changes=true" >> $GITHUB_OUTPUT
-          echo "frontend=true" >> $GITHUB_OUTPUT
-          echo "backend=true" >> $GITHUB_OUTPUT
-          echo "docker=true" >> $GITHUB_OUTPUT
-          echo "database=true" >> $GITHUB_OUTPUT
-        else
-          # Получаем измененные файлы
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
-          
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          echo "has_changes=true" >> $GITHUB_OUTPUT
-          echo "$CHANGED_FILES"
-          
-          # Определяем типы изменений
-          FRONTEND_CHANGED=false
-          BACKEND_CHANGED=false
-          DOCKER_CHANGED=false
-          DATABASE_CHANGED=false
-          
-          while IFS= read -r file; do
-            case "$file" in
-              "frontend/"*)
-                FRONTEND_CHANGED=true
-                ;;
-              "src/"*|*.jsx|*.js|*.css|*.html)
-                FRONTEND_CHANGED=true
-                ;;
-              "backend/services/"*|"backend/middleware/"*|"backend/config/"*|"backend/db.js"|"backend/package.json")
-                BACKEND_CHANGED=true
-                ;;
-              "Dockerfile"|".dockerignore"|"docker-compose.yml"|"Caddyfile")
-                DOCKER_CHANGED=true
-                ;;
-              "backend/migrations/"*)
-                DATABASE_CHANGED=true
-                ;;
-            esac
-          done <<< "$CHANGED_FILES"
-          
-          echo "frontend=$FRONTEND_CHANGED" >> $GITHUB_OUTPUT
-          echo "backend=$BACKEND_CHANGED" >> $GITHUB_OUTPUT
-          echo "docker=$DOCKER_CHANGED" >> $GITHUB_OUTPUT
-          echo "database=$DATABASE_CHANGED" >> $GITHUB_OUTPUT
-        fi
-
-  deploy:
-    name: Deploy Changes
-    runs-on: [self-hosted]
-    needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
     - name: Deploy to server
       shell: powershell
       timeout-minutes: 15
@@ -102,11 +32,11 @@ jobs:
         # Устанавливаем переменную окружения для исправления ошибки
         $env:DOCKER_BUILDKIT = "1"
         $env:COMPOSE_DOCKER_CLI_BUILD = "1"
-        
+
         # Устанавливаем кодировку для корректной работы с кириллицей
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         $OutputEncoding = [System.Text.Encoding]::UTF8
-        
+
         # Определяем команду docker compose
         if (Get-Command "docker-compose" -ErrorAction SilentlyContinue) {
           $COMPOSE_CMD = "docker-compose"
@@ -115,62 +45,10 @@ jobs:
           $COMPOSE_CMD = "docker compose"
           Write-Host "Используем docker compose"
         }
-        
-        # Определяем какие сервисы нужно обновить
-        $SERVICES_TO_UPDATE = ""
-        
-        $frontend_changed = "${{ needs.detect-changes.outputs.frontend }}"
-        $backend_changed = "${{ needs.detect-changes.outputs.backend }}"
-        $docker_changed = "${{ needs.detect-changes.outputs.docker }}"
-        $database_changed = "${{ needs.detect-changes.outputs.database }}"
-        
-        Write-Host "Changes detected - Frontend: ${frontend_changed}, Backend: ${backend_changed}, Docker: ${docker_changed}, Database: ${database_changed}"
-        
-        if ($frontend_changed -eq "true") {
-          $SERVICES_TO_UPDATE += " economy"
-        }
-        
-        if ($backend_changed -eq "true") {
-          $SERVICES_TO_UPDATE += " users directories warehouse showcase requests finance uex settings"
-        }
-        
-        # Если есть изменения в frontend или backend, нужно пересобрать economy образ
-        if ($frontend_changed -eq "true" -or $backend_changed -eq "true") {
-          Write-Host "Code changes detected, rebuilding economy image..."
-          try {
-            Invoke-Expression "$COMPOSE_CMD build economy"
-            Write-Host "Economy image rebuilt successfully"
-          } catch {
-            $errorMsg = $_.Exception.Message
-            Write-Host "Error rebuilding economy image: ${errorMsg}"
-            exit 1
-          }
-        }
-        
-        if ($docker_changed -eq "true") {
-          $SERVICES_TO_UPDATE += " caddy"
-        }
-        
-        if ($database_changed -eq "true") {
-          $SERVICES_TO_UPDATE += " postgres"
-        }
-        
-        # Если нет изменений, но контейнеры не запущены, запускаем все
-        if ($SERVICES_TO_UPDATE -eq "") {
-          Write-Host "No specific changes detected, checking if containers are running..."
-          $runningContainers = docker ps -q
-          if (-not $runningContainers) {
-            Write-Host "No containers running, starting all services..."
-            $SERVICES_TO_UPDATE = "economy users directories warehouse showcase requests finance uex settings caddy postgres"
-          } else {
-            Write-Host "Containers already running, no action needed"
-            exit 0
-          }
-        }
-        
-        Write-Host "Updating services: $SERVICES_TO_UPDATE"
-        
-        # Останавливаем все сервисы перед обновлением с таймаутом
+
+        Write-Host "Starting full deployment with complete rebuild..."
+
+        # Полностью останавливаем все сервисы
         try {
           Invoke-Expression "$COMPOSE_CMD down --remove-orphans --timeout 30"
           Write-Host "Services stopped successfully"
@@ -181,41 +59,24 @@ jobs:
           docker ps -q | ForEach-Object { docker stop $_ }
           docker ps -aq | ForEach-Object { docker rm $_ }
         }
-        
-        # Если есть изменения в Docker файлах, пересобираем все образы
-        $force_rebuild = "${{ github.event.inputs.force_rebuild }}"
-        if ($docker_changed -eq "true" -or $force_rebuild -eq "true") {
-          Write-Host "Rebuilding all images..."
-          try {
-            Invoke-Expression "$COMPOSE_CMD build --no-cache --parallel"
-            Write-Host "Images built successfully"
-          } catch {
-            $errorMsg = $_.Exception.Message
-            Write-Host "Error building images: ${errorMsg}"
-            exit 1
-          }
-        } else {
-          Write-Host "Building only changed services..."
-          $services = $SERVICES_TO_UPDATE -split ' ' | Where-Object { $_ -ne "" }
-          foreach ($service in $services) {
-            if ($service -ne "postgres" -and $service -ne "caddy") {
-              try {
-                Write-Host "Building $service..."
-                Invoke-Expression "$COMPOSE_CMD build $service --parallel"
-                Write-Host "$service built successfully"
-              } catch {
-                $errorMsg = $_.Exception.Message
-                Write-Host "Error building ${service}: ${errorMsg}"
-                exit 1
-              }
-            }
-          }
+
+        # Полная пересборка всех образов без кеша
+        Write-Host "Rebuilding all images without cache..."
+        try {
+          Invoke-Expression "$COMPOSE_CMD build --no-cache --parallel"
+          Write-Host "All images built successfully"
+        } catch {
+          $errorMsg = $_.Exception.Message
+          Write-Host "Error building images: ${errorMsg}"
+          exit 1
         }
+
+        # Запускаем все сервисы
+        Write-Host "Starting all services..."
+        $services = @("economy", "users", "directories", "warehouse", "showcase", "requests", "finance", "uex", "settings", "caddy", "postgres")
         
-        # Перезапускаем только нужные сервисы
-        $services = $SERVICES_TO_UPDATE -split ' ' | Where-Object { $_ -ne "" }
         foreach ($service in $services) {
-          Write-Host "Restarting $service..."
+          Write-Host "Starting $service..."
           try {
             Invoke-Expression "$COMPOSE_CMD up -d $service"
             Write-Host "$service started successfully"
@@ -231,27 +92,14 @@ jobs:
             exit 1
           }
         }
-        
-        # Если были изменения в БД, применяем миграции
-        if ($database_changed -eq "true") {
-          Write-Host "Applying database migrations..."
-          try {
-            Invoke-Expression "$COMPOSE_CMD exec postgres psql -U postgres -d starfinance -c `"SELECT 1;`""
-            Write-Host "Database connection successful"
-          } catch {
-            $errorMsg = $_.Exception.Message
-            Write-Host "Database connection error: ${errorMsg}"
-            exit 1
-          }
-        }
-        
+
         # Проверяем состояние
         Write-Host "Checking service status..."
         Invoke-Expression "$COMPOSE_CMD ps"
-        
+
         # Очищаем старые образы и контейнеры
         Write-Host "Cleaning up old images..."
         docker system prune -f
         docker container prune -f
-        
-        Write-Host "Deploy completed successfully!"
+
+        Write-Host "Full deployment completed successfully!"
