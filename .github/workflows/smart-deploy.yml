@@ -100,6 +100,10 @@ jobs:
         $env:DOCKER_BUILDKIT = "1"
         $env:COMPOSE_DOCKER_CLI_BUILD = "1"
         
+        # Устанавливаем кодировку для корректной работы с кириллицей
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        $OutputEncoding = [System.Text.Encoding]::UTF8
+        
         # Определяем команду docker compose
         if (Get-Command "docker-compose" -ErrorAction SilentlyContinue) {
           $COMPOSE_CMD = "docker-compose"
@@ -133,14 +137,14 @@ jobs:
           $SERVICES_TO_UPDATE += " postgres"
         }
         
-        Write-Host "🔄 Обновляем сервисы: $SERVICES_TO_UPDATE"
+        Write-Host "Updating services: $SERVICES_TO_UPDATE"
         
         # Останавливаем все сервисы перед обновлением с таймаутом
         try {
           Invoke-Expression "$COMPOSE_CMD down --remove-orphans --timeout 30"
-          Write-Host "✅ Сервисы остановлены"
+          Write-Host "Services stopped successfully"
         } catch {
-          Write-Host "⚠️ Ошибка при остановке сервисов: $_"
+          Write-Host "Warning: Error stopping services: $_"
           # Принудительно убиваем контейнеры
           docker ps -q | ForEach-Object { docker stop $_ }
           docker ps -aq | ForEach-Object { docker rm $_ }
@@ -149,25 +153,25 @@ jobs:
         # Если есть изменения в Docker файлах, пересобираем все образы
         $force_rebuild = "${{ github.event.inputs.force_rebuild }}"
         if ($docker_changed -eq "true" -or $force_rebuild -eq "true") {
-          Write-Host "🔨 Пересобираем все образы..."
+          Write-Host "Rebuilding all images..."
           try {
             Invoke-Expression "$COMPOSE_CMD build --no-cache --parallel"
-            Write-Host "✅ Образы собраны"
+            Write-Host "Images built successfully"
           } catch {
-            Write-Host "❌ Ошибка сборки образов: $_"
+            Write-Host "Error building images: $_"
             exit 1
           }
         } else {
-          Write-Host "🔨 Пересобираем только измененные сервисы..."
+          Write-Host "Building only changed services..."
           $services = $SERVICES_TO_UPDATE -split ' ' | Where-Object { $_ -ne "" }
           foreach ($service in $services) {
             if ($service -ne "postgres" -and $service -ne "caddy") {
               try {
-                Write-Host "Собираем $service..."
+                Write-Host "Building $service..."
                 Invoke-Expression "$COMPOSE_CMD build $service --parallel"
-                Write-Host "✅ $service собран"
+                Write-Host "$service built successfully"
               } catch {
-                Write-Host "❌ Ошибка сборки $service: $_"
+                Write-Host "Error building $service: $_"
                 exit 1
               }
             }
@@ -177,41 +181,41 @@ jobs:
         # Перезапускаем только нужные сервисы
         $services = $SERVICES_TO_UPDATE -split ' ' | Where-Object { $_ -ne "" }
         foreach ($service in $services) {
-          Write-Host "🔄 Перезапускаем $service..."
+          Write-Host "Restarting $service..."
           try {
             Invoke-Expression "$COMPOSE_CMD up -d $service"
-            Write-Host "✅ $service запущен"
+            Write-Host "$service started successfully"
             
             # Ждем запуска сервиса с таймаутом
             if ($service -ne "caddy" -and $service -ne "postgres") {
-              Write-Host "Ожидаем запуска $service..."
+              Write-Host "Waiting for $service to start..."
               Start-Sleep -Seconds 5
             }
           } catch {
-            Write-Host "❌ Ошибка запуска $service: $_"
+            Write-Host "Error starting $service: $_"
             exit 1
           }
         }
         
         # Если были изменения в БД, применяем миграции
         if ($database_changed -eq "true") {
-          Write-Host "🗄️ Применяем миграции базы данных..."
+          Write-Host "Applying database migrations..."
           try {
             Invoke-Expression "$COMPOSE_CMD exec postgres psql -U postgres -d starfinance -c `"SELECT 1;`""
-            Write-Host "✅ База данных доступна"
+            Write-Host "Database connection successful"
           } catch {
-            Write-Host "❌ Ошибка подключения к базе данных: $_"
+            Write-Host "Database connection error: $_"
             exit 1
           }
         }
         
         # Проверяем состояние
-        Write-Host "📊 Проверяем состояние сервисов..."
+        Write-Host "Checking service status..."
         Invoke-Expression "$COMPOSE_CMD ps"
         
         # Очищаем старые образы и контейнеры
-        Write-Host "🧹 Очищаем старые образы..."
+        Write-Host "Cleaning up old images..."
         docker system prune -f
         docker container prune -f
         
-        Write-Host "✅ Деплой завершен успешно!"
+        Write-Host "Deploy completed successfully!"
