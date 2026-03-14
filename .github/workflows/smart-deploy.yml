@@ -121,6 +121,8 @@ jobs:
         $docker_changed = "${{ needs.detect-changes.outputs.docker }}"
         $database_changed = "${{ needs.detect-changes.outputs.database }}"
         
+        Write-Host "Changes detected - Frontend: ${frontend_changed}, Backend: ${backend_changed}, Docker: ${docker_changed}, Database: ${database_changed}"
+        
         if ($frontend_changed -eq "true") {
           $SERVICES_TO_UPDATE += " economy"
         }
@@ -135,6 +137,19 @@ jobs:
         
         if ($database_changed -eq "true") {
           $SERVICES_TO_UPDATE += " postgres"
+        }
+        
+        # Если нет изменений, но контейнеры не запущены, запускаем все
+        if ($SERVICES_TO_UPDATE -eq "") {
+          Write-Host "No specific changes detected, checking if containers are running..."
+          $runningContainers = docker ps -q
+          if (-not $runningContainers) {
+            Write-Host "No containers running, starting all services..."
+            $SERVICES_TO_UPDATE = "economy users directories warehouse showcase requests finance uex settings caddy postgres"
+          } else {
+            Write-Host "Containers already running, no action needed"
+            exit 0
+          }
         }
         
         Write-Host "Updating services: $SERVICES_TO_UPDATE"
