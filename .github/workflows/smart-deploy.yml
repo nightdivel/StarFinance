@@ -144,7 +144,8 @@ jobs:
           Invoke-Expression "$COMPOSE_CMD down --remove-orphans --timeout 30"
           Write-Host "Services stopped successfully"
         } catch {
-          Write-Host "Warning: Error stopping services: $_"
+          $errorMsg = $_.Exception.Message
+          Write-Host "Warning: Error stopping services: $errorMsg"
           # Принудительно убиваем контейнеры
           docker ps -q | ForEach-Object { docker stop $_ }
           docker ps -aq | ForEach-Object { docker rm $_ }
@@ -158,7 +159,8 @@ jobs:
             Invoke-Expression "$COMPOSE_CMD build --no-cache --parallel"
             Write-Host "Images built successfully"
           } catch {
-            Write-Host "Error building images: $_"
+            $errorMsg = $_.Exception.Message
+            Write-Host "Error building images: $errorMsg"
             exit 1
           }
         } else {
@@ -171,7 +173,8 @@ jobs:
                 Invoke-Expression "$COMPOSE_CMD build $service --parallel"
                 Write-Host "$service built successfully"
               } catch {
-                Write-Host "Error building $service: $_"
+                $errorMsg = $_.Exception.Message
+                Write-Host "Error building $service: $errorMsg"
                 exit 1
               }
             }
@@ -192,7 +195,8 @@ jobs:
               Start-Sleep -Seconds 5
             }
           } catch {
-            Write-Host "Error starting $service: $_"
+            $errorMsg = $_.Exception.Message
+            Write-Host "Error starting $service: $errorMsg"
             exit 1
           }
         }
@@ -204,7 +208,8 @@ jobs:
             Invoke-Expression "$COMPOSE_CMD exec postgres psql -U postgres -d starfinance -c `"SELECT 1;`""
             Write-Host "Database connection successful"
           } catch {
-            Write-Host "Database connection error: $_"
+            $errorMsg = $_.Exception.Message
+            Write-Host "Database connection error: $errorMsg"
             exit 1
           }
         }
