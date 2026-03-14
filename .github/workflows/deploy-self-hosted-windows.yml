@@ -28,15 +28,36 @@ jobs:
       - name: Deploy with Docker Compose
         shell: powershell
         run: |
+          $names = @(
+            'economy_db',
+            'economy_caddy',
+            'economy_app',
+            'users_service',
+            'directories_service',
+            'warehouse_service',
+            'showcase_service',
+            'requests_service',
+            'finance_service',
+            'uex_service',
+            'settings_service'
+          )
+          $existing = @()
+          try {
+            $existing = (docker ps -a --format "{{.Names}}")
+          } catch {
+            $existing = @()
+          }
+          $toRemove = $names | Where-Object { $existing -contains $_ }
+
           if (Get-Command "docker-compose" -ErrorAction SilentlyContinue) {
             docker-compose down --remove-orphans
             if ($LASTEXITCODE -ne 0) { Write-Host "docker-compose down failed (ignored)" }
-            docker rm -f economy_db economy_caddy economy_app users_service directories_service warehouse_service showcase_service requests_service finance_service uex_service settings_service 2>$null
+            if ($toRemove.Count -gt 0) { docker rm -f $toRemove | Out-Host }
             docker-compose up -d --build
           } else {
             docker compose down --remove-orphans
             if ($LASTEXITCODE -ne 0) { Write-Host "docker compose down failed (ignored)" }
-            docker rm -f economy_db economy_caddy economy_app users_service directories_service warehouse_service showcase_service requests_service finance_service uex_service settings_service 2>$null
+            if ($toRemove.Count -gt 0) { docker rm -f $toRemove | Out-Host }
             docker compose up -d --build
           }
 
