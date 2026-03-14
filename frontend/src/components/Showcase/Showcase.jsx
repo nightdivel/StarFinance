@@ -285,7 +285,7 @@ const Showcase = ({ data, userData }) => {
   return (
     <div className="p-2">
       <div className="d-flex justify-content-end mb-2">
-        <Button type="primary" onClick={handleResetLayout}>Сбросить расположение</Button>
+        <Button type="primary" size="small" onClick={handleResetLayout}>Сбросить расположение</Button>
       </div>
       <ResponsiveGridLayout
         className="showcase-grid"

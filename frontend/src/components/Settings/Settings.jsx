@@ -589,7 +589,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={4}>
-                    <Button type="primary" onClick={addCurrency} className="w-100" disabled={!canWrite}>
+                    <Button type="primary" size="small" onClick={addCurrency} className="w-100" disabled={!canWrite}>
                       Добавить
                     </Button>
                   </Col>
@@ -1006,7 +1006,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                       setDiscordScopes(Array.isArray(scopesResp) ? scopesResp : []);
                     } catch (_) {}
                   }}>Обновить Scopes</Button>
-                  <Button type="primary" onClick={() => { setScopeEditingIndex(null); setScopeModalOpen(true); }} disabled={!canWrite}>Добавить правило</Button>
+                  <Button type="primary" size="small" onClick={() => { setScopeEditingIndex(null); setScopeModalOpen(true); }} disabled={!canWrite}>Добавить правило</Button>
                 </Space>
                 <Modal
                   title={scopeEditingIndex !== null ? 'Редактирование scope-правила' : 'Добавление scope-правила'}

@@ -208,7 +208,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
     const sec = rawMenuItems.find((i) => i.key === selectedKey)?.section;
     if (sec && !authService.hasPermission(sec, 'read')) {
       return (
-        <div className="p-4">
+        <div className="p-2">
           <Card>
             <b>Нет доступа</b> к разделу
           </Card>
@@ -424,7 +424,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
             }))}
           />
         </Drawer>
-        <Content className="m-4 p-4 bg-transparent rounded-3 shadow-sm sf-main-content">
+        <Content className="p-2">
           {renderContent()}
         </Content>
         <Footer className="text-center py-3 px-4 bg-transparent text-muted">

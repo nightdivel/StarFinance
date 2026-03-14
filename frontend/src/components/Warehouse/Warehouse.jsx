@@ -491,7 +491,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
   return (
     <div className="p-1">
       <div className="d-flex justify-content-end mb-2">
-        <Button type="primary" onClick={handleResetLayout}>
+        <Button type="primary" size="small" onClick={handleResetLayout}>
           Сбросить расположение
         </Button>
       </div>
@@ -772,7 +772,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
           {/* description moved above */}
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" className="mr-2">
+            <Button type="primary" size="small" htmlType="submit" className="mr-2">
               {editingProduct ? 'Сохранить' : 'Добавить'}
             </Button>
             <Button onClick={() => setModalVisible(false)}>Отмена</Button>

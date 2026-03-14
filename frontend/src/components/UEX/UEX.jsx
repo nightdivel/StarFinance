@@ -454,7 +454,7 @@ const UEX = () => {
             </Space>
             <div className="mt-3">
               <Space>
-                <Button type="primary" onClick={onRequest} loading={loading}>Запросить</Button>
+                <Button type="primary" size="small" onClick={onRequest} loading={loading}>Запросить</Button>
                 <Button onClick={() => setResult(null)}>Очистить</Button>
               </Space>
             </div>

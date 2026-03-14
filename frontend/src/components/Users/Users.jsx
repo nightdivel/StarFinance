@@ -417,7 +417,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
   return (
     <div className="p-2">
       <div className="d-flex justify-content-end mb-2">
-        <Button type="primary" onClick={handleResetLayout}>Сбросить расположение</Button>
+        <Button type="primary" size="small" onClick={handleResetLayout}>Сбросить расположение</Button>
       </div>
       <ResponsiveGridLayout
         className="users-grid"
@@ -453,7 +453,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
                 onChange={(e) => setUsersSearch(e.target.value)}
                 className="sf-w-260"
               />
-              <Button type="primary" onClick={() => setManageOpen(true)} disabled={!authService.hasPermission('users', 'write')}>
+              <Button type="primary" size="small" onClick={() => setManageOpen(true)} disabled={!authService.hasPermission('users', 'write')}>
                 Управление пользователями
               </Button>
             </Space>
@@ -588,7 +588,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" className="mr-2">
+            <Button type="primary" size="small" htmlType="submit" className="mr-2">
               Сохранить
             </Button>
             <Button onClick={() => setModalVisible(false)}>Отмена</Button>
@@ -620,7 +620,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
           extra={
             <Space>
               <Input allowClear placeholder="Поиск по всем полям" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="sf-w-260" />
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => { setIsCreating(true); setEditingUser(null); form.resetFields(); form.setFieldsValue({ username: '', email: '', nickname: '', accountType: 'Пользователь', isActive: true, permissions: {}, }); setModalVisible(true); }} disabled={!authService.hasPermission('users', 'write')}>
+              <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => { setIsCreating(true); setEditingUser(null); form.resetFields(); form.setFieldsValue({ username: '', email: '', nickname: '', accountType: 'Пользователь', isActive: true, permissions: {}, }); setModalVisible(true); }} disabled={!authService.hasPermission('users', 'write')}>
                 Добавить
               </Button>
             </Space>
@@ -667,7 +667,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
             <Input.Password prefix={<LockOutlined />} placeholder="Повторите пароль" />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit">Сохранить</Button>
+            <Button type="primary" size="small" htmlType="submit">Сохранить</Button>
           </Form.Item>
         </Form>
       </Modal>

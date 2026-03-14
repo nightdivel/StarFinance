@@ -482,16 +482,6 @@
   backdrop-filter: blur(8px);
 }
 
-.sf-main-content {
-  border: 1px solid #d7e1e8;
-  background: rgba(255, 255, 255, 0.72) !important;
-  backdrop-filter: blur(10px);
-}
-
-.dark-theme .sf-main-content {
-  border-color: #22344d;
-  background: rgba(15, 23, 42, 0.45) !important;
-}
 
 @media (max-width: 768px) {
   /* We use Drawer for navigation on mobile */
@@ -517,12 +507,7 @@
     height: 4px;
   }
 
-  .sf-main-content {
-    margin: 10px !important;
-    padding: 12px !important;
-    border-radius: 14px !important;
-  }
-
+  
   /* Tables: allow horizontal scroll on narrow screens */
   .ant-table-wrapper {
     overflow-x: auto !important;
