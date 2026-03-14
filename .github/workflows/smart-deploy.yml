@@ -11,6 +11,9 @@ on:
         type: boolean
         default: false
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   detect-changes:
     name: Detect Changes
@@ -91,7 +94,12 @@ jobs:
       
     - name: Deploy to server
       shell: powershell
+      timeout-minutes: 15
       run: |
+        # Устанавливаем переменную окружения для исправления ошибки
+        $env:DOCKER_BUILDKIT = "1"
+        $env:COMPOSE_DOCKER_CLI_BUILD = "1"
+        
         # Определяем команду docker compose
         if (Get-Command "docker-compose" -ErrorAction SilentlyContinue) {
           $COMPOSE_CMD = "docker-compose"
@@ -122,19 +130,40 @@ jobs:
         
         Write-Host "🔄 Обновляем сервисы: $SERVICES_TO_UPDATE"
         
-        # Останавливаем все сервисы перед обновлением
-        Invoke-Expression "$COMPOSE_CMD down --remove-orphans"
+        # Останавливаем все сервисы перед обновлением с таймаутом
+        try {
+          Invoke-Expression "$COMPOSE_CMD down --remove-orphans --timeout 30"
+          Write-Host "✅ Сервисы остановлены"
+        } catch {
+          Write-Host "⚠️ Ошибка при остановке сервисов: $_"
+          # Принудительно убиваем контейнеры
+          docker ps -q | ForEach-Object { docker stop $_ }
+          docker ps -aq | ForEach-Object { docker rm $_ }
+        }
         
         # Если есть изменения в Docker файлах, пересобираем все образы
         if ("${{ needs.detect-changes.outputs.docker }}" -eq "true" -or "${{ github.event.inputs.force_rebuild }}" -eq "true") {
           Write-Host "🔨 Пересобираем все образы..."
-          Invoke-Expression "$COMPOSE_CMD build --no-cache"
+          try {
+            Invoke-Expression "$COMPOSE_CMD build --no-cache --parallel"
+            Write-Host "✅ Образы собраны"
+          } catch {
+            Write-Host "❌ Ошибка сборки образов: $_"
+            exit 1
+          }
         } else {
           Write-Host "🔨 Пересобираем только измененные сервисы..."
           $services = $SERVICES_TO_UPDATE -split ' ' | Where-Object { $_ -ne "" }
           foreach ($service in $services) {
             if ($service -ne "postgres" -and $service -ne "caddy") {
-              Invoke-Expression "$COMPOSE_CMD build $service"
+              try {
+                Write-Host "Собираем $service..."
+                Invoke-Expression "$COMPOSE_CMD build $service --parallel"
+                Write-Host "✅ $service собран"
+              } catch {
+                Write-Host "❌ Ошибка сборки $service: $_"
+                exit 1
+              }
             }
           }
         }
@@ -143,11 +172,18 @@ jobs:
         $services = $SERVICES_TO_UPDATE -split ' ' | Where-Object { $_ -ne "" }
         foreach ($service in $services) {
           Write-Host "🔄 Перезапускаем $service..."
-          Invoke-Expression "$COMPOSE_CMD up -d $service"
-          
-          # Ждем запуска сервиса
-          if ($service -ne "caddy" -and $service -ne "postgres") {
-            Start-Sleep -Seconds 10
+          try {
+            Invoke-Expression "$COMPOSE_CMD up -d $service"
+            Write-Host "✅ $service запущен"
+            
+            # Ждем запуска сервиса с таймаутом
+            if ($service -ne "caddy" -and $service -ne "postgres") {
+              Write-Host "Ожидаем запуска $service..."
+              Start-Sleep -Seconds 5
+            }
+          } catch {
+            Write-Host "❌ Ошибка запуска $service: $_"
+            exit 1
           }
         }
         
@@ -156,17 +192,20 @@ jobs:
           Write-Host "🗄️ Применяем миграции базы данных..."
           try {
             Invoke-Expression "$COMPOSE_CMD exec postgres psql -U postgres -d starfinance -c `"SELECT 1;`""
+            Write-Host "✅ База данных доступна"
           } catch {
-            Write-Error "Ошибка подключения к базе данных"
+            Write-Host "❌ Ошибка подключения к базе данных: $_"
             exit 1
           }
         }
         
         # Проверяем состояние
+        Write-Host "📊 Проверяем состояние сервисов..."
         Invoke-Expression "$COMPOSE_CMD ps"
         
         # Очищаем старые образы и контейнеры
+        Write-Host "🧹 Очищаем старые образы..."
         docker system prune -f
         docker container prune -f
         
-        Write-Host "✅ Деплой завершен!"
+        Write-Host "✅ Деплой завершен успешно!"
