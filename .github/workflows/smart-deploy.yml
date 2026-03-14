@@ -95,7 +95,16 @@ jobs:
         port: ${{ secrets.PORT }}
         debug: true
         script: |
-          cd c:\StarFinanceProject\StarFinance_v2
+          cd /c/StarFinanceProject/StarFinance_v2
+          
+          # Определяем команду docker compose
+          if command -v docker-compose &> /dev/null; then
+            COMPOSE_CMD="docker-compose"
+            echo "Используем docker-compose"
+          else
+            COMPOSE_CMD="docker compose"
+            echo "Используем docker compose"
+          fi
           
           # Выкачиваем последние изменения
           git fetch origin
@@ -123,15 +132,18 @@ jobs:
           
           echo "🔄 Обновляем сервисы: $SERVICES_TO_UPDATE"
           
+          # Останавливаем все сервисы перед обновлением
+          $COMPOSE_CMD down --remove-orphans
+          
           # Если есть изменения в Docker файлах, пересобираем все образы
           if [ "${{ needs.detect-changes.outputs.docker }}" = "true" ] || [ "${{ github.event.inputs.force_rebuild }}" = "true" ]; then
             echo "🔨 Пересобираем все образы..."
-            docker-compose build --no-cache
+            $COMPOSE_CMD build --no-cache
           else
             echo "🔨 Пересобираем только измененные сервисы..."
             for service in $SERVICES_TO_UPDATE; do
               if [ "$service" != "postgres" ] && [ "$service" != "caddy" ]; then
-                docker-compose build "$service"
+                $COMPOSE_CMD build "$service"
               fi
             done
           fi
@@ -139,7 +151,7 @@ jobs:
           # Перезапускаем только нужные сервисы
           for service in $SERVICES_TO_UPDATE; do
             echo "🔄 Перезапускаем $service..."
-            docker-compose up -d "$service"
+            $COMPOSE_CMD up -d "$service"
             
             # Ждем запуска сервиса
             if [ "$service" != "caddy" ] && [ "$service" != "postgres" ]; then
@@ -150,13 +162,14 @@ jobs:
           # Если были изменения в БД, применяем миграции
           if [ "${{ needs.detect-changes.outputs.database }}" = "true" ]; then
             echo "🗄️ Применяем миграции базы данных..."
-            docker-compose exec postgres psql -U postgres -d starfinance -c "SELECT 1;" || exit 1
+            $COMPOSE_CMD exec postgres psql -U postgres -d starfinance -c "SELECT 1;" || exit 1
           fi
           
           # Проверяем состояние
-          docker-compose ps
+          $COMPOSE_CMD ps
           
-          # Очищаем старые образы
+          # Очищаем старые образы и контейнеры
           docker system prune -f
+          docker container prune -f
           
           echo "✅ Деплой завершен!"
