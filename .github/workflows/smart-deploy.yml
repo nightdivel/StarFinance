@@ -81,95 +81,92 @@ jobs:
 
   deploy:
     name: Deploy Changes
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     needs: detect-changes
     if: needs.detect-changes.outputs.has_changes == 'true'
 
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
     - name: Deploy to server
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.HOST }}
-        username: root
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        port: ${{ secrets.PORT }}
-        debug: true
-        script: |
-          cd /c/StarFinanceProject/StarFinance_v2
+      shell: powershell
+      run: |
+        # Определяем команду docker compose
+        if (Get-Command "docker-compose" -ErrorAction SilentlyContinue) {
+          $COMPOSE_CMD = "docker-compose"
+          Write-Host "Используем docker-compose"
+        } else {
+          $COMPOSE_CMD = "docker compose"
+          Write-Host "Используем docker compose"
+        }
+        
+        # Определяем какие сервисы нужно обновить
+        $SERVICES_TO_UPDATE = ""
+        
+        if ("${{ needs.detect-changes.outputs.frontend }}" -eq "true") {
+          $SERVICES_TO_UPDATE += " economy"
+        }
+        
+        if ("${{ needs.detect-changes.outputs.backend }}" -eq "true") {
+          $SERVICES_TO_UPDATE += " users directories warehouse showcase requests finance uex settings"
+        }
+        
+        if ("${{ needs.detect-changes.outputs.docker }}" -eq "true") {
+          $SERVICES_TO_UPDATE += " caddy"
+        }
+        
+        if ("${{ needs.detect-changes.outputs.database }}" -eq "true") {
+          $SERVICES_TO_UPDATE += " postgres"
+        }
+        
+        Write-Host "🔄 Обновляем сервисы: $SERVICES_TO_UPDATE"
+        
+        # Останавливаем все сервисы перед обновлением
+        Invoke-Expression "$COMPOSE_CMD down --remove-orphans"
+        
+        # Если есть изменения в Docker файлах, пересобираем все образы
+        if ("${{ needs.detect-changes.outputs.docker }}" -eq "true" -or "${{ github.event.inputs.force_rebuild }}" -eq "true") {
+          Write-Host "🔨 Пересобираем все образы..."
+          Invoke-Expression "$COMPOSE_CMD build --no-cache"
+        } else {
+          Write-Host "🔨 Пересобираем только измененные сервисы..."
+          $services = $SERVICES_TO_UPDATE -split ' ' | Where-Object { $_ -ne "" }
+          foreach ($service in $services) {
+            if ($service -ne "postgres" -and $service -ne "caddy") {
+              Invoke-Expression "$COMPOSE_CMD build $service"
+            }
+          }
+        }
+        
+        # Перезапускаем только нужные сервисы
+        $services = $SERVICES_TO_UPDATE -split ' ' | Where-Object { $_ -ne "" }
+        foreach ($service in $services) {
+          Write-Host "🔄 Перезапускаем $service..."
+          Invoke-Expression "$COMPOSE_CMD up -d $service"
           
-          # Определяем команду docker compose
-          if command -v docker-compose &> /dev/null; then
-            COMPOSE_CMD="docker-compose"
-            echo "Используем docker-compose"
-          else
-            COMPOSE_CMD="docker compose"
-            echo "Используем docker compose"
-          fi
-          
-          # Выкачиваем последние изменения
-          git fetch origin
-          git checkout main
-          git pull origin main
-          
-          # Определяем какие сервисы нужно обновить
-          SERVICES_TO_UPDATE=""
-          
-          if [ "${{ needs.detect-changes.outputs.frontend }}" = "true" ]; then
-            SERVICES_TO_UPDATE="$SERVICES_TO_UPDATE economy"
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.backend }}" = "true" ]; then
-            SERVICES_TO_UPDATE="$SERVICES_TO_UPDATE users directories warehouse showcase requests finance uex settings"
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.docker }}" = "true" ]; then
-            SERVICES_TO_UPDATE="$SERVICES_TO_UPDATE caddy"
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.database }}" = "true" ]; then
-            SERVICES_TO_UPDATE="$SERVICES_TO_UPDATE postgres"
-          fi
-          
-          echo "🔄 Обновляем сервисы: $SERVICES_TO_UPDATE"
-          
-          # Останавливаем все сервисы перед обновлением
-          $COMPOSE_CMD down --remove-orphans
-          
-          # Если есть изменения в Docker файлах, пересобираем все образы
-          if [ "${{ needs.detect-changes.outputs.docker }}" = "true" ] || [ "${{ github.event.inputs.force_rebuild }}" = "true" ]; then
-            echo "🔨 Пересобираем все образы..."
-            $COMPOSE_CMD build --no-cache
-          else
-            echo "🔨 Пересобираем только измененные сервисы..."
-            for service in $SERVICES_TO_UPDATE; do
-              if [ "$service" != "postgres" ] && [ "$service" != "caddy" ]; then
-                $COMPOSE_CMD build "$service"
-              fi
-            done
-          fi
-          
-          # Перезапускаем только нужные сервисы
-          for service in $SERVICES_TO_UPDATE; do
-            echo "🔄 Перезапускаем $service..."
-            $COMPOSE_CMD up -d "$service"
-            
-            # Ждем запуска сервиса
-            if [ "$service" != "caddy" ] && [ "$service" != "postgres" ]; then
-              sleep 10
-            fi
-          done
-          
-          # Если были изменения в БД, применяем миграции
-          if [ "${{ needs.detect-changes.outputs.database }}" = "true" ]; then
-            echo "🗄️ Применяем миграции базы данных..."
-            $COMPOSE_CMD exec postgres psql -U postgres -d starfinance -c "SELECT 1;" || exit 1
-          fi
-          
-          # Проверяем состояние
-          $COMPOSE_CMD ps
-          
-          # Очищаем старые образы и контейнеры
-          docker system prune -f
-          docker container prune -f
-          
-          echo "✅ Деплой завершен!"
+          # Ждем запуска сервиса
+          if ($service -ne "caddy" -and $service -ne "postgres") {
+            Start-Sleep -Seconds 10
+          }
+        }
+        
+        # Если были изменения в БД, применяем миграции
+        if ("${{ needs.detect-changes.outputs.database }}" -eq "true") {
+          Write-Host "🗄️ Применяем миграции базы данных..."
+          try {
+            Invoke-Expression "$COMPOSE_CMD exec postgres psql -U postgres -d starfinance -c `"SELECT 1;`""
+          } catch {
+            Write-Error "Ошибка подключения к базе данных"
+            exit 1
+          }
+        }
+        
+        # Проверяем состояние
+        Invoke-Expression "$COMPOSE_CMD ps"
+        
+        # Очищаем старые образы и контейнеры
+        docker system prune -f
+        docker container prune -f
+        
+        Write-Host "✅ Деплой завершен!"
