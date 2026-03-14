@@ -131,6 +131,19 @@ jobs:
           $SERVICES_TO_UPDATE += " users directories warehouse showcase requests finance uex settings"
         }
         
+        # Если есть изменения в frontend или backend, нужно пересобрать economy образ
+        if ($frontend_changed -eq "true" -or $backend_changed -eq "true") {
+          Write-Host "Code changes detected, rebuilding economy image..."
+          try {
+            Invoke-Expression "$COMPOSE_CMD build economy"
+            Write-Host "Economy image rebuilt successfully"
+          } catch {
+            $errorMsg = $_.Exception.Message
+            Write-Host "Error rebuilding economy image: ${errorMsg}"
+            exit 1
+          }
+        }
+        
         if ($docker_changed -eq "true") {
           $SERVICES_TO_UPDATE += " caddy"
         }
