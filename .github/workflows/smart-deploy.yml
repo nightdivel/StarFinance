@@ -6,7 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       force_rebuild:
-        description: 'Принудительно пересобрать все образы'
+        description: 'Принудительно пересобрать все образы (без кеша)'
+        required: false
+        type: boolean
+        default: false
+      skip_tests:
+        description: 'Пропустить проверку здоровья сервисов'
         required: false
         type: boolean
         default: false
@@ -62,8 +67,20 @@ jobs:
 
         # Полная пересборка всех образов без кеша
         Write-Host "Rebuilding all images without cache..."
+        
+        # Проверяем необходимость принудительной пересборки
+        $forceRebuild = "${{ github.event.inputs.force_rebuild }}" -eq "true"
+        
+        if ($forceRebuild) {
+          Write-Host "Force rebuild enabled - using --no-cache"
+          $buildArgs = "--no-cache --parallel"
+        } else {
+          Write-Host "Using cache for faster build"
+          $buildArgs = "--parallel"
+        }
+        
         try {
-          Invoke-Expression "$COMPOSE_CMD build --no-cache --parallel"
+          Invoke-Expression "$COMPOSE_CMD build $buildArgs"
           Write-Host "All images built successfully"
         } catch {
           $errorMsg = $_.Exception.Message
@@ -93,9 +110,34 @@ jobs:
           }
         }
 
-        # Проверяем состояние
+        # Проверяем состояние сервисов
         Write-Host "Checking service status..."
-        Invoke-Expression "$COMPOSE_CMD ps"
+        $status = Invoke-Expression "$COMPOSE_CMD ps"
+        Write-Host $status
+        
+        # Дополнительная проверка здоровья критичных сервисов
+        $skipTests = "${{ github.event.inputs.skip_tests }}" -eq "true"
+        
+        if (-not $skipTests) {
+          Write-Host "Checking critical services health..."
+          $healthChecks = @("economy", "postgres")
+          
+          foreach ($service in $healthChecks) {
+            Write-Host "Checking $service health..."
+            try {
+              $health = docker ps --filter "name=${service}_service" --format "{{.Status}}"
+              if ($health -match "healthy" -or $health -match "Up") {
+                Write-Host "$service is healthy"
+              } else {
+                Write-Host "Warning: $service may not be fully ready"
+              }
+            } catch {
+              Write-Host "Warning: Could not check $service health"
+            }
+          }
+        } else {
+          Write-Host "Skipping health checks as requested"
+        }
 
         # Очищаем старые образы и контейнеры
         Write-Host "Cleaning up old images..."
