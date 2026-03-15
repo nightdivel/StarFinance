@@ -27,16 +27,32 @@ fi
 echo "📋 Измененные файлы:"
 echo "$CHANGED_FILES"
 
-# Функция для определения затронутых сервисов
+# Функция для определения затронутых сервисов с учетом зависимостей
 get_affected_services() {
     local files="$1"
     local services=()
-    
+    local has_backend_common=false
+    local has_frontend=false
+    local has_infrastructure=false
+
     while IFS= read -r file; do
+        # Проверяем общие файлы бэкенда
         case "$file" in
-            "frontend/"*|"*.jsx"|"*.js"|"*.css"|"*.html")
-                services+=("economy") # Frontend часть в economy сервисе
+            "backend/middleware/"*|"backend/config/"*|"backend/db.js"|"backend/package.json"|"backend/package-lock.json"|"backend/lib/"*)
+                has_backend_common=true
+                continue
                 ;;
+            # Проверяем инфраструктуру
+            "docker-compose.yml"|"Caddyfile"|"Dockerfile"|".dockerignore")
+                has_infrastructure=true
+                continue
+                ;;
+            # Проверяем frontend
+            "frontend/"*|"*.jsx"|"*.js"|"*.css"|"*.html"|"package.json"|"package-lock.json")
+                has_frontend=true
+                continue
+                ;;
+            # Определяем конкретные сервисы
             "backend/services/users/"*)
                 services+=("users")
                 ;;
@@ -61,19 +77,27 @@ get_affected_services() {
             "backend/services/settings/"*)
                 services+=("settings")
                 ;;
-            "backend/middleware/"*|"backend/config/"*|"backend/db.js"|"backend/package.json"|"Dockerfile"|".dockerignore")
-                # Общие файлы бэкенда - затрагивают все сервисы
-                services+=("economy" "users" "directories" "warehouse" "showcase" "requests" "finance" "uex" "settings")
-                ;;
-            "docker-compose.yml"|"Caddyfile")
-                services+=("caddy" "economy" "users" "directories" "warehouse" "showcase" "requests" "finance" "uex" "settings")
-                ;;
             "backend/migrations/"*)
                 services+=("postgres")
                 ;;
+            "backend/server.js")
+                # Основной сервер затрагивает все сервисы
+                has_backend_common=true
+                ;;
         esac
     done <<< "$files"
-    
+
+    # Добавляем сервисы на основе категорий изменений
+    if [ "$has_frontend" = true ]; then
+        services+=("economy")
+    fi
+    if [ "$has_backend_common" = true ]; then
+        services+=("economy" "users" "directories" "warehouse" "showcase" "requests" "finance" "uex" "settings")
+    fi
+    if [ "$has_infrastructure" = true ]; then
+        services+=("caddy" "economy" "users" "directories" "warehouse" "showcase" "requests" "finance" "uex" "settings")
+    fi
+
     # Удаляем дубликаты и возвращаем уникальные сервисы
     printf '%s\n' "${services[@]}" | sort -u
 }
@@ -92,18 +116,50 @@ echo "🔄 Затронутые сервисы:"
 echo "$AFFECTED_SERVICES"
 
 # Пересобираем образ если изменились файлы Dockerfile или общие файлы бэкенда
-if echo "$CHANGED_FILES" | grep -E "(Dockerfile|\.dockerignore|backend/package\.json)" > /dev/null; then
+if echo "$CHANGED_FILES" | grep -E "(Dockerfile|\.dockerignore|backend/package\.json|backend/package-lock\.json)" > /dev/null; then
     echo "🔨 Обнаружены изменения в Docker конфигурации, пересобираем образ..."
-    docker-compose build --no-cache
+    if ! docker-compose build --no-cache; then
+        echo "❌ Ошибка пересборки образов"
+        exit 1
+    fi
 else
     echo "🔨 Пересобираем только затронутые сервисы..."
-    # Пересобираем образ для затронутых сервисов
+
+    # Функция для сборки одного сервиса
+    build_service() {
+        local service="$1"
+        echo "  - Сборка $service"
+        if docker-compose build "$service"; then
+            echo "build_success:$service"
+        else
+            echo "build_failed:$service:$?"
+        fi
+    }
+
+    # Запускаем параллельную сборку
+    build_pids=()
     for service in $AFFECTED_SERVICES; do
         if [ "$service" != "caddy" ] && [ "$service" != "postgres" ]; then
-            echo "  - Пересборка $service"
-            docker-compose build "$service"
+            build_service "$service" &
+            build_pids+=($!)
         fi
     done
+
+    # Ждем завершения всех сборок и проверяем результаты
+    build_failed=false
+    for pid in "${build_pids[@]}"; do
+        wait "$pid"
+        if [ $? -ne 0 ]; then
+            build_failed=true
+        fi
+    done
+
+    if [ "$build_failed" = true ]; then
+        echo "❌ Ошибка сборки одного или нескольких сервисов"
+        echo "🔄 Откатываем изменения..."
+        git reset --hard HEAD~1 >/dev/null 2>&1
+        exit 1
+    fi
 fi
 
 # Перезапускаем только затронутые сервисы

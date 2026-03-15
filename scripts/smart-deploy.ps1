@@ -30,21 +30,43 @@ if ([string]::IsNullOrWhiteSpace($ChangedFiles)) {
 Write-Host "📋 Измененные файлы:" -ForegroundColor Cyan
 $ChangedFiles
 
-# Функция для определения затронутых сервисов
+# Функция для определения затронутых сервисов с учетом зависимостей
 function Get-AffectedServices {
     param([string]$Files)
-    
+
     $services = @()
     $filesArray = $Files -split "`n"
-    
+    $hasBackendCommon = $false
+    $hasFrontend = $false
+    $hasInfrastructure = $false
+
     foreach ($file in $filesArray) {
         $file = $file.Trim()
         if ([string]::IsNullOrWhiteSpace($file)) { continue }
-        
-        if ($file -like "frontend/*" -or $file -like "*.jsx" -or $file -like "*.js" -or $file -like "*.css" -or $file -like "*.html") {
-            $services += "economy" # Frontend часть в economy сервисе
+
+        # Проверяем общие файлы бэкенда
+        if ($file -like "backend/middleware/*" -or $file -like "backend/config/*" -or
+            $file -eq "backend/db.js" -or $file -eq "backend/package.json" -or
+            $file -eq "backend/package-lock.json" -or $file -like "backend/lib/*") {
+            $hasBackendCommon = $true
+            continue
         }
-        elseif ($file -like "backend/services/users/*") {
+
+        # Проверяем инфраструктуру
+        if ($file -eq "docker-compose.yml" -or $file -eq "Caddyfile" -or $file -eq "Dockerfile" -or $file -eq ".dockerignore") {
+            $hasInfrastructure = $true
+            continue
+        }
+
+        # Проверяем frontend
+        if ($file -like "frontend/*" -or $file -like "*.jsx" -or $file -like "*.js" -or
+            $file -like "*.css" -or $file -like "*.html" -or $file -eq "package.json" -or $file -eq "package-lock.json") {
+            $hasFrontend = $true
+            continue
+        }
+
+        # Определяем конкретные сервисы
+        if ($file -like "backend/services/users/*") {
             $services += "users"
         }
         elseif ($file -like "backend/services/directories/*") {
@@ -68,18 +90,26 @@ function Get-AffectedServices {
         elseif ($file -like "backend/services/settings/*") {
             $services += "settings"
         }
-        elseif ($file -like "backend/middleware/*" -or $file -like "backend/config/*" -or $file -eq "backend/db.js" -or $file -eq "backend/package.json" -or $file -eq "Dockerfile" -or $file -eq ".dockerignore") {
-            # Общие файлы бэкенда - затрагивают все сервисы
-            $services += @("economy", "users", "directories", "warehouse", "showcase", "requests", "finance", "uex", "settings")
-        }
-        elseif ($file -eq "docker-compose.yml" -or $file -eq "Caddyfile") {
-            $services += @("caddy", "economy", "users", "directories", "warehouse", "showcase", "requests", "finance", "uex", "settings")
-        }
         elseif ($file -like "backend/migrations/*") {
             $services += "postgres"
         }
+        elseif ($file -like "backend/server.js") {
+            # Основной сервер затрагивает все сервисы
+            $hasBackendCommon = $true
+        }
     }
-    
+
+    # Добавляем сервисы на основе категорий изменений
+    if ($hasFrontend) {
+        $services += "economy"
+    }
+    if ($hasBackendCommon) {
+        $services += @("economy", "users", "directories", "warehouse", "showcase", "requests", "finance", "uex", "settings")
+    }
+    if ($hasInfrastructure) {
+        $services += @("caddy", "economy", "users", "directories", "warehouse", "showcase", "requests", "finance", "uex", "settings")
+    }
+
     # Удаляем дубликаты и возвращаем уникальные сервисы
     return $services | Sort-Object -Unique
 }
@@ -99,17 +129,54 @@ Write-Host "🔄 Затронутые сервисы:" -ForegroundColor Cyan
 $AffectedServices
 
 # Пересобираем образ если изменились файлы Dockerfile или общие файлы бэкенда
-$dockerFilesChanged = $ChangedFiles -match "(Dockerfile|\.dockerignore|backend/package\.json)"
+$dockerFilesChanged = $ChangedFiles -match "(Dockerfile|\.dockerignore|backend/package\.json|backend/package-lock\.json)"
 if ($dockerFilesChanged -or $Force) {
     Write-Host "🔨 Обнаружены изменения в Docker конфигурации, пересобираем образ..." -ForegroundColor Yellow
-    docker-compose build --no-cache
+    try {
+        docker-compose build --no-cache
+        if ($LASTEXITCODE -ne 0) {
+            throw "Ошибка полной пересборки образов"
+        }
+    } catch {
+        Write-Host "❌ Ошибка пересборки образов: $_" -ForegroundColor Red
+        exit 1
+    }
 } else {
     Write-Host "🔨 Пересобираем только затронутые сервисы..." -ForegroundColor Yellow
-    # Пересобираем образ для затронутых сервисов
+    # Пересобираем образ для затронутых сервисов параллельно
+    $buildJobs = @()
     foreach ($service in $AffectedServices) {
         if ($service -ne "caddy" -and $service -ne "postgres") {
-            Write-Host "  - Пересборка $service" -ForegroundColor Gray
-            docker-compose build $service
+            Write-Host "  - Запуск сборки $service" -ForegroundColor Gray
+            $buildJobs += Start-Job -ScriptBlock {
+                param($service)
+                try {
+                    $output = docker-compose build $service 2>&1
+                    if ($LASTEXITCODE -eq 0) {
+                        return @{ Service = $service; Success = $true; Output = $output }
+                    } else {
+                        return @{ Service = $service; Success = $false; Error = "Exit code: $LASTEXITCODE" }
+                    }
+                } catch {
+                    return @{ Service = $service; Success = $false; Error = $_.Exception.Message }
+                }
+            } -ArgumentList $service
+        }
+    }
+
+    # Ждем завершения всех сборок
+    $buildResults = $buildJobs | Wait-Job | Receive-Job
+
+    # Проверяем результаты сборки
+    foreach ($result in $buildResults) {
+        if ($result.Success) {
+            Write-Host "  - ✅ Сборка $($result.Service) завершена" -ForegroundColor Green
+        } else {
+            Write-Host "  - ❌ Ошибка сборки $($result.Service): $($result.Error)" -ForegroundColor Red
+            # Откатываем изменения в git
+            Write-Host "  - 🔄 Откатываем изменения..." -ForegroundColor Yellow
+            git reset --hard HEAD~1 2>$null
+            exit 1
         }
     }
 }
