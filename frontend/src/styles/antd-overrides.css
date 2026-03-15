@@ -473,10 +473,18 @@
 .sf-main-sider {
   border-right: 1px solid #d7e1e8;
   backdrop-filter: blur(6px);
+  min-height: 100vh;
+  height: 100vh;
 }
 
 .dark-theme .sf-main-sider {
   border-right-color: #22344d;
+}
+
+/* Меню в боковой панели должно растягиваться на всю высоту */
+.sf-main-sider .ant-menu {
+  flex: 1;
+  min-height: 0;
 }
 
 .sf-main-header {
@@ -597,7 +605,29 @@
   font-size: 14px;
 }
 
-/* Ensure text aligns vertically */
-.ant-btn > span {
-  line-height: 32px;
+/* Card header positioning */
+.ant-card-head-wrapper {
+  align-items: center;
+}
+
+.ant-card-head-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.ant-card-extra {
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.ant-card-extra .ant-space {
+  gap: 8px !important;
+}
+
+.ant-card-extra .ant-btn {
+  margin-left: 0;
+}
+
+.ant-card-extra .ant-input {
+  margin-right: 8px;
 }

@@ -47,7 +47,8 @@ class AuthService {
       return response;
     } catch (error) {
       console.error('Local login error:', error);
-      const errorMessage = error.message || 'Ошибка входа. Проверьте логин и пароль.';
+      // Передаем ошибку от бэкенда как есть, если она есть
+      const errorMessage = error.error || error.message || 'Ошибка входа. Проверьте логин и пароль.';
       throw new Error(errorMessage);
     }
   }

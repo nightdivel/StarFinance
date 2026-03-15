@@ -60,7 +60,12 @@ const Auth = ({ onLogin }) => {
 
       onLogin(response);
     } catch (error) {
-      message.error(error.message || 'Ошибка входа');
+      // Проверяем на специфическую ошибку блокировки
+      if (error.message && error.message.includes('заблокирован')) {
+        message.error(error.message);
+      } else {
+        message.error(error.message || 'Ошибка входа');
+      }
     } finally {
       setLoading(false);
     }

@@ -3374,8 +3374,9 @@ app.post('/auth/login', async (req, res) => {
     const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
     console.log('Input password hash:', passwordHash);
 
+    // Сначала ищем пользователя без проверки is_active
     const ures = await query(
-      `SELECT * FROM users WHERE username = $1 AND auth_type = 'local' AND is_active = true AND password_hash = $2`,
+      `SELECT * FROM users WHERE username = $1 AND auth_type = 'local' AND password_hash = $2`,
       [username, passwordHash]
     );
     const user = ures.rows[0];
@@ -3383,6 +3384,12 @@ app.post('/auth/login', async (req, res) => {
     if (!user) {
       console.log('User not found or invalid credentials');
       return res.status(401).json({ error: 'Неверный логин или пароль' });
+    }
+
+    // Проверяем статус пользователя
+    if (!user.is_active) {
+      console.log('User is blocked:', username);
+      return res.status(403).json({ error: 'Ваш аккаунт заблокирован. Обратитесь к администратору.' });
     }
 
     await query('UPDATE users SET last_login = $1 WHERE id = $2', [new Date(), user.id]);

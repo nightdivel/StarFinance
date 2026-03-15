@@ -348,7 +348,7 @@ const UEX = () => {
             resource: 'categories',
             path: '',
             paramsText: '',
-            autoSyncDirectories: true,
+            autoSyncDirectories: false,
           }}>
             <Form.Item label="Токен UEX API" name="token">
               <Input.Password placeholder="Вставьте токен" onBlur={onSaveCreds} />
