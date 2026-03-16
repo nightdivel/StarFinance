@@ -16,6 +16,8 @@ RUN npm install \
  && cd ../backend && npm install
 
 # Copy default auth images before copying the rest of the source
+# Remove any existing auth files first
+RUN rm -f ./backend/public/auth-icon.* ./backend/public/auth-bg.*
 COPY docs/logo.webp ./backend/public/auth-icon.webp
 COPY docs/star-citizen-drake-corsair-ucox3arcnaxkfrdm.webp ./backend/public/auth-bg.webp
 
