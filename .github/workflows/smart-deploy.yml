@@ -76,7 +76,7 @@ jobs:
           docker rm $_ 2>$null
         }
         # Удаляем все сервисные контейнеры от предыдущих запусков
-        $serviceContainers = @("economy_app", "users_service", "directories_service", "warehouse_service", "showcase_service", "requests_service", "finance_service", "uex_service", "settings_service", "caddy_service")
+        $serviceContainers = @("economy_app", "users_service", "directories_service", "warehouse_service", "showcase_service", "requests_service", "finance_service", "uex_service", "settings_service", "caddy_service", "economy_caddy")
         foreach ($container in $serviceContainers) {
           docker ps -aq --filter "name=$container" | ForEach-Object { 
             Write-Host "Removing container $container ($_)"
