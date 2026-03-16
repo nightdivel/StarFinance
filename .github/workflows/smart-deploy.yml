@@ -22,7 +22,7 @@ env:
 jobs:
   deploy:
     name: Deploy to Production
-    runs-on: self-hosted
+    runs-on: starfinance-win
     
     steps:
     - name: Checkout code

@@ -623,6 +623,52 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
                 >
                   Добавить
                 </Button>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<ExpandAltOutlined />}
+                  onClick={() => {
+                    // Логика для развертывания таблицы транзакций
+                    const modal = Modal.info({
+                      title: 'Транзакции (полный экран)',
+                      width: '100vw',
+                      style: { top: 0 },
+                      content: (
+                        <div style={{ height: '80vh', overflow: 'auto' }}>
+                          <Table
+                            columns={transactionColumns}
+                            dataSource={userTransactions.filter((t) => {
+                              const q = String(txSearch || '').toLowerCase();
+                              if (!q) return true;
+                              const vals = [
+                                t.id,
+                                t._typeForMe,
+                                t.type,
+                                t.amount != null ? String(t.amount) : '',
+                                t.currency,
+                                toUsername(t.from_user || ''),
+                                toUsername(t.to_user || ''),
+                                t?.meta?.desc,
+                                t.createdAt || t.date,
+                              ];
+                              return vals.some((v) => String(v || '').toLowerCase().includes(q));
+                            })}
+                            rowKey="id"
+                            scroll={{ x: '100%', y: 'calc(80vh - 100px)' }}
+                            pagination={false}
+                            size="small"
+                          />
+                        </div>
+                      ),
+                    });
+                    modal.update({
+                      closable: true,
+                      maskClosable: true,
+                    });
+                  }}
+                >
+                  Развернуть
+                </Button>
               </div>
             }
             tableProps={{
