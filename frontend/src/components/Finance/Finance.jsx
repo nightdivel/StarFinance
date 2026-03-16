@@ -12,7 +12,7 @@ import {
   message,
 } from 'antd';
 import { Tooltip } from 'antd';
-import { PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, ExpandAltOutlined } from '@ant-design/icons';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';

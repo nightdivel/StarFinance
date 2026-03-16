@@ -15,12 +15,12 @@ RUN npm install \
  && cd frontend && npm install \
  && cd ../backend && npm install
 
-# Copy full source code
-COPY . .
-
-# Copy default auth images if they don't exist
+# Copy default auth images before copying the rest of the source
 COPY docs/logo.webp ./backend/public/auth-icon.webp
 COPY docs/star-citizen-drake-corsair-ucox3arcnaxkfrdm.webp ./backend/public/auth-bg.webp
+
+# Copy the rest of the source code
+COPY . .
 
 # Build frontend for /economy path
 ENV BASE_PATH=/economy/
