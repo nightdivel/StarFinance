@@ -62,15 +62,33 @@ class ApiService {
 
         this.handleAuthExpired(response.status);
 
-        const err = new Error(`HTTP error! status: ${response.status}${bodyJson?.error ? ': ' + bodyJson.error : ''}`);
+        // Улучшенная обработка ошибок с детальной информацией
+        const errorMessage = bodyJson?.error || bodyJson?.details || `HTTP error! status: ${response.status}`;
+        const err = new Error(errorMessage);
         err.status = response.status;
         err.body = bodyText;
         err.json = bodyJson;
+        
+        // Добавляем детальную информацию об ошибке в консоль для отладки
+        console.error(`API Error [${response.status}] ${endpoint}:`, {
+          error: errorMessage,
+          details: bodyJson?.details,
+          body: bodyText,
+          url: url
+        });
+        
         throw err;
       }
 
       return await response.json();
     } catch (error) {
+      // Если ошибка уже произошла выше, просто пробрасываем её дальше
+      if (error.status) {
+        throw error;
+      }
+      
+      // Обработка сетевых ошибок или других проблем
+      console.error('Network or other error in API request:', error);
       throw error;
     }
   }

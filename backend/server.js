@@ -2467,10 +2467,11 @@ const readSettingsMap = async () => {
 };
 
 const buildAggregatedData = async (userId) => {
-  // Settings fallback (version, baseCurrency)
-  const s = await readSettingsMap();
-  const version = s['system.version'] ?? '1.0.0';
-  const baseCurrency = s['system.baseCurrency'] ?? 'aUEC';
+  try {
+    // Settings fallback (version, baseCurrency)
+    const s = await readSettingsMap();
+    const version = s['system.version'] ?? '1.0.0';
+    const baseCurrency = s['system.baseCurrency'] ?? 'aUEC';
 
   // Currencies and rates from tables (fallback to settings if empty)
   let currencies = [];
@@ -2855,6 +2856,20 @@ const buildAggregatedData = async (userId) => {
 
   // nextId kept for backward compatibility (not used with normalized tables)
   return { system, warehouse, showcaseWarehouse, users, transactions, showcase, directories, nextId: 1 };
+  } catch (error) {
+    console.error('Error in buildAggregatedData:', error);
+    // Возвращаем базовую структуру данных в случае ошибки
+    return {
+      system: { version: '1.0.0', currencies: ['aUEC'], baseCurrency: 'aUEC', rates: { aUEC: 1 } },
+      warehouse: [],
+      showcaseWarehouse: [],
+      users: [],
+      transactions: [],
+      showcase: [],
+      directories: { productTypes: [], showcaseStatuses: [], warehouseTypes: [], productNames: [], categories: [], accountTypes: [] },
+      nextId: 1
+    };
+  }
 };
 
 // ---------- Helpers for normalized DB ----------
@@ -3413,7 +3428,13 @@ app.get('/api/data', authenticateToken, async (req, res) => {
     const aggregated = await buildAggregatedData(req.user.id);
     res.json(aggregated);
   } catch (error) {
-    res.status(500).json({ error: 'Ошибка чтения данных' });
+    console.error('Error in /api/data:', error);
+    // Добавляем детальную информацию об ошибке для отладки
+    res.status(500).json({ 
+      error: 'Ошибка чтения данных',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
