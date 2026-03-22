@@ -22,7 +22,8 @@ env:
 jobs:
   deploy:
     name: Deploy to Production
-    runs-on: self-hosted
+    runs-on: [self-hosted, Windows]
+    environment: production
     
     steps:
     - name: Checkout code
@@ -60,9 +61,28 @@ jobs:
         } catch {
           $errorMsg = $_.Exception.Message
           Write-Host "Warning: Error stopping services: ${errorMsg}"
-          # Принудительно убиваем контейнеры
-          docker ps -q | ForEach-Object { docker stop $_ }
-          docker ps -aq | ForEach-Object { docker rm $_ }
+        }
+        
+        # Принудительно удаляем конфликтующие контейнеры
+        Write-Host "Removing conflicting containers..."
+        docker ps -aq --filter "name=economy_db" | ForEach-Object { 
+          Write-Host "Removing container $_"
+          docker stop $_ 2>$null
+          docker rm $_ 2>$null
+        }
+        docker ps -aq --filter "name=postgres" | ForEach-Object { 
+          Write-Host "Removing container $_"
+          docker stop $_ 2>$null
+          docker rm $_ 2>$null
+        }
+        # Удаляем все сервисные контейнеры от предыдущих запусков
+        $serviceContainers = @("economy_app", "users_service", "directories_service", "warehouse_service", "showcase_service", "requests_service", "finance_service", "uex_service", "settings_service", "caddy_service", "economy_caddy")
+        foreach ($container in $serviceContainers) {
+          docker ps -aq --filter "name=$container" | ForEach-Object { 
+            Write-Host "Removing container $container ($_)"
+            docker stop $_ 2>$null
+            docker rm $_ 2>$null
+          }
         }
 
         # Полная пересборка всех образов без кеша
