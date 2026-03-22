@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { HashRouter } from 'react-router-dom';
 import { ConfigProvider, theme, message } from 'antd';
 import Auth from './components/Auth/Auth.jsx';
 import MainLayout from './components/MainLayout.jsx';
@@ -387,19 +388,21 @@ function App() {
       }}
       componentSize="small"
     >
-      <div className={`App ${darkMode ? 'dark-theme' : 'light-theme'}`}>
-        {isAuthenticated ? (
-          <MainLayout
-            userData={userData}
-            onLogout={handleLogout}
-            onUpdateUser={handleUpdateUser}
-            darkMode={darkMode}
-            onToggleTheme={handleToggleTheme}
-          />
-        ) : (
-          <Auth onLogin={handleLogin} />
-        )}
-      </div>
+      <HashRouter>
+        <div className={`App ${darkMode ? 'dark-theme' : 'light-theme'}`}>
+          {isAuthenticated ? (
+            <MainLayout
+              userData={userData}
+              onLogout={handleLogout}
+              onUpdateUser={handleUpdateUser}
+              darkMode={darkMode}
+              onToggleTheme={handleToggleTheme}
+            />
+          ) : (
+            <Auth onLogin={handleLogin} />
+          )}
+        </div>
+      </HashRouter>
     </ConfigProvider>
   );
 }

@@ -33,6 +33,27 @@ import { newsService } from '../../services/newsService';
 import { authService } from '../../services/authService';
 import { formatServerDate } from '../../utils/helpers';
 
+// Стили для полноразмерных карточек новостей
+const styles = `
+  .news-card-full {
+    width: 100%;
+    min-height: 120px;
+  }
+  .news-card-full .ant-card-body {
+    padding: 20px;
+  }
+  .news-card-full .ant-card-actions {
+    background: #fafafa;
+  }
+`;
+
+// Вставляем стили в head
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = styles;
+  document.head.appendChild(styleSheet);
+}
+
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
 
@@ -252,13 +273,29 @@ const News = ({ userData }) => {
           </div>
         ) : (
           newsList.map((news) => (
-            <div key={news.id} className="col-lg-6 col-xl-4 mb-3">
+            <div key={news.id} className="col-12 mb-3">
               <Card
                 hoverable
-                className="h-100"
+                className="news-card-full"
                 actions={[
                   <Tooltip title="Подробнее">
-                    <EyeOutlined onClick={() => openNewsDetail(news)} />
+                    <a 
+                      href={`#/news/${news.id}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openNewsDetail(news);
+                        // Открываем в новой вкладке с правильным URL
+                        const newWindow = window.open(`#/news/${news.id}`, '_blank');
+                        if (newWindow) {
+                          newWindow.focus();
+                        }
+                      }}
+                      style={{ color: 'inherit' }}
+                    >
+                      <EyeOutlined />
+                    </a>
                   </Tooltip>,
                   ...(isAdmin ? [
                     <Tooltip title="Редактировать">
@@ -284,7 +321,7 @@ const News = ({ userData }) => {
                   )}
                 </div>
                 
-                <p className="text-muted mb-2">{news.summary}</p>
+                <p className="text-white mb-2">{news.summary}</p>
                 
                 <div className="d-flex justify-content-between align-items-center text-muted small">
                   <span>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Card, Tooltip, Tag, Skeleton, Drawer, Grid } from 'antd';
 import {
   UserOutlined,
@@ -28,6 +29,7 @@ import Cart from './Cart/Cart';
 import Requests from './Requests/Requests';
 import UEX from './UEX/UEX';
 import News from './News/News';
+import NewsDetail from './News/NewsDetail';
 import { apiService } from '../services/apiService';
 import { authService } from '../services/authService';
 import { useQueryClient } from '@tanstack/react-query';
@@ -209,6 +211,16 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
         </div>
       );
     }
+    
+    return (
+      <Routes>
+        <Route path="/news/:id" element={<NewsDetail />} />
+        <Route path="*" element={<DefaultComponent selectedKey={selectedKey} data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} onUpdateUser={onUpdateUser} />} />
+      </Routes>
+    );
+  };
+
+  const DefaultComponent = ({ selectedKey, data, onDataUpdate, onRefresh, userData, onUpdateUser }) => {
     // Проверка прав на чтение раздела перед рендером
     const sec = rawMenuItems.find((i) => i.key === selectedKey)?.section;
     if (sec && !authService.hasPermission(sec, 'read')) {
