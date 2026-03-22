@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   Card,
   Spin,
@@ -32,14 +32,8 @@ const NewsDetail = () => {
       try {
         setLoading(true);
         
-        // Получаем ID из URL параметров или из pathname
+        // Получаем ID из useParams
         let newsId = id;
-        if (!newsId && location.pathname) {
-          const match = location.pathname.match(/\/news\/(\d+)/);
-          if (match) {
-            newsId = match[1];
-          }
-        }
         
         if (!newsId) {
           message.error('ID новости не указан');
@@ -65,8 +59,10 @@ const NewsDetail = () => {
       }
     };
 
-    loadNews();
-  }, [id, location.pathname]);
+    if (id) {
+      loadNews();
+    }
+  }, [id]);
 
   if (loading) {
     return (
@@ -88,10 +84,10 @@ const NewsDetail = () => {
     <div className="container-fluid py-4">
       {/* Хлебные крошки */}
       <Breadcrumb className="mb-4">
-        <Breadcrumb.Item href="/">
+        <Breadcrumb.Item href="#/">
           <HomeOutlined /> Главная
         </Breadcrumb.Item>
-        <Breadcrumb.Item href="/news">
+        <Breadcrumb.Item href="#/news">
           Новости
         </Breadcrumb.Item>
         <Breadcrumb.Item>{news.title}</Breadcrumb.Item>

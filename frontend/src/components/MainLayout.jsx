@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Card, Tooltip, Tag, Skeleton, Drawer, Grid } from 'antd';
 import {
   UserOutlined,
@@ -214,7 +214,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
     
     return (
       <Routes>
-        <Route path="/news/:id" element={<NewsDetail />} />
+        <Route path="news/:id" element={<NewsDetail />} />
         <Route path="*" element={<DefaultComponent selectedKey={selectedKey} data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} onUpdateUser={onUpdateUser} />} />
       </Routes>
     );
