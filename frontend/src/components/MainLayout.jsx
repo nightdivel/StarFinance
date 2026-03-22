@@ -56,31 +56,41 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
 
   // Realtime: subscribe to socket events and invalidate cached data
   useEffect(() => {
-    const s = getSocket();
-    const invalidate = () =>
-      queryClient.invalidateQueries({
-        queryKey: [...APP_DATA_QUERY_KEY, userData?.username || 'anonymous'],
-      });
-    s.on('warehouse:changed', invalidate);
-    s.on('transactions:changed', invalidate);
-    s.on('users:changed', invalidate);
-    s.on('directories:changed', invalidate);
-    s.on('settings:changed', invalidate);
-    s.on('showcase:changed', invalidate);
-    s.on('requests:changed', invalidate);
-    s.on('news:changed', invalidate);
-    
-    return () => {
-      s.off('warehouse:changed', invalidate);
-      s.off('transactions:changed', invalidate);
-      s.off('users:changed', invalidate);
-      s.off('directories:changed', invalidate);
-      s.off('settings:changed', invalidate);
-      s.off('showcase:changed', invalidate);
-      s.off('requests:changed', invalidate);
-      s.off('news:changed', invalidate);
+    try {
+      const s = getSocket();
+      if (!s) return;
       
-    };
+      const invalidate = () =>
+        queryClient.invalidateQueries({
+          queryKey: [...APP_DATA_QUERY_KEY, userData?.username || 'anonymous'],
+        });
+      
+      s.on('warehouse:changed', invalidate);
+      s.on('transactions:changed', invalidate);
+      s.on('users:changed', invalidate);
+      s.on('directories:changed', invalidate);
+      s.on('settings:changed', invalidate);
+      s.on('showcase:changed', invalidate);
+      s.on('requests:changed', invalidate);
+      s.on('news:changed', invalidate);
+      
+      return () => {
+        try {
+          s.off('warehouse:changed', invalidate);
+          s.off('transactions:changed', invalidate);
+          s.off('users:changed', invalidate);
+          s.off('directories:changed', invalidate);
+          s.off('settings:changed', invalidate);
+          s.off('showcase:changed', invalidate);
+          s.off('requests:changed', invalidate);
+          s.off('news:changed', invalidate);
+        } catch (e) {
+          console.error('Error cleaning up socket listeners:', e);
+        }
+      };
+    } catch (error) {
+      console.error('Error setting up socket listeners:', error);
+    }
   }, [queryClient, userData?.username]);
 
   const onDataUpdate = async () => true;
@@ -89,28 +99,46 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
 
   // Баланс по валютам для текущего пользователя (используется в шапке)
   const userBalances = React.useMemo(() => {
-    const result = {};
-    if (!data || !data.system) return result;
-    const currencies = data.system.currencies || [];
-    currencies.forEach((c) => (result[c] = 0));
-    const meUsername = userData?.username;
-    if (!meUsername || !Array.isArray(data.transactions)) return result;
-    const me = (data.users || []).find((u) => u.username === meUsername);
-    const meId = me?.id;
-    for (const t of data.transactions) {
-      const status = t?.meta?.status;
-      const hasFinReq = !!t?.meta?.financeRequestId;
-      if (hasFinReq && status !== 'Выполнено') continue; // до подтверждения не учитываем
-      const cur = t?.currency;
-      if (!cur) continue;
-      if (!(cur in result)) result[cur] = 0;
-      const toMatch = t?.to_user === meUsername || t?.to_user === meId;
-      const fromMatch = t?.from_user === meUsername || t?.from_user === meId;
-      // Всегда зачисляем получателю и списываем с отправителя, вне зависимости от поля type
-      if (toMatch) result[cur] += Number(t.amount) || 0;
-      if (fromMatch) result[cur] -= Number(t.amount) || 0;
+    try {
+      const result = {};
+      if (!data || !data.system) return result;
+      
+      const currencies = data.system.currencies || [];
+      if (!Array.isArray(currencies)) return result;
+      
+      currencies.forEach((c) => {
+        if (typeof c === 'string') result[c] = 0;
+      });
+      
+      const meUsername = userData?.username;
+      if (!meUsername || !Array.isArray(data.transactions)) return result;
+      
+      const me = (data.users || []).find((u) => u.username === meUsername);
+      const meId = me?.id;
+      
+      for (const t of data.transactions) {
+        if (!t || typeof t !== 'object') continue;
+        
+        const status = t?.meta?.status;
+        const hasFinReq = !!t?.meta?.financeRequestId;
+        if (hasFinReq && status !== 'Выполнено') continue; // до подтверждения не учитываем
+        
+        const cur = t?.currency;
+        if (!cur || typeof cur !== 'string') continue;
+        if (!(cur in result)) result[cur] = 0;
+        
+        const toMatch = t?.to_user === meUsername || t?.to_user === meId;
+        const fromMatch = t?.from_user === meUsername || t?.from_user === meId;
+        
+        // Всегда зачисляем получателю и списываем с отправителя, вне зависимости от поля type
+        if (toMatch) result[cur] += Number(t.amount) || 0;
+        if (fromMatch) result[cur] -= Number(t.amount) || 0;
+      }
+      return result;
+    } catch (error) {
+      console.error('Error calculating user balances:', error);
+      return {};
     }
-    return result;
   }, [data, userData?.username]);
 
   const rawMenuItems = [
