@@ -495,7 +495,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       minWidth: 200,
       ellipsis: true,
       render: (text, record) => {
-        const val = text || record?.meta?.desc || '';
+        const val = text || record?.meta?.desc || record?.meta?.itemName || '';
         return (
           <Tooltip title={val}>
             <span>{val}</span>
@@ -639,6 +639,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
                   toUsername(t.from_user || ''),
                   toUsername(t.to_user || ''),
                   t?.meta?.desc,
+                  t?.meta?.itemName,
                   t.createdAt || t.date,
                 ];
                 return vals.some((v) => String(v || '').toLowerCase().includes(q));
