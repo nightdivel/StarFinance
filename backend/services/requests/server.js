@@ -154,7 +154,7 @@ app.put('/api/requests/:id/confirm', authenticateToken, async (req, res) => {
     const r = rres.rows[0];
     if (r.status === 'Выполнено') return res.json({ success: true });
     const w = (
-      await query('SELECT id, owner_login, cost, currency FROM warehouse_items WHERE id = $1', [r.warehouse_item_id])
+      await query('SELECT id, owner_login, cost, currency, name FROM warehouse_items WHERE id = $1', [r.warehouse_item_id])
     ).rows[0];
     if (!w) return res.status(404).json({ error: 'Товар не найден' });
 
@@ -182,7 +182,7 @@ app.put('/api/requests/:id/confirm', authenticateToken, async (req, res) => {
     await query(
       `INSERT INTO transactions(id, type, amount, currency, from_user, to_user, item_id, meta, created_at)
        VALUES ($1,'income',$2,$3,$4,$5,$6,$7, now())`,
-      [tid, amount, currency, fromId, toId, r.warehouse_item_id, JSON.stringify({ reqId: id })]
+      [tid, amount, currency, fromId, toId, r.warehouse_item_id, JSON.stringify({ reqId: id, itemName: w.name })]
     );
     await query('UPDATE purchase_requests SET status = $2, updated_at = now() WHERE id = $1', [id, 'Выполнено']);
     res.json({ success: true });

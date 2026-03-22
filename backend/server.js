@@ -844,7 +844,7 @@ app.put('/api/requests/:id/confirm', authenticateToken, async (req, res) => {
     if (rres.rowCount === 0) return res.status(404).json({ error: 'Заявка не найдена' });
     const r = rres.rows[0];
     if (r.status === 'Выполнено') return res.json({ success: true });
-    const w = (await query('SELECT id, owner_login, cost, currency FROM warehouse_items WHERE id = $1', [r.warehouse_item_id])).rows[0];
+    const w = (await query('SELECT id, owner_login, cost, currency, name FROM warehouse_items WHERE id = $1', [r.warehouse_item_id])).rows[0];
     if (!w) return res.status(404).json({ error: 'Товар не найден' });
     // Permissions: admin or owner
     const ures = await query('SELECT id, username, account_type FROM users WHERE id = $1', [req.user.id]);
@@ -870,7 +870,7 @@ app.put('/api/requests/:id/confirm', authenticateToken, async (req, res) => {
     await query(
       `INSERT INTO transactions(id, type, amount, currency, from_user, to_user, item_id, meta, created_at)
        VALUES ($1,'income',$2,$3,$4,$5,$6,$7, now())`,
-      [tid, amount, currency, fromId, toId, r.warehouse_item_id, JSON.stringify({ reqId: id })]
+      [tid, amount, currency, fromId, toId, r.warehouse_item_id, JSON.stringify({ reqId: id, itemName: w.name })]
     );
     await query('UPDATE purchase_requests SET status = $2, updated_at = now() WHERE id = $1', [id, 'Выполнено']);
     try { app.locals.io.emit('transactions:changed', { id: tid, action: 'created' }); } catch(_) {}
@@ -1936,6 +1936,73 @@ app.post(
 );
 
 // ---------- News CRUD ----------
+// Get single news by ID (должен быть перед общим роутом /api/news)
+app.get('/api/news/:id', (req, res, next) => {
+  console.log(`[RAW] GET /api/news/${req.params.id} - Headers:`, Object.keys(req.headers));
+  next();
+}, authenticateToken, async (req, res) => {
+  try {
+    console.log(`GET /api/news/${req.params.id} - User: ${req.user ? req.user.id : 'undefined'}`);
+    
+    const id = req.params.id;
+    const newsResult = await query(
+      `SELECT n.*, 
+              (SELECT COUNT(*) FROM news_reads WHERE news_id = n.id) as read_count
+       FROM news n 
+       WHERE n.id = $1`,
+      [id]
+    );
+
+    if (newsResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Новость не найдена' });
+    }
+
+    const news = newsResult.rows[0];
+    console.log(`Initial read_count: ${news.read_count}`);
+
+    // Автоматически отмечаем новость как прочитанную при открытии
+    try {
+      console.log(`Marking news ${id} as read for user ${req.user.id}`);
+      
+      await query(
+        `INSERT INTO news_reads (news_id, user_id, read_at) 
+         VALUES ($1, $2, NOW()) 
+         ON CONFLICT (news_id, user_id) 
+         DO UPDATE SET read_at = NOW()`,
+        [id, req.user.id]
+      );
+      
+      // Обновляем счетчик прочтений после отметки
+      const readCountResult = await query(
+        'SELECT COUNT(*) as count FROM news_reads WHERE news_id = $1',
+        [id]
+      );
+      news.read_count = parseInt(readCountResult.rows[0].count) || 0;
+      console.log(`Updated read_count for news ${id}: ${news.read_count}`);
+    } catch (error) {
+      console.error('Failed to mark news as read:', error);
+      // Не прерываем загрузку новости из-за ошибки с отметкой о прочтении
+    }
+
+    // Check if user has read this news
+    const readResult = await query(
+      'SELECT 1 FROM news_reads WHERE news_id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
+
+    const response = {
+      ...news,
+      isRead: readResult.rows.length > 0
+    };
+    
+    console.log(`Final response read_count: ${response.read_count}`);
+    res.json(response);
+  } catch (error) {
+    console.error('GET /api/news/:id error:', error);
+    res.status(500).json({ error: 'Ошибка загрузки новости' });
+  }
+});
+
 // Get all news with pagination
 app.get('/api/news', authenticateToken, async (req, res) => {
   try {
@@ -1984,40 +2051,6 @@ app.get('/api/news', authenticateToken, async (req, res) => {
   }
 });
 
-// Get single news by ID
-app.get('/api/news/:id', authenticateToken, async (req, res) => {
-  try {
-    const id = req.params.id;
-    const newsResult = await query(
-      `SELECT n.*, 
-              (SELECT COUNT(*) FROM news_reads WHERE news_id = n.id) as read_count
-       FROM news n 
-       WHERE n.id = $1`,
-      [id]
-    );
-
-    if (newsResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Новость не найдена' });
-    }
-
-    const news = newsResult.rows[0];
-
-    // Check if user has read this news
-    const readResult = await query(
-      'SELECT 1 FROM news_reads WHERE news_id = $1 AND user_id = $2',
-      [id, req.user.id]
-    );
-
-    res.json({
-      ...news,
-      isRead: readResult.rows.length > 0
-    });
-  } catch (error) {
-    console.error('GET /api/news/:id error:', error);
-    res.status(500).json({ error: 'Ошибка загрузки новости' });
-  }
-});
-
 // Create news (admin only)
 app.post('/api/news', authenticateToken, requirePermission('news', 'write'), async (req, res) => {
   try {
@@ -2027,12 +2060,7 @@ app.post('/api/news', authenticateToken, requirePermission('news', 'write'), asy
     if (!title || title.length > 255) {
       return res.status(400).json({ error: 'Некорректный заголовок (макс. 255 символов)' });
     }
-    if (!summary || summary.length > 1000) {
-      return res.status(400).json({ error: 'Некорректное описание (макс. 1000 символов)' });
-    }
-    if (!content || content.length > 50000) {
-      return res.status(400).json({ error: 'Содержимое слишком длинное (макс. 50000 символов)' });
-    }
+    // Убраны ограничения длины для summary и content
 
     const result = await query(
       `INSERT INTO news (title, content, summary, published_at, author_id)
@@ -2063,12 +2091,7 @@ app.put('/api/news/:id', authenticateToken, requirePermission('news', 'write'), 
     if (!title || title.length > 255) {
       return res.status(400).json({ error: 'Некорректный заголовок (макс. 255 символов)' });
     }
-    if (!summary || summary.length > 1000) {
-      return res.status(400).json({ error: 'Некорректное описание (макс. 1000 символов)' });
-    }
-    if (!content || content.length > 50000) {
-      return res.status(400).json({ error: 'Содержимое слишком длинное (макс. 50000 символов)' });
-    }
+    // Убраны ограничения длины для summary и content
 
     const result = await query(
       `UPDATE news 
@@ -2149,7 +2172,7 @@ app.post('/api/news/:id/read', authenticateToken, async (req, res) => {
 });
 
 // Get users who read the news
-app.get('/api/news/:id/read-users', authenticateToken, requirePermission('news', 'write'), async (req, res) => {
+app.get('/api/news/:id/read-users', authenticateToken, requirePermission('news', 'read'), async (req, res) => {
   try {
     const newsId = req.params.id;
 
