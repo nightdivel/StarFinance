@@ -1898,6 +1898,255 @@ app.post(
   }
 );
 
+// ---------- News CRUD ----------
+// Get all news with pagination
+app.get('/api/news', authenticateToken, async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
+    const offset = (page - 1) * limit;
+
+    // Get total count
+    const countResult = await query('SELECT COUNT(*) as total FROM news');
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get news list
+    const newsResult = await query(
+      `SELECT n.*, 
+              (SELECT COUNT(*) FROM news_reads WHERE news_id = n.id) as read_count
+       FROM news n 
+       ORDER BY n.published_at DESC 
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    // Check if current user has read each news
+    const newsWithReadStatus = await Promise.all(
+      newsResult.rows.map(async (news) => {
+        const readResult = await query(
+          'SELECT 1 FROM news_reads WHERE news_id = $1 AND user_id = $2',
+          [news.id, req.user.id]
+        );
+        return {
+          ...news,
+          isRead: readResult.rows.length > 0
+        };
+      })
+    );
+
+    res.json({
+      data: newsWithReadStatus,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    console.error('GET /api/news error:', error);
+    res.status(500).json({ error: 'Ошибка загрузки новостей' });
+  }
+});
+
+// Get single news by ID
+app.get('/api/news/:id', authenticateToken, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const newsResult = await query(
+      `SELECT n.*, 
+              (SELECT COUNT(*) FROM news_reads WHERE news_id = n.id) as read_count
+       FROM news n 
+       WHERE n.id = $1`,
+      [id]
+    );
+
+    if (newsResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Новость не найдена' });
+    }
+
+    const news = newsResult.rows[0];
+
+    // Check if user has read this news
+    const readResult = await query(
+      'SELECT 1 FROM news_reads WHERE news_id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
+
+    res.json({
+      ...news,
+      isRead: readResult.rows.length > 0
+    });
+  } catch (error) {
+    console.error('GET /api/news/:id error:', error);
+    res.status(500).json({ error: 'Ошибка загрузки новости' });
+  }
+});
+
+// Create news (admin only)
+app.post('/api/news', authenticateToken, requirePermission('news', 'write'), async (req, res) => {
+  try {
+    const { title, content, summary, publishedAt } = req.body;
+
+    if (!title || !content || !summary) {
+      return res.status(400).json({ error: 'Заголовок, содержание и краткое описание обязательны' });
+    }
+
+    const result = await query(
+      `INSERT INTO news (title, content, summary, published_at, author_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [title, content, summary, publishedAt || new Date().toISOString(), req.user.id]
+    );
+
+    const news = result.rows[0];
+    
+    // Emit socket event
+    io.emit('news:changed', { action: 'create', news });
+
+    res.json(news);
+  } catch (error) {
+    console.error('POST /api/news error:', error);
+    res.status(500).json({ error: 'Ошибка создания новости' });
+  }
+});
+
+// Update news (admin only)
+app.put('/api/news/:id', authenticateToken, requirePermission('news', 'write'), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { title, content, summary, publishedAt } = req.body;
+
+    if (!title || !content || !summary) {
+      return res.status(400).json({ error: 'Заголовок, содержание и краткое описание обязательны' });
+    }
+
+    const result = await query(
+      `UPDATE news 
+       SET title = $1, content = $2, summary = $3, published_at = $4, updated_at = NOW()
+       WHERE id = $5
+       RETURNING *`,
+      [title, content, summary, publishedAt, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Новость не найдена' });
+    }
+
+    const news = result.rows[0];
+    
+    // Emit socket event
+    io.emit('news:changed', { action: 'update', news });
+
+    res.json(news);
+  } catch (error) {
+    console.error('PUT /api/news/:id error:', error);
+    res.status(500).json({ error: 'Ошибка обновления новости' });
+  }
+});
+
+// Delete news (admin only)
+app.delete('/api/news/:id', authenticateToken, requirePermission('news', 'write'), async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const result = await query('DELETE FROM news WHERE id = $1 RETURNING *', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Новость не найдена' });
+    }
+
+    // Delete related read records
+    await query('DELETE FROM news_reads WHERE news_id = $1', [id]);
+
+    const news = result.rows[0];
+    
+    // Emit socket event
+    io.emit('news:changed', { action: 'delete', newsId: id });
+
+    res.json({ message: 'Новость удалена', news });
+  } catch (error) {
+    console.error('DELETE /api/news/:id error:', error);
+    res.status(500).json({ error: 'Ошибка удаления новости' });
+  }
+});
+
+// Mark news as read
+app.post('/api/news/:id/read', authenticateToken, async (req, res) => {
+  try {
+    const newsId = req.params.id;
+    const userId = req.user.id;
+
+    // Check if news exists
+    const newsResult = await query('SELECT id FROM news WHERE id = $1', [newsId]);
+    if (newsResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Новость не найдена' });
+    }
+
+    // Insert or update read record
+    await query(
+      `INSERT INTO news_reads (news_id, user_id, read_at) 
+       VALUES ($1, $2, NOW()) 
+       ON CONFLICT (news_id, user_id) 
+       DO UPDATE SET read_at = NOW()`,
+      [newsId, userId]
+    );
+
+    res.json({ message: 'Новость отмечена как прочитанная' });
+  } catch (error) {
+    console.error('POST /api/news/:id/read error:', error);
+    res.status(500).json({ error: 'Ошибка отметки о прочтении' });
+  }
+});
+
+// Get users who read the news
+app.get('/api/news/:id/read-users', authenticateToken, requirePermission('news', 'write'), async (req, res) => {
+  try {
+    const newsId = req.params.id;
+
+    const usersResult = await query(
+      `SELECT u.id, u.username, u.nickname, nr.read_at
+       FROM news_reads nr
+       JOIN users u ON nr.user_id = u.id
+       WHERE nr.news_id = $1
+       ORDER BY nr.read_at DESC`,
+      [newsId]
+    );
+
+    res.json({ data: usersResult.rows });
+  } catch (error) {
+    console.error('GET /api/news/:id/read-users error:', error);
+    res.status(500).json({ error: 'Ошибка загрузки списка ознакомившихся' });
+  }
+});
+
+// Clear read users list (admin only)
+app.delete('/api/news/:id/read-users', authenticateToken, requirePermission('news', 'write'), async (req, res) => {
+  try {
+    const newsId = req.params.id;
+
+    await query('DELETE FROM news_reads WHERE news_id = $1', [newsId]);
+
+    res.json({ message: 'Список ознакомившихся очищен' });
+  } catch (error) {
+    console.error('DELETE /api/news/:id/read-users error:', error);
+    res.status(500).json({ error: 'Ошибка очистки списка' });
+  }
+});
+
+// Upload image for news (admin only)
+app.post('/api/news/upload-image', authenticateToken, requirePermission('news', 'write'), async (req, res) => {
+  try {
+    // This is a placeholder for image upload
+    // In a real implementation, you would handle file upload here
+    // For now, return a placeholder URL
+    const imageUrl = `/uploads/news/${Date.now()}.jpg`;
+    
+    res.json({ url: imageUrl });
+  } catch (error) {
+    console.error('POST /api/news/upload-image error:', error);
+    res.status(500).json({ error: 'Ошибка загрузки изображения' });
+  }
+});
+
 // ---------- Finance Requests workflow ----------
 // Related to current user (as sender or recipient)
 app.get('/api/finance-requests/related', authenticateToken, async (req, res) => {
@@ -2853,8 +3102,38 @@ const buildAggregatedData = async (userId) => {
     }
   } catch (_) {}
 
+  // News
+  const news = [];
+  try {
+    const nres = await query(
+      `SELECT id, title, content, summary, published_at, author_id, created_at, updated_at
+       FROM news 
+       ORDER BY published_at DESC`
+    );
+    for (const n of nres.rows) {
+      // Get read count
+      const readCountResult = await query(
+        'SELECT COUNT(*) as count FROM news_reads WHERE news_id = $1',
+        [n.id]
+      );
+      const readCount = parseInt(readCountResult.rows[0].count) || 0;
+
+      news.push({
+        id: n.id,
+        title: n.title,
+        content: n.content,
+        summary: n.summary,
+        publishedAt: n.published_at ? new Date(n.published_at).toISOString() : undefined,
+        authorId: n.author_id,
+        createdAt: n.created_at ? new Date(n.created_at).toISOString() : undefined,
+        updatedAt: n.updated_at ? new Date(n.updated_at).toISOString() : undefined,
+        readCount
+      });
+    }
+  } catch (_) {}
+
   // nextId kept for backward compatibility (not used with normalized tables)
-  return { system, warehouse, showcaseWarehouse, users, transactions, showcase, directories, nextId: 1 };
+  return { system, warehouse, showcaseWarehouse, users, transactions, news, showcase, directories, nextId: 1 };
 };
 
 // ---------- Helpers for normalized DB ----------

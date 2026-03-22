@@ -366,3 +366,46 @@ UPDATE warehouse_items SET currency = 'aUEC' WHERE currency = 'UEC';
 UPDATE showcase_items SET currency = 'aUEC' WHERE currency = 'UEC';
 
 -- Sample transactions removed
+
+-- News tables
+CREATE TABLE IF NOT EXISTS news (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    published_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS news_reads (
+    id SERIAL PRIMARY KEY,
+    news_id INTEGER NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    read_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(news_id, user_id)
+);
+
+-- Indexes for news tables
+CREATE INDEX IF NOT EXISTS idx_news_published_at ON news(published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_news_author_id ON news(author_id);
+CREATE INDEX IF NOT EXISTS idx_news_reads_news_id ON news_reads(news_id);
+CREATE INDEX IF NOT EXISTS idx_news_reads_user_id ON news_reads(user_id);
+
+-- Trigger to update updated_at timestamp for news
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_news_updated_at ON news;
+CREATE TRIGGER update_news_updated_at 
+    BEFORE UPDATE ON news 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- News permissions are handled through account_type_permissions table only

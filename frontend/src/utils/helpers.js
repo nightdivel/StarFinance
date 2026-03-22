@@ -32,6 +32,23 @@ export const formatDate = (date, format = 'DD.MM.YYYY HH:mm:ss') => {
   return format.replace(/YYYY|MM|DD|HH|mm|ss/g, (match) => replacements[match]);
 };
 
+// Server-time date formatter (UTC) with Russian format dd.MM.yyyy HH:mm:ss
+export const formatServerDate = (isoLike) => {
+  if (!isoLike) return '-';
+  const d = new Date(isoLike);
+  if (Number.isNaN(d.getTime())) return '-';
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: 'UTC', // показываем серверное время (UTC из ISO)
+  }).format(d);
+};
+
 // Locale-aware string compare for dropdowns: 0-9, А-Я, A-Z
 export const compareDropdownStrings = (a, b) => {
   const sa = String(a ?? '').trim();

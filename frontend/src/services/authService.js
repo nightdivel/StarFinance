@@ -113,6 +113,11 @@ class AuthService {
         return true;
       }
 
+      // Новости: все пользователи имеют право на чтение
+      if (section === 'news' && action === 'read') {
+        return true;
+      }
+
       // Проверяем права доступа
       const permissions = user.permissions || {};
       const permission = permissions[section];

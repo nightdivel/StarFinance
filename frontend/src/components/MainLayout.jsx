@@ -15,6 +15,7 @@ import {
   MoonOutlined,
   SunOutlined,
   MenuOutlined,
+  NotificationOutlined,
 } from '@ant-design/icons';
 import Finance from './Finance/Finance';
 import Directories from './Directories/Directories';
@@ -26,6 +27,7 @@ import Profile from './Profile/Profile';
 import Cart from './Cart/Cart';
 import Requests from './Requests/Requests';
 import UEX from './UEX/UEX';
+import News from './News/News';
 import { apiService } from '../services/apiService';
 import { authService } from '../services/authService';
 import { useQueryClient } from '@tanstack/react-query';
@@ -64,6 +66,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
     s.on('settings:changed', invalidate);
     s.on('showcase:changed', invalidate);
     s.on('requests:changed', invalidate);
+    s.on('news:changed', invalidate);
     
     return () => {
       s.off('warehouse:changed', invalidate);
@@ -73,6 +76,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
       s.off('settings:changed', invalidate);
       s.off('showcase:changed', invalidate);
       s.off('requests:changed', invalidate);
+      s.off('news:changed', invalidate);
       
     };
   }, [queryClient, userData?.username]);
@@ -108,6 +112,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
   }, [data, userData?.username]);
 
   const rawMenuItems = [
+    { key: 'news', icon: <NotificationOutlined />, label: 'Новости', section: 'news' },
     { key: 'finance', icon: <DollarOutlined />, label: 'Финансы', section: 'finance' },
     { key: 'warehouse', icon: <AppstoreOutlined />, label: 'Склад', section: 'warehouse' },
     { key: 'showcase', icon: <ShopOutlined />, label: 'Витрина', section: 'showcase' },
@@ -216,6 +221,12 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
       );
     }
     switch (selectedKey) {
+      case 'news':
+        return (
+          <News
+            userData={userData}
+          />
+        );
       case 'finance':
         return (
           <Finance
