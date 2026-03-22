@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   Card,
   Spin,
@@ -15,13 +15,11 @@ import {
   UserOutlined,
   HomeOutlined,
 } from '@ant-design/icons';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import DOMPurify from 'dompurify';
 import { newsService } from '../../services/newsService';
 import { formatServerDate } from '../../utils/helpers';
 
 const NewsDetail = () => {
-  const location = useLocation();
   const { id } = useParams();
   const [news, setNews] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -110,18 +108,16 @@ const NewsDetail = () => {
         <Divider />
         
         {/* Содержимое новости */}
-        <div className="news-content">
-          <ReactQuill 
-            value={news.content} 
-            readOnly={true} 
-            theme="snow"
-            modules={{ toolbar: false }}
-            style={{ 
-              backgroundColor: 'transparent',
-              border: 'none'
-            }}
-          />
-        </div>
+        <div 
+          className="news-content"
+          dangerouslySetInnerHTML={{ 
+            __html: DOMPurify.sanitize(news.content, {
+              ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ol', 'ul', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre', 'a', 'img'],
+              ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'target'],
+              ALLOW_DATA_ATTR: false
+            })
+          }}
+        />
       </Card>
 
       {/* Список ознакомившихся */}

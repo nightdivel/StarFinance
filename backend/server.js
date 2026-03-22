@@ -4127,6 +4127,14 @@ try {
   console.error('Failed to serve public directory:', e);
 }
 
+// Serve uploaded files (news images)
+try {
+  const uploadsPath = path.resolve(__dirname, 'public', 'uploads');
+  app.use('/uploads', express.static(uploadsPath));
+} catch (e) {
+  console.error('Failed to serve uploads directory:', e);
+}
+
 // Serve frontend build in production (if exists)
 try {
   const distPath = path.resolve(__dirname, '../frontend/dist');

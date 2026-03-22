@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import DOMPurify from 'dompurify';
-import { APP_CONFIG } from '../../config';
 import {
   Card,
   Button,
@@ -491,7 +490,11 @@ const News = ({ userData }) => {
               <div 
                 className="news-content"
                 dangerouslySetInnerHTML={{ 
-                  __html: DOMPurify.sanitize(selectedNews.content) 
+                  __html: DOMPurify.sanitize(selectedNews.content, {
+                    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ol', 'ul', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre', 'a', 'img'],
+                    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'target'],
+                    ALLOW_DATA_ATTR: false
+                  })
                 }}
               />
             </div>
