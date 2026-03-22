@@ -1,53 +1,17 @@
-import { API_BASE_URL } from '../config';
+import ApiService from './apiService';
+import { APP_CONFIG } from '../config';
 
 class NewsService {
   constructor() {
-    this.baseURL = API_BASE_URL;
-  }
-
-  buildUrl(path) {
-    const base = (this.baseURL || '').replace(/\/$/, '');
-    const rel = String(path || '');
-    return base + (rel.startsWith('/') ? rel : '/' + rel);
+    this.apiService = new ApiService();
   }
 
   async request(endpoint, options = {}) {
-    try {
-      const url = this.buildUrl(endpoint);
-      const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...options.headers,
-        },
-        ...options,
-      });
-
-      if (response.status === 401 || response.status === 403) {
-        try { localStorage.removeItem('authToken'); } catch (_) {}
-        try { localStorage.removeItem('userData'); } catch (_) {}
-        try { window.dispatchEvent(new Event('auth:logout')); } catch (_) {}
-        throw new Error('Авторизация истекла');
-      }
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        return await response.json();
-      }
-      return response;
-    } catch (error) {
-      console.error('NewsService error:', error);
-      throw error;
-    }
+    return this.apiService.request(endpoint, options);
   }
 
   // Получить все новости с пагинацией
-  async getNews(page = 1, limit = 10) {
+  async getNews(page = 1, limit = APP_CONFIG.pagination.newsPageSize) {
     return this.request(`/api/news?page=${page}&limit=${limit}&sort=createdAt&order=desc`);
   }
 

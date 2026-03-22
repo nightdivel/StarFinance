@@ -7,9 +7,46 @@ const fs = require('fs').promises;
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
+const multer = require('multer');
 const { query } = require('./db');
 const { authenticateToken, generateToken, requirePermission } = require('./middleware/auth');
 const { SERVER_CONFIG, DISCORD_CONFIG } = require('./config/serverConfig');
+
+// Конфигурация multer для загрузки изображений
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'public', 'uploads', 'news');
+    try {
+      await fs.mkdir(uploadDir, { recursive: true });
+      cb(null, uploadDir);
+    } catch (error) {
+      cb(error);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  // Разрешенные типы изображений
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Недопустимый тип файла. Разрешены: JPEG, PNG, GIF, WebP'), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+    files: 1
+  }
+});
 
 // Helper: build Discord authorize URL based on effective settings and mappings
 function buildDiscordAuthorizeUrl(eff) {
@@ -1986,8 +2023,15 @@ app.post('/api/news', authenticateToken, requirePermission('news', 'write'), asy
   try {
     const { title, content, summary, publishedAt } = req.body;
 
-    if (!title || !content || !summary) {
-      return res.status(400).json({ error: 'Заголовок, содержание и краткое описание обязательны' });
+    // Валидация полей
+    if (!title || title.length > 255) {
+      return res.status(400).json({ error: 'Некорректный заголовок (макс. 255 символов)' });
+    }
+    if (!summary || summary.length > 1000) {
+      return res.status(400).json({ error: 'Некорректное описание (макс. 1000 символов)' });
+    }
+    if (!content || content.length > 50000) {
+      return res.status(400).json({ error: 'Содержимое слишком длинное (макс. 50000 символов)' });
     }
 
     const result = await query(
@@ -2015,8 +2059,15 @@ app.put('/api/news/:id', authenticateToken, requirePermission('news', 'write'), 
     const id = req.params.id;
     const { title, content, summary, publishedAt } = req.body;
 
-    if (!title || !content || !summary) {
-      return res.status(400).json({ error: 'Заголовок, содержание и краткое описание обязательны' });
+    // Валидация полей
+    if (!title || title.length > 255) {
+      return res.status(400).json({ error: 'Некорректный заголовок (макс. 255 символов)' });
+    }
+    if (!summary || summary.length > 1000) {
+      return res.status(400).json({ error: 'Некорректное описание (макс. 1000 символов)' });
+    }
+    if (!content || content.length > 50000) {
+      return res.status(400).json({ error: 'Содержимое слишком длинное (макс. 50000 символов)' });
     }
 
     const result = await query(
@@ -2133,16 +2184,42 @@ app.delete('/api/news/:id/read-users', authenticateToken, requirePermission('new
 });
 
 // Upload image for news (admin only)
-app.post('/api/news/upload-image', authenticateToken, requirePermission('news', 'write'), async (req, res) => {
+app.post('/api/news/upload-image', authenticateToken, requirePermission('news', 'write'), upload.single('image'), async (req, res) => {
   try {
-    // This is a placeholder for image upload
-    // In a real implementation, you would handle file upload here
-    // For now, return a placeholder URL
-    const imageUrl = `/uploads/news/${Date.now()}.jpg`;
+    if (!req.file) {
+      return res.status(400).json({ error: 'Файл не загружен' });
+    }
+
+    // Проверка размера файла (дополнительная проверка)
+    if (req.file.size > 5 * 1024 * 1024) {
+      // Удаляем файл если он слишком большой
+      await fs.unlink(req.file.path);
+      return res.status(400).json({ error: 'Размер файла превышает 5MB' });
+    }
+
+    // Возвращаем URL относительно сервера
+    const imageUrl = `/uploads/news/${req.file.filename}`;
     
     res.json({ url: imageUrl });
   } catch (error) {
     console.error('POST /api/news/upload-image error:', error);
+    
+    // Удаляем файл в случае ошибки
+    if (req.file && req.file.path) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (unlinkError) {
+        console.error('Error deleting file after upload error:', unlinkError);
+      }
+    }
+    
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Размер файла превышает 5MB' });
+    }
+    if (error.message.includes('Недопустимый тип файла')) {
+      return res.status(400).json({ error: error.message });
+    }
+    
     res.status(500).json({ error: 'Ошибка загрузки изображения' });
   }
 });

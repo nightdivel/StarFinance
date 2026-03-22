@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import DOMPurify from 'dompurify';
+import { APP_CONFIG } from '../../config';
 import {
   Card,
   Button,
@@ -67,7 +69,7 @@ const News = ({ userData }) => {
   const [readUsers, setReadUsers] = useState([]);
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: 10,
+    pageSize: APP_CONFIG.pagination.newsPageSize,
     total: 0,
   });
 
@@ -487,8 +489,10 @@ const News = ({ userData }) => {
             <div className="mb-3">
               <p className="text-muted">{selectedNews.summary}</p>
               <div 
-                dangerouslySetInnerHTML={{ __html: selectedNews.content }}
                 className="news-content"
+                dangerouslySetInnerHTML={{ 
+                  __html: DOMPurify.sanitize(selectedNews.content) 
+                }}
               />
             </div>
 
