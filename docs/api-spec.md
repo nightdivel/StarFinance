@@ -4,6 +4,8 @@
 Уровни прав: `none | read | write`. Проверка выполняется middleware `requirePermission(resource, level)`.
 Базовые ресурсы прав: `settings`, `users`, `warehouse`, `showcase`, `requests`, `transactions`, `directories`.
 
+В production приложение публикуется под префиксом `/economy` (см. `Caddyfile`), поэтому внешние URL выглядят так: `/economy/api/...`, `/economy/auth/...`, `/economy/public/...`.
+
 ## Общее
 - GET /health
   - Auth: нет

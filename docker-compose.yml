@@ -223,6 +223,7 @@ services:
       TZ: Europe/Moscow
     volumes:
       - pgdata:/var/lib/postgresql/data
+
     ports:
       - "5433:5432"
     healthcheck:

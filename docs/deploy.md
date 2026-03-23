@@ -1,20 +1,18 @@
 # Star Finance — Деплой и конфигурация
 
 ## Обзор
-- Контейнеры: `app` (Node.js + frontend build), `postgres`, `nginx`.
-- Прокси: Nginx пробрасывает все запросы на `app:3000`.
-- Персистентные данные: `pgdata` (том Postgres), `./backend/data` (локальные файлы, напр. фон авторизации).
+- Контейнеры: `economy` (gateway/legacy + frontend build + socket.io), `postgres`, `caddy` и микросервисы.
+- Прокси: **Caddy** принимает 80/443, выпускает сертификаты Let's Encrypt и роутит запросы под префиксом `/economy`.
+- Персистентные данные: `pgdata` (том Postgres), `backend_data`/`backend_public` (тома для данных/публичных файлов).
 
 ## Переменные окружения
 
 ### Глобальный .env (корень проекта)
-- PORT=3000 — порт backend (и фронтенд-статик), который слушает Express.
-- HOST=0.0.0.0 — адрес бинда сервера внутри контейнера.
-- BASE_URL=http://localhost:3000 — базовый URL сервиса.
-- FRONTEND_URL=http://localhost:5173 — базовый URL фронтенда при локальной разработке.
-- JWT_SECRET=... — секрет для подписи JWT.
-- TOKEN_EXPIRY=24h — срок действия токена.
-- DATA_FILE_PATH=./data/starFinance.json — внутренняя папка для сохранения файлов (например, фон авторизации).
+- DOMAIN, EMAIL — домен и email для Caddy/Let's Encrypt.
+- FRONTEND_URL — внешний URL приложения **с префиксом**: `https://<domain>/economy`.
+- DISCORD_REDIRECT_URI — внешний redirect URI: `https://<domain>/economy/auth/discord/callback`.
+- PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD — подключение к Postgres (в docker-сети).
+- JWT_SECRET, TOKEN_EXPIRY — безопасность JWT.
 
 ### Подключение к PostgreSQL (используется backend/db.js)
 - DATABASE_URL — альтернатива точечной конфигурации. Формат: `postgres://user:pass@host:port/dbname`.
@@ -24,8 +22,7 @@
 ### Переменные docker-compose (services.app.environment)
 - NODE_ENV=production
 - PORT=3000
-- HOST=0.0.0.0
-- FRONTEND_URL=https://korjeek.ru/economy
+- FRONTEND_URL=https://<domain>/economy
 - PG_HOST=postgres
 - PG_PORT=5432
 - PG_DATABASE=starfinance
@@ -34,44 +31,37 @@
 
 ## Docker Compose
 Файл: `docker-compose.yml`
-- `app`
-  - build: `Dockerfile` (собирает фронтенд и стартует `npm start`).
-  - ports: `8080:3000` — внешний порт 8080 на хосте, внутри контейнера 3000.
-  - volumes: `./backend/data:/app/backend/data` — публичные файлы, фон логина и др.
-  - depends_on: `postgres`.
+- `economy`
+  - build: `Dockerfile` (сборка frontend + backend в одном образе для всех сервисов).
+  - внутрь проксируется Caddy (наружу напрямую порт не публикуется).
+- микросервисы: `users`, `directories`, `warehouse`, `showcase`, `requests`, `finance`, `uex`, `settings`.
 - `postgres`
   - image: `postgres:15`
   - ports: `5433:5432` — доступ извне (локально — на 5433).
   - volume: `pgdata:/var/lib/postgresql/data`.
-- `nginx`
-  - image: `nginx:alpine`
-  - ports: `80:80`, `443:443` (опционально)
-  - volumes: `./nginx.conf:/etc/nginx/nginx.conf`, `./ssl:/etc/ssl/certs`.
-  - depends_on: `app`.
+- `caddy`
+  - image: `caddy:2.8-alpine`
+  - ports: `80:80`, `443:443`
+  - volume: `./Caddyfile:/etc/caddy/Caddyfile:ro`
 
 Запуск:
 ```bash
-docker compose up -d --build
+docker-compose up -d --build
 ```
 Остановка:
 ```bash
-docker compose down
+docker-compose down
 ```
 
 ## Dockerfile
 - Устанавливает зависимости корня, фронтенда и бэкенда.
-- Собирает фронтенд (`frontend/build`).
+- Собирает фронтенд (`frontend/dist`).
 - Экспонирует порт 3000 и запускает `npm start` (скрипт корня или backend — зависит от `package.json`).
 
-## Nginx
-Файл: `nginx.conf`
-- upstream `app_backend` → `app:3000`.
-- `client_max_body_size 25m` — для загрузок фона авторизации (base64 через JSON).
-- Базовые security-заголовки. Пример HTTPS-конфига закомментирован — включите при наличии сертификатов в `./ssl`.
-- Публикация приложения под поддиректорией: `https://korjeek.ru/economy/`.
-  - `server_name korjeek.ru;`
-  - `location = /economy { return 301 /economy/; }`
-  - `location /economy/ { proxy_pass http://app_backend/; ... }`
+## Caddy
+Файлы: `Caddyfile`, `docker-compose.yml`
+- Публикация приложения под поддиректорией: `https://<domain>/economy/`.
+- Caddy автоматически выпускает TLS-сертификат Let's Encrypt при первом старте.
 
 ## Профили окружений
 - Dev (локально, без Docker):
@@ -80,9 +70,8 @@ docker compose down
   - `cd backend && npm run dev` и `cd frontend && npm run dev` (Vite на 5173).
 - Prod (через Docker Compose):
   - Настройте реальные значения переменных (`JWT_SECRET`, креды БД, домен).
-  - Укажите публичный адрес: `FRONTEND_URL=https://korjeek.ru/economy`.
-  - Включите HTTPS: раскомментируйте соответствующий серверный блок и укажите сертификаты.
-  - При необходимости настройте `PG_SSL`.
+  - Укажите публичный адрес: `FRONTEND_URL=https://<domain>/economy`.
+  - Убедитесь, что порты 80/443 доступны снаружи (для Let's Encrypt).
 
 ## CI/CD (GitHub Actions)
 
