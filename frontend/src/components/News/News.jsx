@@ -322,7 +322,7 @@ const News = ({ userData, darkMode }) => {
                 hoverable
                 className="news-card-full"
                 actions={[
-                  <Tooltip title="Подробнее">
+                  <Tooltip key="view" title="Подробнее">
                     <Button 
                       type="text"
                       icon={<EyeOutlined />}
@@ -331,10 +331,10 @@ const News = ({ userData, darkMode }) => {
                     />
                   </Tooltip>,
                   ...(isAdmin ? [
-                    <Tooltip title="Редактировать">
+                    <Tooltip key="edit" title="Редактировать">
                       <EditOutlined onClick={() => openEditModal(news)} />
                     </Tooltip>,
-                    <Tooltip title="Удалить">
+                    <Tooltip key="delete" title="Удалить">
                       <Popconfirm
                         title="Удалить новость?"
                         onConfirm={() => deleteNews(news.id)}
@@ -538,7 +538,7 @@ const News = ({ userData, darkMode }) => {
         )}
       </Modal>
 
-      <style jsx>{`
+      <style>{`
         .news-content {
           line-height: 1.6;
         }

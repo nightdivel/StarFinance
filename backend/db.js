@@ -34,12 +34,7 @@ function buildConfig() {
 const pool = new Pool(buildConfig());
 
 async function query(text, params) {
-  const client = await pool.connect();
-  try {
-    return await client.query(text, params);
-  } finally {
-    client.release();
-  }
+  return await pool.query(text, params);
 }
 
 module.exports = { pool, query };

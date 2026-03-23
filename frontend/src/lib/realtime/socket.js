@@ -1,5 +1,4 @@
 import { io } from 'socket.io-client';
-import { API_BASE_URL } from '../../config';
 
 // Singleton socket client. Adjust URL if needed (same-origin by default)
 let socket;
@@ -16,14 +15,17 @@ function getReconnectDelay() {
 
 export function getSocket() {
   if (!socket) {
-    // Всегда используем полный URL с путем /economy для production
-    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    // Определяем URL на основе окружения
+    const isProduction = import.meta.env.PROD;
     let socketUrl;
     
     if (isProduction) {
-      socketUrl = window.location.origin + '/economy';
-    } else {
+      // В production подключаемся к origin, а путь Socket.IO проксируется через /economy/socket.io*
+      // (см. Caddyfile: handle /economy/socket.io* + strip_prefix /economy)
       socketUrl = window.location.origin;
+    } else {
+      // В разработке используем локальный сервер
+      socketUrl = 'http://localhost:3000';
     }
     
     console.log('[Socket.IO] Connecting to:', socketUrl);
@@ -38,8 +40,8 @@ export function getSocket() {
       reconnectionDelay: getReconnectDelay(),
       reconnectionDelayMax: 30000,
       timeout: 20000,
-      // Используем стандартный path, так как URL уже содержит /economy
-      path: '/socket.io/'
+      // В production обязателен /economy префикс, иначе запрос уйдёт на /socket.io и не попадёт в proxy правило
+      path: isProduction ? '/economy/socket.io/' : '/socket.io/'
     });
 
     // Добавляем обработку ошибок для отладки

@@ -116,6 +116,160 @@ function detectPublicBasePath() {
   return '';
 }
 
+function safeJsonParse(s) {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+}
+
+async function loadDirectoriesFromDb() {
+  const productTypes = await (async () => {
+    try {
+      const r = await query('SELECT name FROM product_types ORDER BY name');
+      return r.rows.map((x) => x.name);
+    } catch {
+      return [];
+    }
+  })();
+
+  const showcaseStatuses = await (async () => {
+    try {
+      const r = await query('SELECT name FROM showcase_statuses ORDER BY name');
+      return r.rows.map((x) => x.name);
+    } catch {
+      return [];
+    }
+  })();
+
+  const warehouseTypes = await (async () => {
+    try {
+      const r = await query('SELECT name FROM warehouse_types ORDER BY name');
+      return r.rows.map((x) => x.name);
+    } catch {
+      return [];
+    }
+  })();
+
+  const productNames = await (async () => {
+    try {
+      const r = await query(
+        `SELECT name, type, uex_id, uex_type, uex_section, uex_category_id,
+                uex_category, uex_subcategory
+         FROM product_names
+         ORDER BY name`
+      );
+      return r.rows.map((x) => ({
+        name: x.name,
+        type: x.type || null,
+        uexType: x.uex_type || null,
+        section: x.uex_section || null,
+        uexCategoryId: x.uex_category_id || null,
+        uexCategory: x.uex_category || null,
+        uexSubcategory: x.uex_subcategory || null,
+        isUex: !!x.uex_id,
+      }));
+    } catch {
+      try {
+        const r = await query('SELECT name, type FROM product_names ORDER BY name');
+        return r.rows.map((x) => ({
+          name: x.name,
+          type: x.type || null,
+          uexType: null,
+          section: null,
+          uexCategoryId: null,
+          uexCategory: null,
+          uexSubcategory: null,
+          isUex: false,
+        }));
+      } catch {
+        return [];
+      }
+    }
+  })();
+
+  const categories = await (async () => {
+    try {
+      const fromNames = (
+        await query(
+          `SELECT DISTINCT uex_category_id, uex_category, uex_section
+           FROM product_names
+           WHERE uex_category_id IS NOT NULL OR uex_category IS NOT NULL`
+        )
+      ).rows.map((x) => ({
+        id: x.uex_category_id || null,
+        name: x.uex_category || null,
+        section: x.uex_section || null,
+      }));
+
+      const fromTypes = (
+        await query(`SELECT name, uex_category FROM product_types WHERE name IS NOT NULL`)
+      ).rows.map((x) => ({
+        id: null,
+        name: x.name || null,
+        section: x.uex_category || null,
+      }));
+
+      const all = [...fromNames, ...fromTypes];
+      const seen = new Set();
+      const result = [];
+      for (const c of all) {
+        const key = `${c.name || ''}__${c.section || ''}`;
+        if (!c.name && !c.id) continue;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push(c);
+      }
+      return result;
+    } catch {
+      return [];
+    }
+  })();
+
+  const accountTypes = [];
+  try {
+    const at = await query('SELECT name FROM account_types ORDER BY name');
+    for (const row of at.rows) {
+      const perms = await query(
+        'SELECT resource, level FROM account_type_permissions WHERE account_type = $1',
+        [row.name]
+      );
+      const permObj = Object.fromEntries(perms.rows.map((p) => [p.resource, p.level]));
+      let allowedWarehouseTypes = [];
+      try {
+        const wtypes = await query(
+          'SELECT warehouse_type FROM account_type_warehouse_types WHERE account_type = $1 ORDER BY warehouse_type',
+          [row.name]
+        );
+        allowedWarehouseTypes = wtypes.rows.map((r) => r.warehouse_type);
+      } catch (_) {}
+      accountTypes.push({ name: row.name, permissions: permObj, allowedWarehouseTypes });
+    }
+  } catch (_) {}
+
+  const uexSync = await (async () => {
+    try {
+      const r = await query(
+        'SELECT resource, last_sync_at, last_uex_marker, meta FROM uex_sync_state ORDER BY last_sync_at DESC'
+      );
+      return r.rows;
+    } catch {
+      return [];
+    }
+  })();
+
+  return {
+    productTypes,
+    showcaseStatuses,
+    warehouseTypes,
+    productNames,
+    categories,
+    accountTypes,
+    uex_sync: uexSync,
+  };
+}
+
 const app = express();
 // behind reverse proxy (Caddy/Nginx) trust X-Forwarded-* to correctly detect https and client IP
 app.set('trust proxy', 1);
@@ -127,9 +281,15 @@ const io = new Server(server, {
 // CORS configuration (apply only to API/auth/public/health, not to static assets)
 // Dev: разрешаем любые Origin. Prod: ограничиваем до FRONTEND_URL
 const isProd = process.env.NODE_ENV === 'production';
-const strictOrigin = (SERVER_CONFIG.FRONTEND_URL && SERVER_CONFIG.FRONTEND_URL !== '*')
-  ? SERVER_CONFIG.FRONTEND_URL
-  : undefined;
+let strictOrigin;
+if (SERVER_CONFIG.FRONTEND_URL && SERVER_CONFIG.FRONTEND_URL !== '*') {
+  try {
+    // cors ожидает origin (scheme://host[:port]) без path
+    strictOrigin = new URL(String(SERVER_CONFIG.FRONTEND_URL)).origin;
+  } catch (_) {
+    strictOrigin = SERVER_CONFIG.FRONTEND_URL;
+  }
+}
 const corsOptions = {
   origin: isProd && strictOrigin ? strictOrigin : true,
   credentials: true,

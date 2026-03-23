@@ -316,7 +316,7 @@ app.post(
         attempts.push(baseHeaders);
       }
 
-      async function fetchUex(resource, params = {}) {
+      const fetchUex = async (resource, params = {}) => {
         const finalParams = { ...params };
         if (resource === 'items' && UEX_COMPANY_ID) {
           if (!finalParams.id_company) {
@@ -340,7 +340,7 @@ app.post(
         }
         if (lastErr) throw lastErr;
         throw new Error('UEX request failed');
-      }
+      };
 
       const catsRaw = await fetchUex('categories').catch(() => []);
       const categories = Array.isArray(catsRaw?.data) ? catsRaw.data : Array.isArray(catsRaw) ? catsRaw : [];

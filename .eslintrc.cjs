@@ -26,5 +26,6 @@ module.exports = {
     'frontend/dist/',
     'backend/node_modules/',
     'frontend/node_modules/',
+    'frontend/src/test-*.js',
   ],
 };
