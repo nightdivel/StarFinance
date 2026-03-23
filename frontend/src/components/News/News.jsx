@@ -27,6 +27,7 @@ import {
   CalendarOutlined,
   ClearOutlined,
   FileImageOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -109,6 +110,7 @@ const News = ({ userData, darkMode }) => {
   const [selectedNews, setSelectedNews] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [readUsers, setReadUsers] = useState([]);
+  const [markdownFileList, setMarkdownFileList] = useState([]);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: APP_CONFIG.PAGINATION.NEWS_PAGE_SIZE,
@@ -250,8 +252,10 @@ const News = ({ userData, darkMode }) => {
         summary: news.summary,
         publishedAt: news.publishedAt ? new Date(news.publishedAt) : null,
       });
+      setMarkdownFileList([]);
     } else {
       newsForm.resetFields();
+      setMarkdownFileList([]);
     }
     setModalVisible(true);
   };
@@ -282,6 +286,65 @@ const News = ({ userData, darkMode }) => {
     } catch (error) {
       message.error('Ошибка загрузки изображения');
       throw error;
+    }
+  };
+
+  const handleMarkdownUpload = async (file) => {
+    const ext = String(file?.name || '').toLowerCase();
+    if (!ext.endsWith('.md') && !ext.endsWith('.markdown')) {
+      message.error('Можно загрузить только Markdown файл (.md, .markdown)');
+      return;
+    }
+
+    try {
+      const text = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('read_error'));
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.readAsText(file);
+      });
+
+      const { marked } = await import('marked');
+      const html = marked.parse(text, { gfm: true, breaks: true });
+      const safeHtml = DOMPurify.sanitize(String(html || ''), {
+        ALLOWED_TAGS: [
+          'p',
+          'br',
+          'strong',
+          'em',
+          'u',
+          'ol',
+          'ul',
+          'li',
+          'h1',
+          'h2',
+          'h3',
+          'h4',
+          'h5',
+          'h6',
+          'blockquote',
+          'code',
+          'pre',
+          'a',
+          'img',
+          'hr',
+          'table',
+          'thead',
+          'tbody',
+          'tr',
+          'th',
+          'td',
+        ],
+        ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'target', 'rel'],
+        ALLOW_DATA_ATTR: false,
+      });
+
+      newsForm.setFieldsValue({ content: safeHtml });
+      setMarkdownFileList([file]);
+      message.success('Markdown загружен в содержимое новости');
+    } catch (error) {
+      console.error('Markdown upload error:', error);
+      message.error('Ошибка обработки Markdown файла');
     }
   };
 
@@ -393,6 +456,7 @@ const News = ({ userData, darkMode }) => {
           setModalVisible(false);
           setEditingNews(null);
           newsForm.resetFields();
+          setMarkdownFileList([]);
         }}
         footer={null}
         width={1000}
@@ -440,6 +504,23 @@ const News = ({ userData, darkMode }) => {
             />
           </Form.Item>
 
+          <Form.Item label="Markdown файл (опционально)">
+            <Upload
+              accept=".md,.markdown,text/markdown"
+              multiple={false}
+              fileList={markdownFileList}
+              beforeUpload={(file) => {
+                handleMarkdownUpload(file);
+                return false;
+              }}
+              onRemove={() => {
+                setMarkdownFileList([]);
+              }}
+            >
+              <Button icon={<FileTextOutlined />}>Загрузить Markdown</Button>
+            </Upload>
+          </Form.Item>
+
           <Form.Item className="mt-4">
             <Button type="primary" htmlType="submit" className="mr-2">
               {editingNews ? 'Сохранить' : 'Создать'}
@@ -448,6 +529,7 @@ const News = ({ userData, darkMode }) => {
               setModalVisible(false);
               setEditingNews(null);
               newsForm.resetFields();
+              setMarkdownFileList([]);
             }}>
               Отмена
             </Button>

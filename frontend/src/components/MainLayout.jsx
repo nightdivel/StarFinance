@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Card, Tooltip, Tag, Skeleton, Drawer, Grid } from 'antd';
 import {
@@ -18,23 +18,24 @@ import {
   MenuOutlined,
   NotificationOutlined,
 } from '@ant-design/icons';
-import Finance from './Finance/Finance';
-import Directories from './Directories/Directories';
-import Users from './Users/Users';
-import Warehouse from './Warehouse/Warehouse';
-import Showcase from './Showcase/Showcase';
-import Settings from './Settings/Settings';
-import Profile from './Profile/Profile';
-import Cart from './Cart/Cart';
-import Requests from './Requests/Requests';
-import UEX from './UEX/UEX';
-import News from './News/News';
-import NewsDetail from './News/NewsDetail';
 import { apiService } from '../services/apiService';
 import { authService } from '../services/authService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppDataQuery, APP_DATA_QUERY_KEY } from '../lib/queries/appData';
 import { getSocket } from '../lib/realtime/socket';
+
+const Finance = lazy(() => import('./Finance/Finance'));
+const Directories = lazy(() => import('./Directories/Directories'));
+const Users = lazy(() => import('./Users/Users'));
+const Warehouse = lazy(() => import('./Warehouse/Warehouse'));
+const Showcase = lazy(() => import('./Showcase/Showcase'));
+const Settings = lazy(() => import('./Settings/Settings'));
+const Profile = lazy(() => import('./Profile/Profile'));
+const Cart = lazy(() => import('./Cart/Cart'));
+const Requests = lazy(() => import('./Requests/Requests'));
+const UEX = lazy(() => import('./UEX/UEX'));
+const News = lazy(() => import('./News/News'));
+const NewsDetail = lazy(() => import('./News/NewsDetail'));
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Title } = Typography;
@@ -237,22 +238,32 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
     }
     
     return (
-      <Routes>
-        <Route path="/" element={<Navigate to="/finance" replace />} />
-        <Route path="/news" element={<News userData={userData} darkMode={darkMode} />} />
-        <Route path="/news/:id" element={<NewsDetail />} />
-        <Route path="/finance" element={<Finance data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
-        <Route path="/directories" element={<Directories data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} onUpdateUser={onUpdateUser} />} />
-        <Route path="/users" element={<Users data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
-        <Route path="/warehouse" element={<Warehouse data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
-        <Route path="/showcase" element={<Showcase data={data} onRefresh={refreshData} userData={userData} />} />
-        <Route path="/requests" element={<Requests />} />
-        <Route path="/uex" element={<UEX />} />
-        <Route path="/settings" element={<Settings data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
-        <Route path="/profile" element={<Profile userData={userData} onUpdateUser={onUpdateUser} data={data} onDataUpdate={onDataUpdate} />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="*" element={<Navigate to="/finance" replace />} />
-      </Routes>
+      <Suspense
+        fallback={
+          <div className="fade-in">
+            <Card size="small">
+              <Skeleton active title paragraph={{ rows: 6 }} />
+            </Card>
+          </div>
+        }
+      >
+        <Routes>
+          <Route path="/" element={<Navigate to="/finance" replace />} />
+          <Route path="/news" element={<News userData={userData} darkMode={darkMode} />} />
+          <Route path="/news/:id" element={<NewsDetail />} />
+          <Route path="/finance" element={<Finance data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
+          <Route path="/directories" element={<Directories data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} onUpdateUser={onUpdateUser} />} />
+          <Route path="/users" element={<Users data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
+          <Route path="/warehouse" element={<Warehouse data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
+          <Route path="/showcase" element={<Showcase data={data} onRefresh={refreshData} userData={userData} />} />
+          <Route path="/requests" element={<Requests />} />
+          <Route path="/uex" element={<UEX />} />
+          <Route path="/settings" element={<Settings data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
+          <Route path="/profile" element={<Profile userData={userData} onUpdateUser={onUpdateUser} data={data} onDataUpdate={onDataUpdate} />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="*" element={<Navigate to="/finance" replace />} />
+        </Routes>
+      </Suspense>
     );
   };
 
