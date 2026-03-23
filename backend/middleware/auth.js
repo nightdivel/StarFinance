@@ -130,10 +130,17 @@ async function loadUserAndPermissions(userId) {
   return { user, permissions };
 }
 
+async function loadUserAndPermissionsCached(req) {
+  if (req && req.__authUserAndPermissions) return req.__authUserAndPermissions;
+  const data = await loadUserAndPermissions(req.user.id);
+  if (req) req.__authUserAndPermissions = data;
+  return data;
+}
+
 function requirePermission(resource, level) {
   return async (req, res, next) => {
     try {
-      const { user, permissions } = await loadUserAndPermissions(req.user.id);
+      const { user, permissions } = await loadUserAndPermissionsCached(req);
       if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
       // Администратор — всегда можно (серверный суперюзер)
       if (user.account_type === 'Администратор' && resource !== 'warehouse' && resource !== 'showcase')
@@ -157,7 +164,7 @@ function requireAnyPermission(resources, level) {
   const requiredLevel = permissionLevels[level];
   return async (req, res, next) => {
     try {
-      const { user, permissions } = await loadUserAndPermissions(req.user.id);
+      const { user, permissions } = await loadUserAndPermissionsCached(req);
       if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
       // Администратор — всегда можно (серверный суперюзер)
       if (

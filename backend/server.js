@@ -10,6 +10,10 @@ const { Server } = require('socket.io');
 const multer = require('multer');
 const { query } = require('./db');
 const { authenticateToken, generateToken, requirePermission } = require('./middleware/auth');
+const { createBuildAggregatedData } = require('./buildAggregatedData');
+const { createDataHelpers } = require('./dataHelpers');
+const { createAppDataCache } = require('./appDataCache');
+const { createDiscordOAuthHelpers } = require('./discordOAuthHelpers');
 const { SERVER_CONFIG, DISCORD_CONFIG } = require('./config/serverConfig');
 
 // Конфигурация multer для загрузки изображений
@@ -2164,20 +2168,25 @@ app.get('/api/news', authenticateToken, async (req, res) => {
       [limit, offset]
     );
 
-    // Check if current user has read each news
-    const newsWithReadStatus = await Promise.all(
-      newsResult.rows.map(async (news) => {
-        const readResult = await query(
-          'SELECT 1 FROM news_reads WHERE news_id = $1 AND user_id = $2',
-          [news.id, req.user.id]
+    const readNewsIds = new Set();
+    try {
+      const ids = newsResult.rows.map((n) => n.id).filter((x) => x !== null && x !== undefined);
+      if (ids.length > 0) {
+        const readRows = await query(
+          'SELECT news_id FROM news_reads WHERE user_id = $1 AND news_id = ANY($2)',
+          [req.user.id, ids]
         );
-        return {
-          ...news,
-          readCount: parseInt(news.read_count) || 0,
-          isRead: readResult.rows.length > 0
-        };
-      })
-    );
+        for (const r of readRows.rows) {
+          readNewsIds.add(r.news_id);
+        }
+      }
+    } catch (_) {}
+
+    const newsWithReadStatus = newsResult.rows.map((news) => ({
+      ...news,
+      readCount: parseInt(news.read_count) || 0,
+      isRead: readNewsIds.has(news.id)
+    }));
 
     res.json({
       data: newsWithReadStatus,
@@ -2951,533 +2960,18 @@ app.options('*', cors());
 
 // legacy filesystem storage removed
 
-const readSettingsMap = async () => {
-  const map = {};
-  try {
-    const res = await query('SELECT key, value FROM settings');
-    for (const r of res.rows) {
-      map[r.key] = r.value;
-    }
-  } catch (_) {}
-  return map;
-};
+const { readSettingsMap, getPermissionsForTypeDb, getPermissionsForTypesDb } = createDataHelpers({ query });
 
-const buildAggregatedData = async (userId) => {
-  try {
-    // Settings fallback (version, baseCurrency)
-    const s = await readSettingsMap();
-    const version = s['system.version'] ?? '1.0.0';
-    const baseCurrency = s['system.baseCurrency'] ?? 'aUEC';
+const appDataCache = createAppDataCache({
+  ttlMs: Number(process.env.APP_DATA_CACHE_TTL_MS) || 60000,
+  maxKeys: Number(process.env.APP_DATA_CACHE_MAX_KEYS) || 200,
+});
 
-  // Currencies and rates from tables (fallback to settings if empty)
-  let currencies = [];
-  try {
-    const cres = await query('SELECT code FROM currencies');
-    currencies = cres.rows.map((r) => r.code);
-  } catch (_) {}
-  if (!Array.isArray(currencies) || currencies.length === 0) {
-    currencies = s['system.currencies'] ?? ['aUEC', 'КП'];
-  }
-  let rates = {};
-  try {
-    const rres = await query('SELECT code, rate FROM currency_rates WHERE base_code = $1', [
-      baseCurrency,
-    ]);
-    if (rres.rowCount > 0) {
-      rates = Object.fromEntries(rres.rows.map((r) => [r.code, Number(r.rate)]));
-    }
-  } catch (_) {}
-  if (Object.keys(rates).length === 0) {
-    rates = s['system.rates'] ?? { aUEC: 1, КП: 0.9 };
-  }
-  const system = { version, currencies, baseCurrency, rates };
+let buildAggregatedData;
+buildAggregatedData = createBuildAggregatedData({ query, readSettingsMap, getPermissionsForTypesDb });
 
-  // Directories from tables (fallback to settings)
-  const productTypes = await (async () => {
-    try {
-      const r = await query('SELECT name FROM product_types');
-      return r.rows.map((x) => x.name);
-    } catch {
-      return [];
-    }
-  })();
-  const showcaseStatuses = await (async () => {
-    try {
-      const r = await query('SELECT name FROM showcase_statuses');
-      return r.rows.map((x) => x.name);
-    } catch {
-      return [];
-    }
-  })();
-  const warehouseTypes = await (async () => {
-    try {
-      const r = await query('SELECT name FROM warehouse_types');
-      return r.rows.map((x) => x.name);
-    } catch {
-      return [];
-    }
-  })();
-  // Полная номенклатура товаров/услуг с UEX-полями для автоподсказок
-  const productNames = await (async () => {
-    try {
-      const r = await query(
-        `SELECT name, type, uex_id, uex_type, uex_section, uex_category_id,
-                uex_category, uex_subcategory
-         FROM product_names
-         ORDER BY name`
-      );
-      return r.rows.map((x) => ({
-        name: x.name,
-        // Бизнес-тип: "Товар" / "Услуга"
-        type: x.type || null,
-        // Машинный тип из UEX: 'item' | 'service'
-        uexType: x.uex_type || null,
-        section: x.uex_section || null,
-        uexCategoryId: x.uex_category_id || null,
-        uexCategory: x.uex_category || null,
-        uexSubcategory: x.uex_subcategory || null,
-        isUex: !!x.uex_id,
-      }));
-    } catch (e) {
-      console.error('loadDirectoriesFromDb: failed to load productNames with UEX fields, fallback to basic query:', e);
-      try {
-        const r = await query('SELECT name, type FROM product_names ORDER BY name');
-        return r.rows.map((x) => ({
-          name: x.name,
-          type: x.type || null,
-          uexType: null,
-          section: null,
-          uexCategoryId: null,
-          uexCategory: null,
-          uexSubcategory: null,
-          isUex: false,
-        }));
-      } catch (e2) {
-        console.error('loadDirectoriesFromDb: fallback query for productNames failed:', e2);
-        return [];
-      }
-    }
-  })();
-
-  // Справочник категорий из product_names + product_types (по данным UEX)
-  const categories = await (async () => {
-    try {
-      // 1) Категории, которые пришли вместе с номенклатурой (product_names)
-      const fromNames = (
-        await query(
-          `SELECT DISTINCT uex_category_id, uex_category, uex_section
-           FROM product_names
-           WHERE uex_category_id IS NOT NULL OR uex_category IS NOT NULL`
-        )
-      ).rows.map((x) => ({
-        id: x.uex_category_id || null,
-        name: x.uex_category || null,
-        section: x.uex_section || null,
-      }));
-
-      // 2) Категории из product_types (после синка UEX: name = имя категории, uex_category = раздел)
-      const fromTypes = (
-        await query(
-          `SELECT name, uex_category FROM product_types WHERE name IS NOT NULL`
-        )
-      ).rows.map((x) => ({
-        id: null,
-        name: x.name || null,
-        section: x.uex_category || null,
-      }));
-
-      const all = [...fromNames, ...fromTypes];
-      // Уберём дубликаты по (name, section)
-      const seen = new Set();
-      const result = [];
-      for (const c of all) {
-        const key = `${c.name || ''}__${c.section || ''}`;
-        if (!c.name && !c.id) continue;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        result.push(c);
-      }
-      return result;
-    } catch {
-      return [];
-    }
-  })();
-  const directories = {
-    productTypes: productTypes.length
-      ? productTypes
-      : (s['directories.productTypes'] ?? ['Услуга', 'Товар']),
-    showcaseStatuses: showcaseStatuses.length
-      ? showcaseStatuses
-      : (s['directories.showcaseStatuses'] ?? ['На витрине', 'Скрыт']),
-    warehouseTypes: warehouseTypes.length ? warehouseTypes : (s['directories.warehouseTypes'] ?? []),
-    productNames,
-    categories,
-    uexSync: null,
-    // accountTypes assembled from tables
-    accountTypes: [],
-  };
-  try {
-    const at = await query('SELECT name FROM account_types');
-    for (const row of at.rows) {
-      const perms = await query(
-        'SELECT resource, level FROM account_type_permissions WHERE account_type = $1',
-        [row.name]
-      );
-      const permObj = Object.fromEntries(perms.rows.map((p) => [p.resource, p.level]));
-      let allowedWarehouseTypes = [];
-      try {
-        const wtypes = await query(
-          'SELECT warehouse_type FROM account_type_warehouse_types WHERE account_type = $1 ORDER BY warehouse_type',
-          [row.name]
-        );
-        allowedWarehouseTypes = wtypes.rows.map((r) => r.warehouse_type);
-      } catch (_) {}
-      directories.accountTypes.push({ name: row.name, permissions: permObj, allowedWarehouseTypes });
-    }
-  } catch (_) {}
-
-  // Users from DB with derived permissions
-  const users = [];
-  try {
-    const ures = await query(
-      'SELECT id, username, email, nickname, auth_type, account_type, is_active, discord_id, discord_data, created_at, last_login FROM users'
-    );
-    for (const u of ures.rows) {
-      const perms = await getPermissionsForTypeDb(u.account_type);
-      let avatarUrl;
-      if (u.auth_type === 'discord') {
-        try {
-          const d = typeof u.discord_data === 'object' ? u.discord_data : JSON.parse(u.discord_data || 'null');
-          if (d && d.id && d.avatar) avatarUrl = `https://cdn.discordapp.com/avatars/${d.id}/${d.avatar}.png`;
-        } catch (_) {}
-      }
-      users.push({
-        id: u.id,
-        username: u.username,
-        nickname: u.nickname || null,
-        email: u.email,
-        authType: u.auth_type,
-        accountType: u.account_type,
-        permissions: perms,
-        isActive: u.is_active !== false,
-        discordId: u.discord_id || undefined,
-        discordData: u.discord_data || undefined,
-        avatarUrl,
-        createdAt: u.created_at ? new Date(u.created_at).toISOString() : undefined,
-        lastLogin: u.last_login ? new Date(u.last_login).toISOString() : undefined,
-      });
-    }
-  } catch (_) {}
-
-  // Warehouse (filtered по allowedWarehouseTypes текущего пользователя)
-  const warehouse = [];
-  let allowedTypes = null;
-  let currentUsername = null;
-  try {
-    if (userId) {
-      const ures = await query('SELECT account_type, username FROM users WHERE id = $1', [userId]);
-      const accType = ures.rows[0]?.account_type || null;
-      currentUsername = ures.rows[0]?.username || null;
-      if (accType) {
-        const wres = await query('SELECT warehouse_type FROM account_type_warehouse_types WHERE account_type = $1', [accType]);
-        allowedTypes = wres.rows.map((r) => r.warehouse_type).filter(Boolean);
-      }
-    }
-  } catch (_) {}
-  const showcaseItemsMap = new Map();
-  try {
-    const sc = await query('SELECT id, warehouse_item_id FROM showcase_items');
-    for (const srow of sc.rows) {
-      if (srow.warehouse_item_id) showcaseItemsMap.set(srow.warehouse_item_id, true);
-    }
-  } catch (_) {}
-  try {
-    let w;
-    if (currentUsername && Array.isArray(allowedTypes) && allowedTypes.length > 0) {
-      w = await query(
-        'SELECT id, name, type, quantity, cost, currency, display_currencies, meta, warehouse_type, owner_login, created_at, updated_at FROM warehouse_items WHERE owner_login = $2 AND warehouse_type = ANY($1)',
-        [allowedTypes, currentUsername]
-      );
-    } else {
-      // Пустой или отсутствующий список — не возвращаем позиции склада
-      w = { rows: [] };
-    }
-    for (const it of w.rows) {
-      // Ensure meta is an object
-      let metaObj = undefined;
-      try {
-        if (it.meta && typeof it.meta === 'string') metaObj = JSON.parse(it.meta);
-        else if (it.meta && typeof it.meta === 'object') metaObj = it.meta;
-      } catch (_) {}
-      // Попробуем сопоставить номенклатуру по имени для получения типа/категории из product_names
-      let kind = null;
-      let categoryName = null;
-      try {
-        const pn = (
-          await query(
-            'SELECT type, uex_category FROM product_names WHERE name = $1',
-            [it.name]
-          )
-        ).rows[0];
-        if (pn) {
-          kind = pn.type || null; // "Товар" / "Услуга"
-          categoryName = pn.uex_category || null;
-        }
-      } catch (_) {}
-
-      warehouse.push({
-        id: it.id,
-        // Название позиции склада
-        name: it.name,
-        // Бизнес-тип (Товар/Услуга) из справочника номенклатуры
-        type: kind || it.type || null,
-        productType: kind || it.type || null,
-        // Категория (name из UEX)
-        category: categoryName || null,
-        quantity: Number(it.quantity) || 0,
-        cost: it.cost !== null && it.cost !== undefined ? Number(it.cost) : undefined,
-        price: it.cost !== null && it.cost !== undefined ? Number(it.cost) : undefined,
-        currency: it.currency || null,
-        displayCurrencies: it.display_currencies || undefined,
-        // Описание из meta
-        description: metaObj && metaObj.desc ? metaObj.desc : undefined,
-        meta: metaObj || undefined,
-        warehouseType: it.warehouse_type || null,
-        // Владелец
-        ownerLogin: it.owner_login || null,
-        // Статус витрины
-        showcaseStatus: showcaseItemsMap.has(it.id) ? 'На витрине' : 'Скрыт',
-        createdAt: it.created_at ? new Date(it.created_at).toISOString() : undefined,
-        updatedAt: it.updated_at ? new Date(it.updated_at).toISOString() : undefined,
-      });
-    }
-  } catch (_) {}
-
-  // Showcase Warehouse: товары на витрине со всех личных складов
-  const showcaseWarehouse = [];
-  try {
-    const sw = await query(
-      `SELECT w.id, w.name, w.type, w.quantity, w.cost, w.currency, w.display_currencies, w.meta,
-              w.warehouse_type, w.owner_login, w.created_at, w.updated_at
-       FROM warehouse_items w
-       JOIN showcase_items s ON s.warehouse_item_id = w.id
-       ORDER BY s.created_at DESC`
-    );
-    for (const it of sw.rows) {
-      let metaObj = undefined;
-      try {
-        if (it.meta && typeof it.meta === 'string') metaObj = JSON.parse(it.meta);
-        else if (it.meta && typeof it.meta === 'object') metaObj = it.meta;
-      } catch (_) {}
-
-      // Попробуем сопоставить номенклатуру по имени для получения типа/категории из product_names
-      let kind = null;
-      let categoryName = null;
-      try {
-        const pn = (
-          await query('SELECT type, uex_category FROM product_names WHERE name = $1', [it.name])
-        ).rows[0];
-        if (pn) {
-          kind = pn.type || null;
-          categoryName = pn.uex_category || null;
-        }
-      } catch (_) {}
-
-      showcaseWarehouse.push({
-        id: it.id,
-        name: it.name,
-        type: kind || it.type || null,
-        productType: kind || it.type || null,
-        category: categoryName || null,
-        quantity: Number(it.quantity) || 0,
-        cost: it.cost !== null && it.cost !== undefined ? Number(it.cost) : undefined,
-        price: it.cost !== null && it.cost !== undefined ? Number(it.cost) : undefined,
-        currency: it.currency || null,
-        displayCurrencies: it.display_currencies || undefined,
-        description: metaObj && metaObj.desc ? metaObj.desc : undefined,
-        meta: metaObj || undefined,
-        warehouseType: it.warehouse_type || null,
-        ownerLogin: it.owner_login || null,
-        showcaseStatus: 'На витрине',
-        createdAt: it.created_at ? new Date(it.created_at).toISOString() : undefined,
-        updatedAt: it.updated_at ? new Date(it.updated_at).toISOString() : undefined,
-      });
-    }
-  } catch (_) {}
-
-  // Showcase
-  const showcase = [];
-  try {
-    const sc = await query(
-      'SELECT id, warehouse_item_id, status, price, currency, meta, created_at, updated_at FROM showcase_items'
-    );
-    for (const srow of sc.rows) {
-      showcase.push({
-        id: srow.id,
-        warehouseItemId: srow.warehouse_item_id || null,
-        status: srow.status || null,
-        price: srow.price !== null && srow.price !== undefined ? Number(srow.price) : undefined,
-        currency: srow.currency || null,
-        meta: srow.meta || undefined,
-        createdAt: srow.created_at ? new Date(srow.created_at).toISOString() : undefined,
-        updatedAt: srow.updated_at ? new Date(srow.updated_at).toISOString() : undefined,
-      });
-    }
-  } catch (_) {}
-
-  // Transactions
-  const transactions = [];
-  try {
-    const tres = await query(
-      'SELECT id, type, amount, currency, from_user, to_user, item_id, meta, created_at FROM transactions'
-    );
-    for (const t of tres.rows) {
-      const createdIso = t.created_at ? new Date(t.created_at).toISOString() : undefined;
-      const desc = t.meta && t.meta.desc ? t.meta.desc : undefined;
-      transactions.push({
-        id: t.id,
-        type: t.type,
-        amount: Number(t.amount) || 0,
-        currency: t.currency,
-        from_user: t.from_user || null,
-        to_user: t.to_user || null,
-        item_id: t.item_id || null,
-        meta: t.meta || undefined,
-        createdAt: createdIso,
-        date: createdIso,
-        desc,
-      });
-    }
-  } catch (_) {}
-
-  // News
-  const news = [];
-  try {
-    const nres = await query(
-      `SELECT id, title, content, summary, published_at, author_id, created_at, updated_at
-       FROM news 
-       ORDER BY published_at DESC`
-    );
-    for (const n of nres.rows) {
-      // Get read count
-      const readCountResult = await query(
-        'SELECT COUNT(*) as count FROM news_reads WHERE news_id = $1',
-        [n.id]
-      );
-      const readCount = parseInt(readCountResult.rows[0].count) || 0;
-
-      news.push({
-        id: n.id,
-        title: n.title,
-        content: n.content,
-        summary: n.summary,
-        publishedAt: n.published_at ? new Date(n.published_at).toISOString() : undefined,
-        authorId: n.author_id,
-        createdAt: n.created_at ? new Date(n.created_at).toISOString() : undefined,
-        updatedAt: n.updated_at ? new Date(n.updated_at).toISOString() : undefined,
-        readCount
-      });
-    }
-  } catch (_) {}
-
-  // nextId kept for backward compatibility (not used with normalized tables)
-  return { system, warehouse, showcaseWarehouse, users, transactions, news, showcase, directories, nextId: 1 };
-  } catch (error) {
-    console.error('Error in buildAggregatedData:', error);
-    // Возвращаем базовую структуру данных в случае ошибки
-    return {
-      system: { version: '1.0.0', currencies: ['aUEC'], baseCurrency: 'aUEC', rates: { aUEC: 1 } },
-      warehouse: [],
-      showcaseWarehouse: [],
-      users: [],
-      transactions: [],
-      news: [],
-      showcase: [],
-      directories: { productTypes: [], showcaseStatuses: [], warehouseTypes: [], productNames: [], categories: [], accountTypes: [] },
-      nextId: 1
-    };
-  }
-};
-
-// ---------- Helpers for normalized DB ----------
-const getPermissionsForTypeDb = async (typeName) => {
-  try {
-    const res = await query(
-      'SELECT resource, level FROM account_type_permissions WHERE account_type = $1',
-      [typeName]
-    );
-    if (res.rows.length > 0) {
-      return Object.fromEntries(res.rows.map((r) => [r.resource, r.level]));
-    }
-  } catch (_) {}
-  // Fallback default minimal permissions
-  return {
-    finance: 'read',
-    warehouse: 'read',
-    showcase: 'read',
-    users: 'none',
-    directories: 'none',
-    settings: 'none',
-  };
-}
-;
-
-const readDiscordEffective = async () => {
-  try {
-    const ds = await query(
-      'SELECT enable, client_id, client_secret, redirect_uri, default_account_type, base_url FROM discord_settings WHERE id = 1'
-    );
-    const row = ds.rows[0] || {};
-    // Read attribute mappings, supporting both schemas:
-    // (A) New: columns (source, key, value, account_type, guild_id, set)
-    // (B) Legacy: single JSONB column rule
-    let attrRows = [];
-    try {
-      const a = await query(
-        'SELECT source, key, value, account_type, guild_id, set FROM discord_attr_mappings'
-      );
-      attrRows = a.rows || [];
-    } catch (e) {
-      try {
-        const a = await query('SELECT rule FROM discord_attr_mappings');
-        attrRows = (a.rows || []).map((r) => {
-          const rule = typeof r.rule === 'object' ? r.rule : safeJsonParse(r.rule);
-          return {
-            source: rule?.source,
-            key: rule?.key,
-            value: rule?.value,
-            account_type: rule?.accountType || rule?.account_type,
-            guild_id: rule?.guildId || rule?.guild_id,
-            set: rule?.set || null,
-          };
-        });
-      } catch (_) {
-        attrRows = [];
-      }
-    }
-    return {
-      enable: !!row.enable,
-      clientId: row.client_id || DISCORD_CONFIG.CLIENT_ID || '',
-      clientSecret: row.client_secret || DISCORD_CONFIG.CLIENT_SECRET || '',
-      redirectUri: row.redirect_uri || DISCORD_CONFIG.REDIRECT_URI || '',
-      defaultAccountType: row.default_account_type || 'Гость',
-      baseUrl: row.base_url || '',
-      attributeMappings: attrRows || [],
-      guildMappings: [],
-    };
-  } catch (_) {
-    return {
-      enable: false,
-      clientId: DISCORD_CONFIG.CLIENT_ID || '',
-      clientSecret: DISCORD_CONFIG.CLIENT_SECRET || '',
-      redirectUri: DISCORD_CONFIG.REDIRECT_URI || '',
-      defaultAccountType: 'Гость',
-      baseUrl: '',
-      attributeMappings: [],
-      guildMappings: [],
-    };
-  }
-};
+const { readDiscordEffective, getDiscordCallbackPathFromRedirect, getDiscordFrontendBaseFromRedirect } =
+  createDiscordOAuthHelpers({ query, DISCORD_CONFIG, SERVER_CONFIG, safeJsonParse });
 
 app.get('/auth/discord', async (req, res) => {
   try {
@@ -3517,43 +3011,6 @@ app.get('/auth/discord', async (req, res) => {
     res.status(500).send('Discord auth not configured');
   }
 });
-
-// Helper: derive callback route path from configured Redirect URI
-function getDiscordCallbackPathFromRedirect(redirectUri) {
-  try {
-    if (!redirectUri || typeof redirectUri !== 'string') return '/auth/discord/callback';
-    const url = new URL(redirectUri);
-    const p = url.pathname || '/auth/discord/callback';
-    // Если внешний путь имеет префикс (например, /economy/auth/discord/callback), но
-    // сам callback внутри приложения обслуживается без префикса, то регистрируем
-    // роут именно как '/auth/discord/callback'.
-    if (p.endsWith('/auth/discord/callback')) {
-      return '/auth/discord/callback';
-    }
-    return p;
-  } catch {
-    return '/auth/discord/callback';
-  }
-}
-
-// Helper: derive frontend base URL (where we send user after auth) from Redirect URI
-function getDiscordFrontendBaseFromRedirect(redirectUri) {
-  try {
-    if (!redirectUri || typeof redirectUri !== 'string') {
-      return SERVER_CONFIG.FRONTEND_URL;
-    }
-    const url = new URL(redirectUri);
-    // Обрежем суффикс /auth/discord/callback (и всё, что после него) из pathname
-    url.pathname = url.pathname.replace(/\/auth\/discord\/callback.*$/, '');
-    url.search = '';
-    url.hash = '';
-    // Уберём лишний завершающий слэш
-    const s = url.toString();
-    return s.endsWith('/') ? s.slice(0, -1) : s;
-  } catch {
-    return SERVER_CONFIG.FRONTEND_URL;
-  }
-}
 
 // Register Discord callback route based on Redirect URI from system settings
 (async () => {
@@ -3949,10 +3406,13 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
-// Data endpoints
 app.get('/api/data', authenticateToken, async (req, res) => {
   try {
-    const aggregated = await buildAggregatedData(req.user.id);
+    const userId = req.user?.id;
+    const cacheKey = `data:${userId || 'anonymous'}`;
+    const aggregated = await appDataCache.getOrSetPromise(cacheKey, async () =>
+      buildAggregatedData(userId)
+    );
     res.json(aggregated);
   } catch (error) {
     console.error('Error in /api/data:', error);
@@ -3984,8 +3444,22 @@ app.get('/api/users', authenticateToken, requirePermission('users', 'read'), asy
       'SELECT id, username, email, nickname, auth_type, account_type, is_active, discord_id, discord_data, created_at, last_login FROM users'
     );
     const result = [];
+
+    const defaultPermissions = {
+      finance: 'read',
+      warehouse: 'read',
+      showcase: 'read',
+      users: 'none',
+      directories: 'none',
+      settings: 'none',
+    };
+    const permissionsByType = await getPermissionsForTypesDb(ures.rows.map((u) => u.account_type));
+    for (const t of new Set(ures.rows.map((u) => u.account_type).filter(Boolean))) {
+      if (!permissionsByType.has(t)) permissionsByType.set(t, { ...defaultPermissions });
+    }
+
     for (const u of ures.rows) {
-      const perms = await getPermissionsForTypeDb(u.account_type);
+      const perms = permissionsByType.get(u.account_type) || { ...defaultPermissions };
       let avatarUrl;
       if (u.auth_type === 'discord') {
         try {
