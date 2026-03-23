@@ -13,8 +13,10 @@ const Auth = ({ onLogin }) => {
   
   const [serverDiscordEnabled, setServerDiscordEnabled] = useState(false);
   const [discordLoginUrl, setDiscordLoginUrl] = useState('');
-  const [authBgUrl, setAuthBgUrl] = useState(null);
-  const [authIconUrl, setAuthIconUrl] = useState(null);
+  const defaultAuthBgUrl = `${import.meta.env.BASE_URL}star-citizen-drake-corsair-ucox3arcnaxkfrdm.webp`;
+  const defaultAuthIconUrl = `${import.meta.env.BASE_URL}logo.webp`;
+  const [authBgUrl, setAuthBgUrl] = useState(defaultAuthBgUrl);
+  const [authIconUrl, setAuthIconUrl] = useState(defaultAuthIconUrl);
   const [form] = Form.useForm();
   const authService = new AuthService();
 
@@ -37,7 +39,7 @@ const Auth = ({ onLogin }) => {
         const normalized = typeof url === 'string' && url.startsWith('/')
           ? apiService.buildUrl(url)
           : (url || null);
-        setAuthBgUrl(normalized);
+        if (normalized) setAuthBgUrl(normalized);
       } catch (_) {}
       // Получим иконку формы авторизации (публичные метаданные)
       try {
@@ -46,7 +48,7 @@ const Auth = ({ onLogin }) => {
         const normalized = typeof url === 'string' && url.startsWith('/')
           ? apiService.buildUrl(url)
           : (url || null);
-        setAuthIconUrl(normalized);
+        if (normalized) setAuthIconUrl(normalized);
       } catch (_) {}
     })();
   }, []);
