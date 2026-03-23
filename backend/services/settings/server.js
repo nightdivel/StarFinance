@@ -86,8 +86,13 @@ const AUTH_PUBLIC_DIR = path.join(__dirname, '../../public');
 async function getAuthBgFile() {
   try {
     const files = await fs.readdir(AUTH_PUBLIC_DIR).catch(() => []);
-    const f = files.find((n) => /^auth-bg\.(png|svg|webp)$/i.test(n));
-    return f ? path.join(AUTH_PUBLIC_DIR, f) : null;
+    const byName = new Map(files.map((n) => [n.toLowerCase(), n]));
+    const preferred = ['auth-bg.webp', 'auth-bg.png', 'auth-bg.svg'];
+    for (const name of preferred) {
+      const actual = byName.get(name);
+      if (actual) return path.join(AUTH_PUBLIC_DIR, actual);
+    }
+    return null;
   } catch (_) {
     return null;
   }
@@ -96,8 +101,13 @@ async function getAuthBgFile() {
 async function getAuthIconFile() {
   try {
     const files = await fs.readdir(AUTH_PUBLIC_DIR).catch(() => []);
-    const f = files.find((n) => /^auth-icon\.(png|svg|webp)$/i.test(n));
-    return f ? path.join(AUTH_PUBLIC_DIR, f) : null;
+    const byName = new Map(files.map((n) => [n.toLowerCase(), n]));
+    const preferred = ['auth-icon.webp', 'auth-icon.png', 'auth-icon.svg'];
+    for (const name of preferred) {
+      const actual = byName.get(name);
+      if (actual) return path.join(AUTH_PUBLIC_DIR, actual);
+    }
+    return null;
   } catch (_) {
     return null;
   }
