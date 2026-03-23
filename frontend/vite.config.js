@@ -41,24 +41,10 @@ export default defineConfig(({ mode }) => {
       },
     },
     base: env.BASE_PATH || process.env.BASE_PATH || '/',
-    build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (!id.includes('node_modules')) return;
-            if (id.includes('antd')) return 'antd';
-            if (id.includes('@ant-design')) return 'ant-icons';
-            if (id.includes('@tanstack')) return 'react-query';
-            if (id.includes('socket.io-client')) return 'socket-io';
-            if (id.includes('react-quill') || id.includes('quill')) return 'quill';
-            if (id.includes('xlsx')) return 'xlsx';
-            if (id.includes('react-router')) return 'react-router';
-            if (id.includes('react')) return 'react';
-            return 'vendor';
-          },
-        },
-      },
-    },
+    // Let Vite/Rollup decide chunk boundaries automatically.
+    // Custom manual chunking here caused circular runtime imports between
+    // react/antd/ant-icons in production bundles.
+    build: {},
     server: {
       port: 5173,
       host: '0.0.0.0',
