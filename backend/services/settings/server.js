@@ -86,7 +86,7 @@ const AUTH_PUBLIC_DIR = path.join(__dirname, '../../public');
 async function getAuthBgFile() {
   try {
     const files = await fs.readdir(AUTH_PUBLIC_DIR).catch(() => []);
-    const byName = new Map(files.map((n) => [n.toLowerCase(), n]));
+    const byName = new Map(files.map((n) => [String(n).toLowerCase(), n]));
     const preferred = ['auth-bg.webp', 'auth-bg.png', 'auth-bg.svg'];
     for (const name of preferred) {
       const actual = byName.get(name);
@@ -101,7 +101,7 @@ async function getAuthBgFile() {
 async function getAuthIconFile() {
   try {
     const files = await fs.readdir(AUTH_PUBLIC_DIR).catch(() => []);
-    const byName = new Map(files.map((n) => [n.toLowerCase(), n]));
+    const byName = new Map(files.map((n) => [String(n).toLowerCase(), n]));
     const preferred = ['auth-icon.webp', 'auth-icon.png', 'auth-icon.svg'];
     for (const name of preferred) {
       const actual = byName.get(name);
