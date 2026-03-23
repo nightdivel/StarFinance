@@ -1,5 +1,5 @@
 import ApiService from './apiService';
-import { APP_CONFIG } from '../config';
+import { APP_CONFIG } from '../config/appConfig.js';
 
 class NewsService {
   constructor() {
@@ -11,7 +11,7 @@ class NewsService {
   }
 
   // Получить все новости с пагинацией
-  async getNews(page = 1, limit = APP_CONFIG.pagination.newsPageSize) {
+  async getNews(page = 1, limit = APP_CONFIG.PAGINATION.NEWS_PAGE_SIZE) {
     return this.request(`/api/news?page=${page}&limit=${limit}&sort=createdAt&order=desc`);
   }
 

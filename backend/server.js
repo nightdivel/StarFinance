@@ -1936,14 +1936,9 @@ app.post(
 );
 
 // ---------- News CRUD ----------
-// Get single news by ID (должен быть перед общим роутом /api/news)
-app.get('/api/news/:id', (req, res, next) => {
-  console.log(`[RAW] GET /api/news/${req.params.id} - Headers:`, Object.keys(req.headers));
-  next();
-}, authenticateToken, async (req, res) => {
+// Get single news by ID
+app.get('/api/news/:id', authenticateToken, async (req, res) => {
   try {
-    console.log(`GET /api/news/${req.params.id} - User: ${req.user ? req.user.id : 'undefined'}`);
-    
     const id = req.params.id;
     const newsResult = await query(
       `SELECT n.*, 
@@ -1958,31 +1953,6 @@ app.get('/api/news/:id', (req, res, next) => {
     }
 
     const news = newsResult.rows[0];
-    console.log(`Initial read_count: ${news.read_count}`);
-
-    // Автоматически отмечаем новость как прочитанную при открытии
-    try {
-      console.log(`Marking news ${id} as read for user ${req.user.id}`);
-      
-      await query(
-        `INSERT INTO news_reads (news_id, user_id, read_at) 
-         VALUES ($1, $2, NOW()) 
-         ON CONFLICT (news_id, user_id) 
-         DO UPDATE SET read_at = NOW()`,
-        [id, req.user.id]
-      );
-      
-      // Обновляем счетчик прочтений после отметки
-      const readCountResult = await query(
-        'SELECT COUNT(*) as count FROM news_reads WHERE news_id = $1',
-        [id]
-      );
-      news.read_count = parseInt(readCountResult.rows[0].count) || 0;
-      console.log(`Updated read_count for news ${id}: ${news.read_count}`);
-    } catch (error) {
-      console.error('Failed to mark news as read:', error);
-      // Не прерываем загрузку новости из-за ошибки с отметкой о прочтении
-    }
 
     // Check if user has read this news
     const readResult = await query(
@@ -1990,13 +1960,10 @@ app.get('/api/news/:id', (req, res, next) => {
       [id, req.user.id]
     );
 
-    const response = {
+    res.json({
       ...news,
       isRead: readResult.rows.length > 0
-    };
-    
-    console.log(`Final response read_count: ${response.read_count}`);
-    res.json(response);
+    });
   } catch (error) {
     console.error('GET /api/news/:id error:', error);
     res.status(500).json({ error: 'Ошибка загрузки новости' });
@@ -2060,7 +2027,10 @@ app.post('/api/news', authenticateToken, requirePermission('news', 'write'), asy
     if (!title || title.length > 255) {
       return res.status(400).json({ error: 'Некорректный заголовок (макс. 255 символов)' });
     }
-    // Убраны ограничения длины для summary и content
+    if (!summary || summary.length > 1000) {
+      return res.status(400).json({ error: 'Некорректное описание (макс. 1000 символов)' });
+    }
+    // Убрано ограничение на длину контента
 
     const result = await query(
       `INSERT INTO news (title, content, summary, published_at, author_id)
@@ -2091,7 +2061,10 @@ app.put('/api/news/:id', authenticateToken, requirePermission('news', 'write'), 
     if (!title || title.length > 255) {
       return res.status(400).json({ error: 'Некорректный заголовок (макс. 255 символов)' });
     }
-    // Убраны ограничения длины для summary и content
+    if (!summary || summary.length > 1000) {
+      return res.status(400).json({ error: 'Некорректное описание (макс. 1000 символов)' });
+    }
+    // Убрано ограничение на длину контента
 
     const result = await query(
       `UPDATE news 

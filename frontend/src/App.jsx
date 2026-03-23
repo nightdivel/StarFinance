@@ -40,8 +40,9 @@ function App() {
     const authStatus = params.get('auth');
     const errCode = params.get('err');
     const errDesc = params.get('desc');
-    
-    console.log('URL Params:', { token: !!urlToken, authStatus, err: errCode || null, desc: errDesc || null });
+    const targetHash = window.location.hash || localStorage.getItem('pendingRedirect') || '';
+    const urlParams = { token: !!urlToken, authStatus, err: errCode || null, desc: errDesc || null, targetHash };
+    console.log('URL Params:', urlParams);
     
     if (urlToken) {
       console.log('Found token in URL, attempting authentication...');
@@ -52,6 +53,13 @@ function App() {
         console.log('Token saved to localStorage');
       } catch (error) {
         console.error('Failed to save token to localStorage:', error);
+      }
+      
+      // Сохраняем целевой hash для перенаправления после успешной авторизации
+      if (targetHash && targetHash !== '#/') {
+        localStorage.setItem('authRedirect', targetHash);
+        console.log('Saved redirect target:', targetHash);
+        localStorage.removeItem('pendingRedirect');
       }
       
       // Получаем профиль пользователя
@@ -105,6 +113,16 @@ function App() {
         } catch (error) {
           console.error('Failed to save user data to localStorage:', error);
         }
+        
+        // Перенаправляем на целевую страницу после успешной авторизации
+        const savedRedirect = localStorage.getItem('authRedirect');
+        if (savedRedirect && savedRedirect !== '#/') {
+          console.log('Redirecting to saved target:', savedRedirect);
+          localStorage.removeItem('authRedirect');
+          setTimeout(() => {
+            window.location.hash = savedRedirect;
+          }, 100);
+        }
       })
       .catch((error) => {
         console.error('Authentication error:', error);
@@ -145,14 +163,53 @@ function App() {
         console.log('Restoring session from localStorage');
         try {
           const user = JSON.parse(savedUserData);
-          setIsAuthenticated(true);
-          setUserData(user);
-          console.log('Session restored successfully');
+          
+          // Проверяем валидность токена через API
+          const profileUrl = `${API_BASE_URL ? API_BASE_URL : ''}/auth/profile`;
+          fetch(profileUrl, { 
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          })
+          .then(async (response) => {
+            if (!response.ok) {
+              throw new Error('Token invalid');
+            }
+            const responseText = await response.text();
+            return JSON.parse(responseText);
+          })
+          .then((profile) => {
+            if (profile && profile.username) {
+              setIsAuthenticated(true);
+              setUserData({
+                username: profile.username,
+                accountType: profile.accountType,
+                permissions: profile.permissions || {},
+                offline: false,
+                avatarUrl: profile.avatarUrl || null,
+              });
+              console.log('Session restored and validated successfully');
+            } else {
+              throw new Error('Invalid profile data');
+            }
+          })
+          .catch((error) => {
+            console.error('Token validation failed:', error);
+            // Очищаем невалидный токен
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userData');
+            setIsAuthenticated(false);
+            setUserData(null);
+          });
+          
         } catch (error) {
           console.error('Failed to parse saved user data:', error);
           // Очищаем повреждённые данные
           localStorage.removeItem('authToken');
           localStorage.removeItem('userData');
+          setIsAuthenticated(false);
+          setUserData(null);
         }
       } else {
         console.log('No active session found');

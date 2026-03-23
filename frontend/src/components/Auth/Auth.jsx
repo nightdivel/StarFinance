@@ -143,6 +143,13 @@ const Auth = ({ onLogin }) => {
               size="large"
               block
               onClick={() => {
+                // Сохраняем текущий hash перед редиректом на Discord
+                const currentHash = window.location.hash;
+                if (currentHash && currentHash !== '#/') {
+                  localStorage.setItem('pendingRedirect', currentHash);
+                  console.log('Saved pending redirect before Discord auth:', currentHash);
+                }
+                
                 const url = discordLoginUrl || `${API_BASE_URL}/auth/discord`;
                 window.location.href = url;
               }}

@@ -33,8 +33,9 @@ import 'react-quill/dist/quill.snow.css';
 import { newsService } from '../../services/newsService';
 import { authService } from '../../services/authService';
 import { formatServerDate } from '../../utils/helpers';
+import { APP_CONFIG } from '../../config/appConfig.js';
 
-// Стили для полноразмерных карточек новостей
+// Стили для полноразмерных карточек новостей и темной темы
 const styles = `
   .news-card-full {
     width: 100%;
@@ -45,6 +46,48 @@ const styles = `
   }
   .news-card-full .ant-card-actions {
     background: #fafafa;
+  }
+  
+  /* Стили для контента новости в темной теме */
+  .dark-theme .news-content {
+    color: #ffffff !important;
+  }
+  
+  .dark-theme .news-content p {
+    color: #ffffff !important;
+    margin-bottom: 1rem;
+  }
+  
+  .dark-theme .news-content h1,
+  .dark-theme .news-content h2,
+  .dark-theme .news-content h3,
+  .dark-theme .news-content h4,
+  .dark-theme .news-content h5,
+  .dark-theme .news-content h6 {
+    color: #ffffff !important;
+  }
+  
+  .dark-theme .news-content strong {
+    color: #ffffff !important;
+  }
+  
+  .dark-theme .news-content a {
+    color: #1890ff !important;
+  }
+  
+  .dark-theme .news-content blockquote {
+    color: #bfbfbf !important;
+    border-left-color: #434343 !important;
+  }
+  
+  .dark-theme .news-content code {
+    color: #ff685f !important;
+    background-color: #2d2d2d !important;
+  }
+  
+  .dark-theme .news-content pre {
+    background-color: #2d2d2d !important;
+    color: #ffffff !important;
   }
 `;
 
@@ -58,7 +101,7 @@ if (typeof document !== 'undefined') {
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
 
-const News = ({ userData }) => {
+const News = ({ userData, darkMode }) => {
   const [newsList, setNewsList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -68,7 +111,7 @@ const News = ({ userData }) => {
   const [readUsers, setReadUsers] = useState([]);
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: APP_CONFIG.pagination.newsPageSize,
+    pageSize: APP_CONFIG.PAGINATION.NEWS_PAGE_SIZE,
     total: 0,
   });
 
@@ -280,23 +323,12 @@ const News = ({ userData }) => {
                 className="news-card-full"
                 actions={[
                   <Tooltip title="Подробнее">
-                    <a 
-                      href={`#/news/${news.id}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        openNewsDetail(news);
-                        // Открываем в новой вкладке с правильным URL
-                        const newWindow = window.open(`#/news/${news.id}`, '_blank');
-                        if (newWindow) {
-                          newWindow.focus();
-                        }
-                      }}
+                    <Button 
+                      type="text"
+                      icon={<EyeOutlined />}
+                      onClick={() => openNewsDetail(news)}
                       style={{ color: 'inherit' }}
-                    >
-                      <EyeOutlined />
-                    </a>
+                    />
                   </Tooltip>,
                   ...(isAdmin ? [
                     <Tooltip title="Редактировать">
@@ -316,15 +348,15 @@ const News = ({ userData }) => {
                 ]}
               >
                 <div className="d-flex justify-content-between align-items-start mb-2">
-                  <h5 className="mb-1">{news.title}</h5>
+                  <h5 className={`mb-1 ${darkMode ? 'text-white' : 'text-dark'}`}>{news.title}</h5>
                   {!news.isRead && (
                     <Tag color="green">Новая</Tag>
                   )}
                 </div>
                 
-                <p className="text-white mb-2">{news.summary}</p>
+                <p className={`${darkMode ? 'text-white' : 'text-dark'} mb-2`}>{news.summary}</p>
                 
-                <div className="d-flex justify-content-between align-items-center text-muted small">
+                <div className={`d-flex justify-content-between align-items-center ${darkMode ? 'text-white' : 'text-muted'} small`}>
                   <span>
                     <CalendarOutlined /> {formatServerDate(news.publishedAt)}
                   </span>
@@ -451,9 +483,9 @@ const News = ({ userData }) => {
         {selectedNews && (
           <div>
             {/* Хлебные крошки со списком ознакомившихся */}
-            <div className="mb-3 p-3 bg-light rounded">
+            <div className={`mb-3 p-3 rounded ${darkMode ? 'bg-dark' : 'bg-light'}`}>
               <div className="d-flex justify-content-between align-items-center mb-2">
-                <h6 className="mb-0">Ознакомились ({readUsers.length}):</h6>
+                <h6 className={`mb-0 ${darkMode ? 'text-white' : 'text-dark'}`}>Ознакомились ({readUsers.length}):</h6>
                 {isAdmin && readUsers.length > 0 && (
                   <Popconfirm
                     title="Очистить список ознакомившихся?"
@@ -469,14 +501,14 @@ const News = ({ userData }) => {
               </div>
               
               {readUsers.length === 0 ? (
-                <p className="text-muted mb-0">Никто еще не ознакомился с этой новостью</p>
+                <p className={`${darkMode ? 'text-white' : 'text-muted'} mb-0`}>Никто еще не ознакомился с этой новостью</p>
               ) : (
                 <div className="d-flex flex-wrap gap-2">
                   {readUsers.map((user) => (
                     <Tooltip key={user.id} title={`Ознакомился: ${formatServerDate(user.readAt)}`}>
                       <div className="d-flex align-items-center gap-1">
                         <Avatar size="small" icon={<UserOutlined />} src={user.avatar} />
-                        <span>{user.username}</span>
+                        <span className={darkMode ? 'text-white' : 'text-dark'}>{user.username}</span>
                       </div>
                     </Tooltip>
                   ))}
@@ -486,7 +518,7 @@ const News = ({ userData }) => {
 
             {/* Содержание новости */}
             <div className="mb-3">
-              <p className="text-muted">{selectedNews.summary}</p>
+              <p className={`${darkMode ? 'text-white' : 'text-muted'}`}>{selectedNews.summary}</p>
               <div 
                 className="news-content"
                 dangerouslySetInnerHTML={{ 
@@ -499,7 +531,7 @@ const News = ({ userData }) => {
               />
             </div>
 
-            <div className="text-muted small">
+            <div className={`${darkMode ? 'text-white' : 'text-muted'} small`}>
               <CalendarOutlined /> {formatServerDate(selectedNews.publishedAt)}
             </div>
           </div>

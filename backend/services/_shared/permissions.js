@@ -18,7 +18,8 @@ async function getPermissionsForTypeDb(typeName) {
     users: 'none',
     directories: 'none',
     settings: 'none',
-    requests: 'none',
+    requests: 'read',
+    news: 'read',
   };
 }
 

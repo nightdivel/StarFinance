@@ -16,22 +16,19 @@ function getReconnectDelay() {
 
 export function getSocket() {
   if (!socket) {
-    const base = String(API_BASE_URL || '').replace(/\/$/, '');
-    // Определяем правильный URL для Socket.IO с учетом пути /economy/
+    // Всегда используем полный URL с путем /economy для production
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
     let socketUrl;
-    if (base) {
-      // Если есть API_BASE_URL, используем его
-      socketUrl = base;
+    
+    if (isProduction) {
+      socketUrl = window.location.origin + '/economy';
     } else {
-      // Иначе используем текущий origin с путем /economy если мы на production
-      const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-      if (isProduction && window.location.pathname.includes('/economy')) {
-        socketUrl = window.location.origin + '/economy';
-      } else {
-        socketUrl = window.location.origin;
-      }
+      socketUrl = window.location.origin;
     }
     
+    console.log('[Socket.IO] Connecting to:', socketUrl);
+    
+    // Для Socket.IO нужно использовать полный URL с правильным path
     socket = io(socketUrl, {
       transports: ['websocket'],
       autoConnect: true,
@@ -41,6 +38,8 @@ export function getSocket() {
       reconnectionDelay: getReconnectDelay(),
       reconnectionDelayMax: 30000,
       timeout: 20000,
+      // Используем стандартный path, так как URL уже содержит /economy
+      path: '/socket.io/'
     });
 
     // Добавляем обработку ошибок для отладки

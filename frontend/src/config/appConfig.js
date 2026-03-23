@@ -60,6 +60,12 @@ export const APP_CONFIG = {
     EMAIL: {
       PATTERN: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     },
+    // Убраны ограничения длины для новостей
+  },
+
+  PAGINATION: {
+    NEWS_PAGE_SIZE: 10,
+    DEFAULT_PAGE_SIZE: 10,
   },
 };
 

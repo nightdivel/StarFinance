@@ -606,9 +606,9 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                             </Form.Item>
 
                             <Row gutter={16}>
-                              {['finance', 'warehouse', 'showcase', 'users', 'directories', 'settings', 'requests', 'uex'].map((res) => (
+                              {['finance', 'warehouse', 'showcase', 'users', 'directories', 'settings', 'requests', 'news', 'uex'].map((res) => (
                                 <Col xs={24} sm={12} key={res}>
-                                  <Form.Item name={["permissions", res]} label={`Права: ${res === 'uex' ? 'UEX_API' : res}`}>
+                                  <Form.Item name={["permissions", res]} label={`Права: ${res === 'uex' ? 'UEX_API' : res === 'news' ? 'новости' : res}`}>
                                     <Select placeholder="Выберите права">
                                       <Option value={PERMISSIONS.NONE}>Нет доступа</Option>
                                       <Option value={PERMISSIONS.READ}>Только чтение</Option>

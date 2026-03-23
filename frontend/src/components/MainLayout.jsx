@@ -239,7 +239,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
     return (
       <Routes>
         <Route path="/" element={<Navigate to="/finance" replace />} />
-        <Route path="/news" element={<News userData={userData} />} />
+        <Route path="/news" element={<News userData={userData} darkMode={darkMode} />} />
         <Route path="/news/:id" element={<NewsDetail />} />
         <Route path="/finance" element={<Finance data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
         <Route path="/directories" element={<Directories data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} onUpdateUser={onUpdateUser} />} />
