@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Card, Tooltip, Tag, Skeleton, Drawer, Grid } from 'antd';
 import {
   UserOutlined,
@@ -42,8 +42,9 @@ const { useBreakpoint } = Grid;
 
 const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme }) => {
   const [collapsed, setCollapsed] = useState(false);
-  const [selectedKey, setSelectedKey] = useState('finance');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
   const screens = useBreakpoint();
   const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const isMobile = isMobileDevice || !screens.md;
@@ -167,34 +168,29 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
 
   const menuItems = rawMenuItems.filter((item) => canRead(item.section));
 
+  const getCurrentKey = () => {
+    const path = location.pathname.replace('/', '');
+    return path || 'finance';
+  };
+
+  const selectedKey = getCurrentKey();
+
   const onSelectMenuKey = (key) => {
-    setSelectedKey(key);
+    navigate(`/${key}`);
     if (isMobile) setMobileMenuOpen(false);
   };
 
-  // Если текущий выбранный раздел недоступен, переключимся на первый доступный
+  // Если текущий раздел недоступен, перенаправим на первый доступный
   useEffect(() => {
-    // Try to restore last open section from localStorage
-    try {
-      const saved = localStorage.getItem('ui.lastSection');
-      if (saved && rawMenuItems.find((i) => i.key === saved)) {
-        setSelectedKey(saved);
-      }
-    } catch (_) {}
-
     if (menuItems.length > 0) {
-      const current = rawMenuItems.find((i) => i.key === selectedKey);
+      const currentKey = getCurrentKey();
+      const current = rawMenuItems.find((i) => i.key === currentKey);
       if (!current || !authService.hasPermission(current.section, 'read')) {
-        setSelectedKey(menuItems[0].key);
+        navigate(`/${menuItems[0].key}`);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userData]);
-
-  // Persist selection
-  useEffect(() => {
-    try { localStorage.setItem('ui.lastSection', selectedKey); } catch (_) {}
-  }, [selectedKey]);
+  }, [userData, data]);
 
   const userMenuItems = [
     {
@@ -242,113 +238,22 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
     
     return (
       <Routes>
-        <Route path="news/:id" element={<NewsDetail />} />
-        <Route path="*" element={<DefaultComponent selectedKey={selectedKey} data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} onUpdateUser={onUpdateUser} />} />
+        <Route path="/" element={<Navigate to="/finance" replace />} />
+        <Route path="/news" element={<News userData={userData} />} />
+        <Route path="/news/:id" element={<NewsDetail />} />
+        <Route path="/finance" element={<Finance data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
+        <Route path="/directories" element={<Directories data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} onUpdateUser={onUpdateUser} />} />
+        <Route path="/users" element={<Users data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
+        <Route path="/warehouse" element={<Warehouse data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
+        <Route path="/showcase" element={<Showcase data={data} onRefresh={refreshData} userData={userData} />} />
+        <Route path="/requests" element={<Requests />} />
+        <Route path="/uex" element={<UEX />} />
+        <Route path="/settings" element={<Settings data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
+        <Route path="/profile" element={<Profile userData={userData} onUpdateUser={onUpdateUser} data={data} onDataUpdate={onDataUpdate} />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="*" element={<Navigate to="/finance" replace />} />
       </Routes>
     );
-  };
-
-  const DefaultComponent = ({ selectedKey, data, onDataUpdate, onRefresh, userData, onUpdateUser }) => {
-    // Проверка прав на чтение раздела перед рендером
-    const sec = rawMenuItems.find((i) => i.key === selectedKey)?.section;
-    if (sec && !authService.hasPermission(sec, 'read')) {
-      return (
-        <div className="p-2">
-          <Card>
-            <b>Нет доступа</b> к разделу
-          </Card>
-        </div>
-      );
-    }
-    switch (selectedKey) {
-      case 'news':
-        return (
-          <News
-            userData={userData}
-          />
-        );
-      case 'finance':
-        return (
-          <Finance
-            data={data}
-            onDataUpdate={onDataUpdate}
-            onRefresh={refreshData}
-            userData={userData}
-          />
-        );
-      case 'directories':
-        return (
-          <Directories
-            data={data}
-            onDataUpdate={onDataUpdate}
-            onRefresh={refreshData}
-            userData={userData}
-            onUpdateUser={onUpdateUser}
-          />
-        );
-      case 'users':
-        return (
-          <Users
-            data={data}
-            onDataUpdate={onDataUpdate}
-            onRefresh={refreshData}
-            userData={userData}
-          />
-        );
-      case 'warehouse':
-        return (
-          <Warehouse
-            data={data}
-            onDataUpdate={onDataUpdate}
-            onRefresh={refreshData}
-            userData={userData}
-          />
-        );
-      case 'showcase':
-        return (
-          <Showcase
-            data={data}
-            onRefresh={refreshData}
-            userData={userData}
-          />
-        );
-      case 'requests':
-        return (
-          <Requests />
-        );
-      case 'uex':
-        return (
-          <UEX />
-        );
-      case 'settings':
-        return (
-          <Settings
-            data={data}
-            onDataUpdate={onDataUpdate}
-            onRefresh={refreshData}
-            userData={userData}
-          />
-        );
-      case 'profile':
-        return (
-          <Profile
-            userData={userData}
-            onUpdateUser={onUpdateUser}
-            data={data}
-            onDataUpdate={onDataUpdate}
-          />
-        );
-      case 'cart':
-        return <Cart />;
-      default:
-        return (
-          <Finance
-            data={data}
-            onDataUpdate={onDataUpdate}
-            userData={userData}
-          />
-        );
-    }
   };
 
   return (
@@ -435,10 +340,10 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
                     return;
                   }
                   if (key === 'profile') {
-                    setSelectedKey('profile');
+                    navigate('/profile');
                   }
                   if (key === 'cart') {
-                    setSelectedKey('cart');
+                    navigate('/cart');
                   }
                 },
               }}
