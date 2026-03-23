@@ -1962,6 +1962,7 @@ app.get('/api/news/:id', authenticateToken, async (req, res) => {
 
     res.json({
       ...news,
+      readCount: parseInt(news.read_count) || 0,
       isRead: readResult.rows.length > 0
     });
   } catch (error) {
@@ -2000,6 +2001,7 @@ app.get('/api/news', authenticateToken, async (req, res) => {
         );
         return {
           ...news,
+          readCount: parseInt(news.read_count) || 0,
           isRead: readResult.rows.length > 0
         };
       })
