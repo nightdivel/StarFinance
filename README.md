@@ -17,6 +17,7 @@
 - **🚀 Локальный запуск (Development)**
 - **🏭 Продакшн через Docker + Caddy (HTTPS)**
 - **🚀 Пошаговый деплой на новый сервер**
+- **🔐 Безопасность и секреты**
 - **🔐 Настройка Discord OAuth2**
 - **💾 Резервное копирование и восстановление**
 - **🏗️ Архитектура микросервисов**
@@ -123,8 +124,11 @@ JWT_SECRET=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 TOKEN_EXPIRY=24h
 
 # Discord OAuth (секреты)
-DISCORD_CLIENT_ID=xxxx
-DISCORD_CLIENT_SECRET=xxxxxx
+DISCORD_CLIENT_ID=1419421881739640842
+DISCORD_CLIENT_SECRET=TKF039vyQLwAI8KVDJWXjGGuTWhI6Mnn
+
+# Важно: генерируйте свой JWT_SECRET для production
+# JWT_SECRET=СГЕНЕРИРУЙТЕ_СЛУЧАЙНЫЙ_СЕКРЕТ_64_СИМВОЛА
 ```
 
 `frontend/.env` (пример):
@@ -298,35 +302,95 @@ docker compose up -d --build users
 
 ## 🚀 Пошаговый деплой на новый сервер
 
-> **Подробная инструкция**: см. документ `docs/NEW_SERVER_DEPLOY.md`
+> **Подробная инструкция**: см. документ `docs/Deploy StarFinance to Linux.md`
 
-### Краткая версия деплоя:
+### 🎯 Целевой сервер
+- **IP**: `157.22.179.231`
+- **Домен**: `https://fin.blacksky.su`
+- **Путь**: `/opt/starfinance`
+- **Пользователь**: `root`
 
-1. **Подготовка сервера**
+### 📋 Краткая версия деплоя:
+
+1. **🔧 Подготовка сервера**
    ```bash
    # Установка Docker и Docker Compose
    curl -fsSL https://get.docker.com -o get-docker.sh
    sh get-docker.sh
    
-   # Установка Node.js (если нужен локальный dev)
-   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-   apt-get install -y nodejs
+   # Проверка
+   docker -v
+   docker compose version
    ```
 
-2. **Настройка проекта**
+2. **📁 Клонирование проекта**
    ```bash
-   # Клонирование и настройка
-   git clone <repository-url>
-   cd star-finance
-   cp .env.example .env
-   # Редактировать .env с нужными параметрами
+   cd /opt
+   git clone <URL_РЕПОЗИТОРИЯ> starfinance
+   cd starfinance
+   git checkout deploy/fin-blacksky
    ```
 
-3. **Запуск**
+3. **⚙️ Создание .env (только на сервере)**
    ```bash
-   # Production запуск
+   nano /opt/starfinance/.env
+   ```
+   ```bash
+   DOMAIN=fin.blacksky.su
+   EMAIL=you@example.com
+   CERT_NAME=fin.blacksky.su
+   
+   FRONTEND_URL=https://fin.blacksky.su/economy
+   DISCORD_CLIENT_ID=1419421881739640842
+   DISCORD_CLIENT_SECRET=TKF039vyQLwAI8KVDJWXjGGuTWhI6Mnn
+   DISCORD_REDIRECT_URI=https://fin.blacksky.su/economy/auth/discord/callback
+   
+   JWT_SECRET=0v5wQyV9uX1x0Hh5t3yOeTqgI9L7lKpUe2aVq9oQJwz0pT3rN8cXrJm1Gk6dF2sB
+   ```
+
+4. **🚀 Запуск**
+   ```bash
    docker compose up -d --build
    ```
+
+5. **✅ Проверка**
+   ```bash
+   docker compose ps
+   docker logs -n 200 economy_caddy
+   curl -I https://fin.blacksky.su
+   curl -s https://fin.blacksky.su/economy/health
+   ```
+
+### ⚠️ Важные требования
+
+- **DNS**: `fin.blacksky.su` должен указывать A-записью на `157.22.179.231`
+- **Порты**: должны быть открыты **80** и **443** наружу (для Let’s Encrypt)
+- **Секреты**: `.env` файл **нельзя коммитить** в репозиторий
+
+### 🔐 Безопасность и секреты
+
+**ВАЖНО**: `.env` файлы содержат секреты и **не должны коммититься** в репозиторий:
+
+```bash
+# .env файлы только на сервере!
+/opt/starfinance/.env          # основной конфиг
+backend/.env                   # секреты бэкенда
+frontend/.env                  # секреты фронтенда
+```
+
+**`.gitignore` должен содержать:**
+```bash
+.env
+.env.*
+backend/.env
+frontend/.env
+```
+
+**Сгенерируйте свой JWT_SECRET:**
+```bash
+# Пример генерации безопасного секрета
+openssl rand -base64 64
+```
 
 ---
 
@@ -365,6 +429,16 @@ docker compose up -d --build users
 - **Атрибут**: `roles`
 - **Значение**: `<role_id>` (ID роли Discord)
 - **Guild ID**: `<guild_id>` (ID сервера Discord)
+
+### ⚠️ Важно про Redirect URI
+
+Приложение развёрнуто под **`/economy`**, поэтому callback должен быть:
+
+```
+https://fin.blacksky.su/economy/auth/discord/callback
+```
+
+**НЕ используйте** `https://fin.blacksky.su/auth/discord/callback` — не сработает, т.к. Caddy не роутит `/auth/*` в приложение.
 
 ### 4. Проверка работы
 
@@ -529,8 +603,8 @@ docker compose exec postgres psql -U postgres starfinance -c "\dt"
 
 ## 📚 Дополнительная документация
 
-- **📖 Архитектура деплоя**: `docs/DEPLOYMENT_ARCHITECTURE.md`
-- **🚀 Деплой на новый сервер**: `docs/NEW_SERVER_DEPLOY.md`
+- **📖 Полный деплой на Linux**: `docs/Deploy StarFinance to Linux.md`
+- **🏗️ Архитектура деплоя**: `docs/DEPLOYMENT_ARCHITECTURE.md`
 - **✅ Чек-лист деплоя**: `docs/DEPLOY_CHECKLIST.md`
 
 ---
