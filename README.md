@@ -102,14 +102,14 @@ star-finance/
 # Server
 PORT=3000
 HOST=0.0.0.0
-BASE_URL=https://blsk.fin-tech.com
+BASE_URL=https://fin.blacksky.su
 
 # Public URLs / domain
-DOMAIN=blsk.fin-tech.com
+DOMAIN=fin.blacksky.su
 EMAIL=hitsnruns@gmail.com
-CERT_NAME=blsk.fin-tech.com
-FRONTEND_URL=https://blsk.fin-tech.com/economy
-DISCORD_REDIRECT_URI=https://blsk.fin-tech.com/economy/auth/discord/callback
+CERT_NAME=fin.blacksky.su
+FRONTEND_URL=https://fin.blacksky.su/economy
+DISCORD_REDIRECT_URI=https://fin.blacksky.su/economy/auth/discord/callback
 
 # PostgreSQL (docker network)
 PG_HOST=postgres
@@ -130,9 +130,9 @@ DISCORD_CLIENT_SECRET=xxxxxx
 `frontend/.env` (пример):
 
 ```bash
-VITE_APP_TITLE=BLSK Star Finance
-VITE_API_BASE_URL=http://localhost:3000
-VITE_ENABLE_DISCORD_AUTH=false
+VITE_APP_TITLE=BlackSky Star Finance
+VITE_API_BASE_URL=https://fin.blacksky.su
+VITE_ENABLE_DISCORD_AUTH=true
 ```
 
 ---
@@ -226,7 +226,7 @@ npm run format           # Форматировать Prettier
 
 2. **SSL сертификаты** (если используется Nginx):
    ```bash
-   # Положить wildcard сертификат в /etc/nginx/ssl/your-domain.com/
+   # Положить wildcard сертификат в /etc/nginx/ssl/fin.blacksky.su/
    - fullchain.pem
    - clean.pem (приватный ключ)
    ```
@@ -234,7 +234,7 @@ npm run format           # Форматировать Prettier
 3. **Конфигурация Nginx** (опционально):
    ```bash
    # Создать vhosts
-   /etc/nginx/sites-available/your-domain.com
+   /etc/nginx/sites-available/fin.blacksky.su
    # Включить в sites-enabled
    ```
 
@@ -262,16 +262,16 @@ docker compose logs -f postgres
 
 ```bash
 # Проверка фронтенда
-curl -I https://your-domain.com/economy/
+curl -I https://fin.blacksky.su/economy/
 
 # Проверка API
-curl -s https://your-domain.com/economy/api/users/health
+curl -s https://fin.blacksky.su/economy/api/users/health
 
 # Проверка Discord OAuth
-curl -s https://your-domain.com/economy/public/discord-enabled
+curl -s https://fin.blacksky.su/economy/public/discord-enabled
 
 # Проверка Socket.io
-curl -I https://your-domain.com/economy/socket.io/
+curl -I https://fin.blacksky.su/economy/socket.io/
 ```
 
 ### 📊 Мониторинг и обслуживание
@@ -339,7 +339,7 @@ docker compose up -d --build users
 3. Включите **OAuth2** в настройках
 4. Добавьте **Redirect URI**:
    ```
-   https://your-domain.com/economy/auth/discord/callback
+   https://fin.blacksky.su/economy/auth/discord/callback
    ```
 5. Настройте **Scopes** (права доступа):
    - `identify` — информация о пользователе
@@ -370,7 +370,7 @@ docker compose up -d --build users
 
 ```bash
 # Проверка включенного OAuth
-curl -s https://your-domain.com/economy/public/discord-enabled
+curl -s https://fin.blacksky.su/economy/public/discord-enabled
 
 # Должен вернуть: {"enabled": true}
 ```
