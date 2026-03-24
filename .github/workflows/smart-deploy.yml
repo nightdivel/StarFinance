@@ -1,8 +1,6 @@
 name: Smart Deploy
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       force_rebuild:
