@@ -1,0 +1,44 @@
+name: Deploy (Self-hosted)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy on self-hosted runner
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Deploy
+        run: |
+          set -e
+
+          APP_DIR="/opt/starfinance"
+
+          if [ ! -d "$APP_DIR/.git" ]; then
+            echo "ERROR: $APP_DIR is not a git repo. Clone repo there first."
+            exit 1
+          fi
+
+          cd "$APP_DIR"
+
+          git fetch origin
+          git checkout -B main origin/main
+          git pull origin main
+
+          if command -v docker-compose >/dev/null 2>&1; then
+            COMPOSE="docker-compose"
+          else
+            COMPOSE="docker compose"
+          fi
+
+          $COMPOSE pull || true
+          $COMPOSE up -d --build
+          $COMPOSE ps
