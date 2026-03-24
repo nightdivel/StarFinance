@@ -1,0 +1,47 @@
+name: Deploy (SSH)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Ubuntu via SSH
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script_stop: true
+          script: |
+            set -e
+
+            APP_DIR="/opt/starfinance"
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              echo "ERROR: $APP_DIR is not a git repo. Clone the repo there first."
+              exit 1
+            fi
+
+            cd "$APP_DIR"
+
+            git fetch origin
+            git checkout -B main origin/main
+            git pull origin main
+
+            if command -v docker-compose >/dev/null 2>&1; then
+              COMPOSE="docker-compose"
+            else
+              COMPOSE="docker compose"
+            fi
+
+            $COMPOSE pull || true
+            $COMPOSE up -d --build
+            $COMPOSE ps
