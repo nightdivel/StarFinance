@@ -115,36 +115,44 @@ npm run dev
 
 ---
 
-## Продакшн через Docker + Caddy (HTTPS)
+## Продакшн через Docker + Caddy + nginx (HTTPS)
 
-1. Подготовить файлы:
-- Указать реальные значения в `backend/.env` (включая Discord OAuth и домен в `FRONTEND_URL`).
-- Убедиться, что `DOMAIN` и `EMAIL` заданы (для Let's Encrypt).
+### Архитектура
+- **nginx** — TLS-терминатор с wildcard сертификатом, роутинг по доменам.
+- **Caddy** — HTTP-бэкенд, роутинг микросервисов (только localhost).
+- **PostgreSQL** — единая БД.
+- **8 микросервисов** + монолит `economy` (фронтенд + socket.io).
 
-2. Собрать и поднять:
+### Подготовка
+1. Установить Docker, Docker Compose, nginx.
+2. Положить wildcard сертификат в `/etc/nginx/ssl/blacksky.su/`:
+   - `fullchain.pem`
+   - `clean.pem` (приватный ключ)
+3. Создать nginx vhosts:
+   - `/etc/nginx/sites-available/fin.blacksky.su`
+   - `/etc/nginx/sites-available/bot.blacksky.su`
+   - Включить их в `sites-enabled`.
+4. Настроить DNS A-записи `fin.blacksky.su` и `bot.blacksky.su` на сервер.
 
+### Файлы конфигурации
+- `.env` — домен, URL, Discord OAuth.
+- `Caddyfile` — роутинг API, `auto_https off`.
+- `docker-compose.yml` — порты Caddy на `127.0.0.1:8080/8443`.
+
+### Запуск
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
-Сервисы:
-- `caddy` — TLS-терминатор и роутинг (порты 80/443 на хосте).
-- `postgres` — база данных (порт 5433 на хосте).
-- `economy` — монолит (legacy, socket.io, фронтенд).
-- `users`, `directories`, `warehouse`, `showcase`, `requests`, `finance`, `uex`, `settings` — микросервисы.
-
-3. Пробросить домен:
-- Настройте DNS A-запись на ваш сервер.
-- Убедитесь, что порт **80** доступен из интернета (обязателен для Let's Encrypt HTTP‑challenge).
-
-### SSL/Let's Encrypt (автовыпуск)
-
-Сертификаты выпускаются Caddy автоматически при первом запуске и хранятся в volume `caddy_data`.
-
-Проверка:
+### Проверка
 ```bash
-curl -I https://blsk.fin-tech.com/economy/
+curl -I https://fin.blacksky.su/economy/
+curl -s https://fin.blacksky.su/economy/public/discord-enabled
+curl -I https://bot.blacksky.su/login
 ```
+
+### Подробная архитектура и конфиги
+См. `docs/DEPLOYMENT_ARCHITECTURE.md`.
 
 ---
 

@@ -1,8 +1,8 @@
 {
-	email {$EMAIL}
+	auto_https off
 }
 
-{$DOMAIN} {
+http://{$DOMAIN} {
 	encode gzip
 
 	@root path /
@@ -70,6 +70,12 @@
 	handle /economy/public/* {
 		uri strip_prefix /economy
 		reverse_proxy settings:3008
+	}
+
+	# Auth endpoints (login, Discord callbacks) are served by economy service
+	handle /economy/auth/* {
+		uri strip_prefix /economy
+		reverse_proxy economy:3000
 	}
 
 	handle /economy/* {
