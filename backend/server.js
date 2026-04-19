@@ -1567,6 +1567,28 @@ app.post(
       const ures = await query('SELECT id, username, account_type FROM users WHERE id = $1', [req.user.id]);
       if (ures.rowCount === 0) return res.status(401).json({ error: 'Нет пользователя' });
       const me = ures.rows[0];
+
+      // Protect from duplicate insertions when creating a new item.
+      if (!id) {
+        const duplicate = await query(
+          `SELECT id
+             FROM warehouse_items
+            WHERE owner_login = $1
+              AND lower(btrim(name)) = lower(btrim($2))
+              AND COALESCE(type, '') = COALESCE($3, '')
+              AND COALESCE(warehouse_type, '') = COALESCE($4, '')
+            LIMIT 1`,
+          [me.username, String(name || ''), type || '', warehouseType || '']
+        );
+
+        if (duplicate.rowCount > 0) {
+          return res.status(409).json({
+            error: 'Товар уже существует. Дубликаты запрещены.',
+            existingItemId: duplicate.rows[0].id,
+          });
+        }
+      }
+
       const existing = await query('SELECT id, owner_login FROM warehouse_items WHERE id = $1', [newId]);
       if (existing.rowCount > 0) {
         const isOwner = existing.rows[0]?.owner_login && existing.rows[0].owner_login === me.username;

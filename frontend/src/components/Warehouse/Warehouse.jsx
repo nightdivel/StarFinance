@@ -122,9 +122,31 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
     }).format(value || 0);
   };
 
+  const normalizeText = (value) => String(value || '').trim().toLowerCase();
+
   // Add or update product
   const handleProductSubmit = async (values) => {
     try {
+      const normalizedName = normalizeText(values.name);
+      const normalizedType = normalizeText(values.productType);
+      const normalizedWarehouseType = normalizeText(values.warehouseType);
+      const currentOwner = normalizeText(values.ownerLogin || userData?.username);
+
+      // Prevent accidental duplicates in UI before sending request.
+      if (!editingProduct) {
+        const localDuplicate = (data.warehouse || []).find((item) => (
+          normalizeText(item.name) === normalizedName &&
+          normalizeText(item.productType || item.type) === normalizedType &&
+          normalizeText(item.warehouseType) === normalizedWarehouseType &&
+          normalizeText(item.ownerLogin) === currentOwner
+        ));
+
+        if (localDuplicate) {
+          message.warning('Такой товар уже добавлен. Откройте его через редактирование.');
+          return;
+        }
+      }
+
       // Map form values to backend schema
       const selectedCurrencies = Array.isArray(values.currencies) ? values.currencies.filter(Boolean) : [];
       const baseCurrency = selectedCurrencies[0] || values.currency || data.system.baseCurrency;
@@ -174,6 +196,10 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       form.resetFields();
       await queryClient.invalidateQueries({ queryKey: APP_DATA_QUERY_KEY });
     } catch (error) {
+      if (error?.status === 409) {
+        message.warning(error?.message || 'Такой товар уже добавлен. Дубликаты запрещены.');
+        return;
+      }
       message.error('Ошибка сохранения товара');
     }
   };
