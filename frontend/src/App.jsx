@@ -7,6 +7,7 @@ import { API_BASE_URL } from './config';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthInitializing, setIsAuthInitializing] = useState(true);
   const [userData, setUserData] = useState(null);
   const [darkMode, setDarkMode] = useState(() => {
     try { return localStorage.getItem('theme.dark') === 'true'; } catch (_) { return false; }
@@ -132,6 +133,7 @@ function App() {
         localStorage.removeItem('authToken');
       })
       .finally(() => {
+        setIsAuthInitializing(false);
         // Очищаем URL от параметров аутентификации
         const url = new URL(window.location.href);
         url.search = '';
@@ -154,6 +156,7 @@ function App() {
       const url = new URL(window.location.href);
       url.search = '';
       window.history.replaceState({}, document.title, url.toString());
+      setIsAuthInitializing(false);
     } else {
       // Восстановление локальной сессии
       const token = localStorage.getItem('authToken');
@@ -201,6 +204,9 @@ function App() {
             localStorage.removeItem('userData');
             setIsAuthenticated(false);
             setUserData(null);
+          })
+          .finally(() => {
+            setIsAuthInitializing(false);
           });
           
         } catch (error) {
@@ -210,9 +216,11 @@ function App() {
           localStorage.removeItem('userData');
           setIsAuthenticated(false);
           setUserData(null);
+          setIsAuthInitializing(false);
         }
       } else {
         console.log('No active session found');
+        setIsAuthInitializing(false);
       }
     }
   }, [API_BASE_URL]);
@@ -447,7 +455,19 @@ function App() {
     >
       <HashRouter>
         <div className={`App ${darkMode ? 'dark-theme' : 'light-theme'}`}>
-          {isAuthenticated ? (
+          {isAuthInitializing ? (
+            <div
+              style={{
+                minHeight: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 0.85,
+              }}
+            >
+              Проверка сессии...
+            </div>
+          ) : isAuthenticated ? (
             <MainLayout
               userData={userData}
               onLogout={handleLogout}
