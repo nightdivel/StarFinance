@@ -109,6 +109,16 @@ function authenticateToken(req, res, next) {
     if (err) {
       return res.status(403).json({ error: 'Недействительный токен' });
     }
+
+    // Sliding session timeout: keep user logged in while they are active.
+    // If requests keep coming in, we rotate access token and extend expiry.
+    try {
+      if (user?.id) {
+        const rotatedToken = generateAccessToken(user.id);
+        res.setHeader('x-auth-token', rotatedToken);
+      }
+    } catch (_) {}
+
     req.user = user;
     next();
   });

@@ -10,6 +10,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+      APP_DATA_CACHE_TTL_MS: 2000
       FRONTEND_URL: ${FRONTEND_URL}
       DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI}
       PG_HOST: postgres

@@ -48,6 +48,15 @@ class ApiService {
         ...options,
       });
 
+      // Sliding session timeout: backend can rotate token on activity.
+      // Persist refreshed token before any consumer code runs.
+      try {
+        const rotatedToken = response.headers.get('x-auth-token');
+        if (rotatedToken && typeof window !== 'undefined') {
+          localStorage.setItem('authToken', rotatedToken);
+        }
+      } catch (_) {}
+
       if (!response.ok) {
         let bodyText = '';
         let bodyJson = null;
