@@ -1,4 +1,4 @@
-const createAppDataCache = ({ ttlMs = 60000, maxKeys = 200 } = {}) => {
+const createAppDataCache = ({ ttlMs = 2000, maxKeys = 200 } = {}) => {
   const cache = new Map();
 
   const prune = (now = Date.now()) => {

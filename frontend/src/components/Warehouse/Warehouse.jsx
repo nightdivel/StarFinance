@@ -230,16 +230,17 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
   // Edit product
   const editProduct = (product) => {
     setEditingProduct(product);
+    const productCurrencies = Array.isArray(product.displayCurrencies)
+      ? product.displayCurrencies
+      : product.displayCurrency
+        ? [product.displayCurrency]
+        : [product.currency];
     form.setFieldsValue({
       ...product,
       productType: product.productType,
       warehouseType: product.warehouseType,
       ownerLogin: product.ownerLogin || userData?.username,
-      displayCurrencies: Array.isArray(product.displayCurrencies)
-        ? product.displayCurrencies
-        : product.displayCurrency
-          ? [product.displayCurrency]
-          : [product.currency],
+      currencies: productCurrencies,
       showcaseDisplayCurrencies: Array.isArray(product?.meta?.showcaseCurrencies)
         ? product.meta.showcaseCurrencies
         : [],

@@ -299,6 +299,7 @@ const corsOptions = {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['x-auth-token'],
 };
 app.use('/api', cors(corsOptions));
 app.use('/auth', cors(corsOptions));
@@ -2963,7 +2964,7 @@ app.options('*', cors());
 const { readSettingsMap, getPermissionsForTypeDb, getPermissionsForTypesDb } = createDataHelpers({ query });
 
 const appDataCache = createAppDataCache({
-  ttlMs: Number(process.env.APP_DATA_CACHE_TTL_MS) || 60000,
+  ttlMs: Number(process.env.APP_DATA_CACHE_TTL_MS) || 2000,
   maxKeys: Number(process.env.APP_DATA_CACHE_MAX_KEYS) || 200,
 });
 
