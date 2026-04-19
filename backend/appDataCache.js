@@ -36,6 +36,8 @@ const createAppDataCache = ({ ttlMs = 2000, maxKeys = 200 } = {}) => {
   return {
     prune,
     getOrSetPromise,
+    clear: () => cache.clear(),
+    deleteKey: (key) => cache.delete(key),
     _cache: cache,
   };
 };
