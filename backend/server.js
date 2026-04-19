@@ -278,6 +278,12 @@ const app = express();
 // behind reverse proxy (Caddy/Nginx) trust X-Forwarded-* to correctly detect https and client IP
 app.set('trust proxy', 1);
 const server = http.createServer(app);
+let appDataCache = null;
+const invalidateAppDataCache = () => {
+  try {
+    appDataCache?.clear?.();
+  } catch (_) {}
+};
 const io = new Server(server, {
   cors: { origin: true, credentials: true },
 });
@@ -605,6 +611,24 @@ app.use((req, res, next) => {
   if (req.url === '/api/uex/sync-directories' && req.method === 'POST') {
     console.log('[UEX SYNC] Request detected!');
   }
+  next();
+});
+
+// Ensure /api/data returns fresh state right after successful write operations.
+app.use((req, res, next) => {
+  const isMutationMethod = req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE';
+  const isApiRoute = req.path.startsWith('/api/');
+
+  if (!isMutationMethod || !isApiRoute) {
+    return next();
+  }
+
+  res.on('finish', () => {
+    if (res.statusCode >= 200 && res.statusCode < 400) {
+      invalidateAppDataCache();
+    }
+  });
+
   next();
 });
 
@@ -2985,7 +3009,7 @@ app.options('*', cors());
 
 const { readSettingsMap, getPermissionsForTypeDb, getPermissionsForTypesDb } = createDataHelpers({ query });
 
-const appDataCache = createAppDataCache({
+appDataCache = createAppDataCache({
   ttlMs: Number(process.env.APP_DATA_CACHE_TTL_MS) || 2000,
   maxKeys: Number(process.env.APP_DATA_CACHE_MAX_KEYS) || 200,
 });
