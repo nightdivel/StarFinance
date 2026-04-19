@@ -323,19 +323,29 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
 
   // Таблица транзакций: фильтры в заголовках
   // Добавим фильтрацию по валюте в заголовке
-  const usernames = useMemo(() => (data.users || []).map((u) => u.username), [data.users]);
+  const usernames = useMemo(
+    () => (data.users || []).map((u) => String(u.username || '').trim()).filter(Boolean),
+    [data.users]
+  );
   const idToUsername = useMemo(() => {
     const map = new Map();
-    (data.users || []).forEach((u) => map.set(u.id, u.username));
+    (data.users || []).forEach((u) => {
+      const id = String(u.id || '').trim();
+      const username = String(u.username || '').trim();
+      if (id && username) map.set(id, username);
+    });
     return map;
   }, [data.users]);
   const toUsername = (val) => {
-    if (!val) return '';
+    if (val === null || val === undefined) return '';
+    const raw = String(val).trim();
+    if (!raw) return '';
     // if value is already a username, return it; otherwise try map by id
-    if (usernames.includes(val)) return val;
-    return idToUsername.get(val) || val;
+    const direct = usernames.find((u) => u.toLowerCase() === raw.toLowerCase());
+    if (direct) return direct;
+    return idToUsername.get(raw) || raw;
   };
-  const meId = (userData?.id || '').trim();
+  const meId = String(userData?.id || '').trim();
   const isRecipient = (r) => !!meId && (r?.to_user === meId || toUsername(r?.to_user || '') === (userData?.username || ''));
 
   const loadFinanceRequests = async () => {
@@ -358,49 +368,15 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
     return () => { s.off('finance_requests:changed', onChange); };
   }, []);
 
-  // Персонализированный расчёт балансов: только операции текущего пользователя
-  const balances = useMemo(() => {
-    const me = (userData?.username || '').trim();
-    const meId = (userData?.id || '').trim();
-    const acc = {};
-    (data.system?.currencies || []).forEach((c) => { acc[c] = 0; });
-    if (!me) return acc;
-
-    (data.transactions || []).forEach((t) => {
-      const currency = t.currency;
-      if (!currency || !(currency in acc)) return;
-      // Игнорируем исходящие транзакции, требующие подтверждения, пока они не выполнены
-      // Сервер помечает такие транзакции meta: { financeRequestId, status: 'В обработке' | 'Выполнено' | 'Отменена' }
-      const meta = t.meta || {};
-      const requiresApproval = t.type === 'outcome' && (meta.financeRequestId || meta.status);
-      const status = (meta && meta.status) || null;
-      if (requiresApproval && status !== 'Выполнено') return;
-      const fromVal = t.from_user || '';
-      const toVal = t.to_user || '';
-      const fromU = (toUsername(fromVal) || '').toLowerCase();
-      const toU = (toUsername(toVal) || '').toLowerCase();
-      const meL = me.toLowerCase();
-
-      // Если я получатель — плюс, если я отправитель — минус
-      if ((toVal && meId && toVal === meId) || (toU && toU === meL)) {
-        acc[currency] += Number(t.amount) || 0;
-      } else if ((fromVal && meId && fromVal === meId) || (fromU && fromU === meL)) {
-        acc[currency] -= Number(t.amount) || 0;
-      }
-    });
-
-    return acc;
-  }, [data.transactions, data.system?.currencies, userData?.username, idToUsername]);
-
   // Build user-specific transactions: only where current user is sender or recipient
   const myUsernameL = (userData?.username || '').trim().toLowerCase();
-  const myId = (userData?.id || '').trim();
+  const myId = String(userData?.id || '').trim();
   const userTransactions = useMemo(() => {
     if (!Array.isArray(data.transactions)) return [];
     return data.transactions
       .map((t) => {
-        const fromVal = t.from_user || '';
-        const toVal = t.to_user || '';
+        const fromVal = String(t.from_user || '').trim();
+        const toVal = String(t.to_user || '').trim();
         const fromU = (toUsername(fromVal) || '').toLowerCase();
         const toU = (toUsername(toVal) || '').toLowerCase();
         const involvesMe =
@@ -412,6 +388,30 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       })
       .filter(Boolean);
   }, [data.transactions, myUsernameL, myId, toUsername]);
+
+  // Персонализированный расчёт балансов на основе уже отфильтрованных транзакций пользователя.
+  const balances = useMemo(() => {
+    const acc = {};
+    (data.system?.currencies || []).forEach((c) => {
+      acc[c] = 0;
+    });
+
+    userTransactions.forEach((t) => {
+      const currency = t.currency;
+      if (!currency || !(currency in acc)) return;
+
+      const meta = t.meta || {};
+      const requiresApproval = t._typeForMe === 'outcome' && (meta.financeRequestId || meta.status);
+      const status = meta.status || null;
+      if (requiresApproval && status !== 'Выполнено') return;
+
+      const amount = Number(t.amount) || 0;
+      if (t._typeForMe === 'income') acc[currency] += amount;
+      if (t._typeForMe === 'outcome') acc[currency] -= amount;
+    });
+
+    return acc;
+  }, [data.system?.currencies, userTransactions]);
 
   const transactionColumns = [
     {

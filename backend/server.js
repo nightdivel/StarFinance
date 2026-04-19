@@ -278,6 +278,42 @@ const app = express();
 // behind reverse proxy (Caddy/Nginx) trust X-Forwarded-* to correctly detect https and client IP
 app.set('trust proxy', 1);
 const server = http.createServer(app);
+const mutationLocks = new Map();
+const mutationRecent = new Map();
+const DUPLICATE_SUBMISSION_TTL_MS = Number(process.env.DUPLICATE_SUBMISSION_TTL_MS || 1200);
+
+function buildMutationKey(req) {
+  const actor = req.user?.id || req.headers['authorization'] || req.ip || 'anon';
+  const idempotencyKey = req.headers['x-idempotency-key'] || '';
+  const route = (req.originalUrl || req.path || '').split('?')[0];
+  return `${String(actor)}:${req.method}:${route}:${String(idempotencyKey)}`;
+}
+
+function duplicateMutationGuard(req, res, next) {
+  const isMutationMethod = req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE';
+  if (!isMutationMethod || !req.path.startsWith('/api/')) return next();
+
+  const now = Date.now();
+  const key = buildMutationKey(req);
+  const recentAt = mutationRecent.get(key);
+
+  if (mutationLocks.has(key) || (recentAt && now - recentAt < DUPLICATE_SUBMISSION_TTL_MS)) {
+    return res.status(409).json({ error: 'Повторная отправка запроса. Подождите завершения операции.' });
+  }
+
+  mutationLocks.set(key, now);
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    mutationLocks.delete(key);
+    mutationRecent.set(key, Date.now());
+  };
+
+  res.on('finish', release);
+  res.on('close', release);
+  next();
+}
 let appDataCache = null;
 const invalidateAppDataCache = () => {
   try {
@@ -597,6 +633,7 @@ app.post('/api/uex/sync-directories', authenticateToken, requirePermission('dire
 // Note: base64 increases size by ~33%, so allow headroom for 15MB files
 app.use(express.json({ limit: '32mb' }));
 app.use(express.urlencoded({ extended: true, limit: '32mb' }));
+app.use(duplicateMutationGuard);
 
 // Request logging (after parsers so we can log body for POST/PUT)
 app.use((req, res, next) => {
