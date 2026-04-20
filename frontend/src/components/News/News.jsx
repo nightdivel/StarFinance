@@ -453,6 +453,11 @@ const News = ({ userData, darkMode }) => {
             onChange={handlePageChange}
             showSizeChanger
             showQuickJumper
+            locale={{
+              items_per_page: '/ стр.',
+              jump_to: 'Перейти',
+              page: 'стр.',
+            }}
             showTotal={(total, range) => `${range[0]}-${range[1]} из ${total} новостей`}
           />
         </div>
