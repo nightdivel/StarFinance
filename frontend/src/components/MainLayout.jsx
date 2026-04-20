@@ -41,7 +41,7 @@ const { Header, Sider, Content, Footer } = Layout;
 const { Title } = Typography;
 const { useBreakpoint } = Grid;
 
-const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme }) => {
+const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme, appTitle }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -51,6 +51,14 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
   const isMobile = isMobileDevice || !screens.md;
   const queryClient = useQueryClient();
   const { data, isLoading } = useAppDataQuery(userData?.username);
+  const effectiveAppTitle = String(appTitle || data?.system?.appTitle || 'BLSK Star Finance');
+  const compactTitle = (() => {
+    const words = effectiveAppTitle.trim().split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+      return `${words[0][0] || ''}${words[1][0] || ''}`.toUpperCase();
+    }
+    return effectiveAppTitle.slice(0, 3).toUpperCase();
+  })();
 
   const refreshData = async () => {
     await queryClient.invalidateQueries({ queryKey: [...APP_DATA_QUERY_KEY, userData?.username || 'anonymous'] });
@@ -299,7 +307,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
             className={`${collapsed ? 'px-2 py-3' : 'px-4 py-4'} text-center border-bottom`}
           >
             <Title level={4} className="m-0">
-              {collapsed ? 'BLSK SF' : 'BLSK Star Finance'}
+              {collapsed ? compactTitle : effectiveAppTitle}
             </Title>
             <div className="mt-2">
               <Button

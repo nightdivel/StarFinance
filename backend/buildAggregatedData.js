@@ -9,6 +9,7 @@ const createBuildAggregatedData = ({ query, readSettingsMap, getPermissionsForTy
       const s = await readSettingsMap();
       const version = s['system.version'] ?? '1.0.0';
       const baseCurrency = s['system.baseCurrency'] ?? 'aUEC';
+      const appTitle = s['system.appTitle'] ?? 'BLSK Star Finance';
 
       // Currencies and rates from tables (fallback to settings if empty)
       let currencies = [];
@@ -31,7 +32,7 @@ const createBuildAggregatedData = ({ query, readSettingsMap, getPermissionsForTy
       if (Object.keys(rates).length === 0) {
         rates = s['system.rates'] ?? { aUEC: 1, КП: 0.9 };
       }
-      const system = { version, currencies, baseCurrency, rates };
+      const system = { version, currencies, baseCurrency, rates, appTitle };
 
       // Directories from tables (fallback to settings)
       const productTypes = await (async () => {

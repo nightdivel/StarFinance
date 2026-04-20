@@ -4,6 +4,7 @@ import { ConfigProvider, theme, message } from 'antd';
 import Auth from './components/Auth/Auth.jsx';
 import MainLayout from './components/MainLayout.jsx';
 import { API_BASE_URL } from './config';
+import { apiService } from './services/apiService';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -13,6 +14,29 @@ function App() {
     try { return localStorage.getItem('theme.dark') === 'true'; } catch (_) { return false; }
   });
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
+  const [appTitle, setAppTitle] = useState(() => {
+    try {
+      const cached = localStorage.getItem('appData');
+      const appData = cached ? JSON.parse(cached) : null;
+      return String(appData?.system?.appTitle || 'BLSK Star Finance');
+    } catch (_) {
+      return 'BLSK Star Finance';
+    }
+  });
+  const [faviconUrl, setFaviconUrl] = useState(null);
+
+  const applyFavicon = (url) => {
+    if (typeof document === 'undefined') return;
+    const fallback = `${import.meta.env.BASE_URL}logo.webp`;
+    const href = url || fallback;
+    let link = document.querySelector("link[rel='icon']");
+    if (!link) {
+      link = document.createElement('link');
+      link.setAttribute('rel', 'icon');
+      document.head.appendChild(link);
+    }
+    link.setAttribute('href', href);
+  };
 
   const applyThemeClasses = (isDark) => {
     if (typeof document === 'undefined') return;
@@ -33,6 +57,59 @@ function App() {
       if (root) add(root, 'light-theme');
     }
   };
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = appTitle || 'BLSK Star Finance';
+    }
+  }, [appTitle]);
+
+  useEffect(() => {
+    applyFavicon(faviconUrl);
+  }, [faviconUrl]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const branding = await apiService.getBrandingMeta();
+        const title = String(branding?.appTitle || '').trim();
+        const rawFavicon = branding?.faviconUrl;
+        const normalizedFavicon = typeof rawFavicon === 'string' && rawFavicon.startsWith('/')
+          ? apiService.buildUrl(rawFavicon)
+          : rawFavicon || null;
+
+        if (title) {
+          setAppTitle(title);
+          try {
+            const cached = localStorage.getItem('appData');
+            const appData = cached ? JSON.parse(cached) : {};
+            const next = {
+              ...appData,
+              system: {
+                ...(appData.system || {}),
+                appTitle: title,
+              },
+            };
+            localStorage.setItem('appData', JSON.stringify(next));
+          } catch (_) {}
+        }
+
+        setFaviconUrl(normalizedFavicon || null);
+      } catch (_) {}
+    })();
+
+    const onBrandingChanged = (event) => {
+      const nextTitle = String(event?.detail?.appTitle || '').trim();
+      const nextFavicon = event?.detail?.faviconUrl;
+      if (nextTitle) setAppTitle(nextTitle);
+      if (Object.prototype.hasOwnProperty.call(event?.detail || {}, 'faviconUrl')) {
+        setFaviconUrl(nextFavicon || null);
+      }
+    };
+
+    window.addEventListener('branding:changed', onBrandingChanged);
+    return () => window.removeEventListener('branding:changed', onBrandingChanged);
+  }, []);
 
   useEffect(() => {
     // Проверка наличия токена в URL (после Discord OAuth)
@@ -474,9 +551,10 @@ function App() {
               onUpdateUser={handleUpdateUser}
               darkMode={darkMode}
               onToggleTheme={handleToggleTheme}
+              appTitle={appTitle}
             />
           ) : (
-            <Auth onLogin={handleLogin} />
+            <Auth onLogin={handleLogin} appTitle={appTitle} />
           )}
         </div>
       </HashRouter>

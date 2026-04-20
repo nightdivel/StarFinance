@@ -8,7 +8,7 @@ const { Title, Text } = Typography;
 import { API_BASE_URL } from '../../config';
 import { apiService } from '../../services/apiService';
 
-const Auth = ({ onLogin }) => {
+const Auth = ({ onLogin, appTitle }) => {
   const [loading, setLoading] = useState(false);
   
   const [serverDiscordEnabled, setServerDiscordEnabled] = useState(false);
@@ -19,6 +19,7 @@ const Auth = ({ onLogin }) => {
   const [authIconUrl, setAuthIconUrl] = useState(defaultAuthIconUrl);
   const [form] = Form.useForm();
   const authService = new AuthService();
+  const effectiveAppTitle = String(appTitle || 'BLSK Star Finance');
 
   useEffect(() => {
     // Узнаем публичный флаг включения Discord-авторизации (без авторизации)
@@ -86,7 +87,7 @@ const Auth = ({ onLogin }) => {
               />
             </div>
           )}
-          <Title level={2}>BLSK Star Finance</Title>
+          <Title level={2}>{effectiveAppTitle}</Title>
           <Text type="secondary">Система управления финансами и складом</Text>
         </div>
 

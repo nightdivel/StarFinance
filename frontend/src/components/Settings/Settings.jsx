@@ -59,6 +59,9 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
   // Auth icon state
   const [authIconUrl, setAuthIconUrl] = useState(null);
   const [authIconLoading, setAuthIconLoading] = useState(false);
+  // App branding state
+  const [systemFaviconUrl, setSystemFaviconUrl] = useState(null);
+  const [systemFaviconLoading, setSystemFaviconLoading] = useState(false);
 
   useEffect(() => {
     setCanWrite(authService.hasPermission('settings', 'write'));
@@ -163,6 +166,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
         baseCurrency: data.system.baseCurrency,
         currencies: data.system.currencies,
         rates: data.system.rates,
+        appTitle: data.system.appTitle || 'BLSK Star Finance',
         enableDiscordAuth: data.system.discord?.enable ?? false,
         clientId: data.system.discord?.clientId || '',
         clientSecret: data.system.discord?.clientSecret || '',
@@ -242,6 +246,21 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
           ? apiService.buildUrl(url)
           : (url || null);
         setAuthIconUrl(normalized);
+      } catch (_) {}
+    })();
+    // Fetch app branding (public)
+    (async () => {
+      try {
+        const branding = await apiService.getBrandingMeta();
+        const title = String(branding?.appTitle || '').trim();
+        if (title) {
+          form.setFieldValue('appTitle', title);
+        }
+        const rawUrl = branding?.faviconUrl;
+        const normalized = typeof rawUrl === 'string' && rawUrl.startsWith('/')
+          ? apiService.buildUrl(rawUrl)
+          : rawUrl || null;
+        setSystemFaviconUrl(normalized);
       } catch (_) {}
     })();
     // Загрузим справочник scopes и существующие маппинги
@@ -360,7 +379,37 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
   const saveSystemSettings = async () => {
     const values = form.getFieldsValue();
     setLoading(true);
+    const newAppTitle = String(values.appTitle || '').trim();
     let discordSaved = false;
+    let brandingSaved = false;
+    try {
+      if (!newAppTitle) {
+        message.warning('Название приложения не может быть пустым');
+      } else {
+        await apiService.setBranding(newAppTitle);
+        brandingSaved = true;
+        try {
+          const cached = typeof window !== 'undefined' ? localStorage.getItem('appData') : null;
+          const appData = cached ? JSON.parse(cached) : data || {};
+          const next = {
+            ...appData,
+            system: {
+              ...(appData.system || {}),
+              appTitle: newAppTitle,
+            },
+          };
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('appData', JSON.stringify(next));
+            window.dispatchEvent(new CustomEvent('branding:changed', {
+              detail: { appTitle: newAppTitle, faviconUrl: systemFaviconUrl || null },
+            }));
+          }
+        } catch (_) {}
+        message.success('Название приложения сохранено');
+      }
+    } catch (_) {
+      message.error('Не удалось сохранить название приложения');
+    }
     // Сначала сохраним OAuth2 параметры на бэкенде
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
@@ -419,6 +468,9 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
         }
       } catch (_) {}
     }
+    if (brandingSaved && !discordSaved) {
+      // no-op branch keeps save flow explicit and readable for future extensions
+    }
   };
 
   // Save settings
@@ -444,6 +496,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
           baseCurrency: base,
           currencies: uniqCurrencies,
           rates: nextRates,
+          appTitle: String(values.appTitle || data.system.appTitle || 'BLSK Star Finance').trim(),
           discord: {
             ...(data.system.discord || {}),
             enable: !!values.enableDiscordAuth,
@@ -783,6 +836,96 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                 </Button>
               }
             >
+              <Form.Item
+                name="appTitle"
+                label="Название приложения"
+                rules={[
+                  { required: true, message: 'Введите название приложения' },
+                  { max: 80, message: 'Максимум 80 символов' },
+                ]}
+              >
+                <Input placeholder="BLSK Star Finance" disabled={!canWrite} />
+              </Form.Item>
+
+              <Divider />
+              <Title level={5}>Favicon вкладки браузера</Title>
+              <Text type="secondary">
+                Поддерживаются PNG, SVG, WebP. Максимальный размер файла — 15 MB.
+              </Text>
+              <div className="mt-3 d-flex gap-3 align-items-center flex-wrap">
+                <input
+                  type="file"
+                  accept="image/png,image/svg+xml,image/webp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (!/image\/(png|svg\+xml|jpg|webp)/i.test(file.type)) {
+                      message.error('Допускаются только PNG/svg/WebP');
+                      return;
+                    }
+                    if (file.size > 15000 * 1024) {
+                      message.error('Размер файла превышает 15MB');
+                      return;
+                    }
+                    setSystemFaviconLoading(true);
+                    try {
+                      const reader = new FileReader();
+                      const dataUrl = await new Promise((resolve, reject) => {
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                      });
+                      await apiService.setSystemFavicon(String(dataUrl));
+                      const branding = await apiService.getBrandingMeta();
+                      const rawUrl = branding?.faviconUrl;
+                      const normalized = typeof rawUrl === 'string' && rawUrl.startsWith('/')
+                        ? apiService.buildUrl(rawUrl)
+                        : rawUrl || null;
+                      setSystemFaviconUrl(normalized);
+                      const titleFromForm = String(form.getFieldValue('appTitle') || '').trim() || 'BLSK Star Finance';
+                      window.dispatchEvent(new CustomEvent('branding:changed', {
+                        detail: { appTitle: titleFromForm, faviconUrl: normalized || null },
+                      }));
+                      message.success('Favicon обновлен');
+                    } catch (_) {
+                      message.error('Не удалось загрузить favicon');
+                    } finally {
+                      setSystemFaviconLoading(false);
+                      e.target.value = '';
+                    }
+                  }}
+                  disabled={!canWrite || systemFaviconLoading}
+                />
+                <Button
+                  danger
+                  onClick={async () => {
+                    setSystemFaviconLoading(true);
+                    try {
+                      await apiService.deleteSystemFavicon();
+                      setSystemFaviconUrl(null);
+                      const titleFromForm = String(form.getFieldValue('appTitle') || '').trim() || 'BLSK Star Finance';
+                      window.dispatchEvent(new CustomEvent('branding:changed', {
+                        detail: { appTitle: titleFromForm, faviconUrl: null },
+                      }));
+                      message.success('Favicon удален');
+                    } catch (_) {
+                      message.error('Не удалось удалить favicon');
+                    } finally {
+                      setSystemFaviconLoading(false);
+                    }
+                  }}
+                  disabled={!canWrite || systemFaviconLoading || !systemFaviconUrl}
+                >
+                  Удалить favicon
+                </Button>
+                {systemFaviconUrl && (
+                  <div className="d-flex align-items-center gap-2">
+                    <img src={systemFaviconUrl} alt="System favicon" className="sf-maxw-96 sf-maxh-96 sf-object-contain rounded border" />
+                    <Button type="primary" size="small" onClick={() => window.open(systemFaviconUrl, '_blank')}>Открыть</Button>
+                  </div>
+                )}
+              </div>
+
               {/* Auth Background Upload */}
               <Divider />
               <Title level={5}>Фон формы авторизации</Title>
@@ -858,7 +1001,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               <Divider />
               <Title level={5}>Иконка формы авторизации</Title>
               <Text type="secondary">
-                Поддерживаются PNG, SVG, WebP. Максимальный размер файла — 15 MB. Иконка отображается над логотипом BLSK Star Finance.
+                Поддерживаются PNG, SVG, WebP. Максимальный размер файла — 15 MB. Иконка отображается над логотипом приложения на форме входа.
               </Text>
               <div className="mt-3 d-flex gap-3 align-items-center flex-wrap">
                 <input

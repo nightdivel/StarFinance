@@ -399,6 +399,29 @@ class ApiService {
     return this.request('/api/system/auth/icon', { method: 'DELETE' });
   }
 
+  // ----- App branding (title + favicon) -----
+  getBrandingMeta() {
+    return this.request('/public/system/branding', { method: 'GET' });
+  }
+  getBranding() {
+    return this.request('/api/system/branding', { method: 'GET' });
+  }
+  setBranding(appTitle) {
+    return this.request('/api/system/branding', {
+      method: 'PUT',
+      body: JSON.stringify({ appTitle }),
+    });
+  }
+  setSystemFavicon(dataUrl) {
+    return this.request('/api/system/favicon', {
+      method: 'PUT',
+      body: JSON.stringify({ dataUrl }),
+    });
+  }
+  deleteSystemFavicon() {
+    return this.request('/api/system/favicon', { method: 'DELETE' });
+  }
+
 }
 
 export default ApiService;

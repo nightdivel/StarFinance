@@ -673,6 +673,9 @@ app.use((req, res, next) => {
 // Storage path: backend/public/auth-bg.<ext>
 const AUTH_BG_NAME = 'auth-bg';
 const AUTH_ICON_NAME = 'auth-icon';
+const SYSTEM_FAVICON_NAME = 'system-favicon';
+const BRANDING_TITLE_KEY = 'system.appTitle';
+const DEFAULT_APP_TITLE = 'BLSK Star Finance';
 const AUTH_PUBLIC_DIR = path.join(__dirname, 'public');
 async function getAuthBgFile() {
   try {
@@ -693,6 +696,19 @@ async function getAuthIconFile() {
     const byName = new Map(files.map((n) => [n.toLowerCase(), n]));
     // Deterministic priority to avoid picking legacy placeholders first.
     const preferred = ['auth-icon.webp', 'auth-icon.png', 'auth-icon.svg'];
+    for (const name of preferred) {
+      const actual = byName.get(name);
+      if (actual) return path.join(AUTH_PUBLIC_DIR, actual);
+    }
+    return null;
+  } catch (_) { return null; }
+}
+
+async function getSystemFaviconFile() {
+  try {
+    const files = await fs.readdir(AUTH_PUBLIC_DIR).catch(() => []);
+    const byName = new Map(files.map((n) => [n.toLowerCase(), n]));
+    const preferred = ['system-favicon.webp', 'system-favicon.png', 'system-favicon.svg'];
     for (const name of preferred) {
       const actual = byName.get(name);
       if (actual) return path.join(AUTH_PUBLIC_DIR, actual);
@@ -732,6 +748,23 @@ app.get('/public/auth/icon', async (req, res) => {
   }
 });
 
+app.get('/public/system/branding', async (req, res) => {
+  try {
+    const settingsMap = await readSettingsMap();
+    const rawTitle = settingsMap[BRANDING_TITLE_KEY] ?? DEFAULT_APP_TITLE;
+    const appTitle = String(rawTitle || DEFAULT_APP_TITLE).trim() || DEFAULT_APP_TITLE;
+    const filePath = await getSystemFaviconFile();
+    if (!filePath) return res.json({ appTitle, faviconUrl: null, updatedAt: null });
+    const stat = await fs.stat(filePath).catch(() => null);
+    const fileName = path.basename(filePath);
+    const bp = detectPublicBasePath();
+    const rel = `/public/system/favicon/file/${encodeURIComponent(fileName)}`;
+    return res.json({ appTitle, faviconUrl: `${bp}${rel}`, updatedAt: stat ? stat.mtimeMs : null });
+  } catch (e) {
+    return res.json({ appTitle: DEFAULT_APP_TITLE, faviconUrl: null, updatedAt: null });
+  }
+});
+
 // Public file sender
 app.get('/public/auth/background/file/:name', async (req, res) => {
   try {
@@ -757,6 +790,105 @@ app.get('/public/auth/icon/file/:name', async (req, res) => {
     res.sendFile(filePath);
   } catch (e) {
     res.status(500).end();
+  }
+});
+
+app.get('/public/system/favicon/file/:name', async (req, res) => {
+  try {
+    const name = req.params.name;
+    if (!/^system-favicon\.(png|svg|webp)$/i.test(name)) return res.status(404).end();
+    const filePath = path.join(AUTH_PUBLIC_DIR, name);
+    const exists = await fs.stat(filePath).catch(() => null);
+    if (!exists) return res.status(404).end();
+    res.sendFile(filePath);
+  } catch (e) {
+    res.status(500).end();
+  }
+});
+
+app.get('/api/system/branding', authenticateToken, requirePermission('settings', 'read'), async (req, res) => {
+  try {
+    const settingsMap = await readSettingsMap();
+    const rawTitle = settingsMap[BRANDING_TITLE_KEY] ?? DEFAULT_APP_TITLE;
+    const appTitle = String(rawTitle || DEFAULT_APP_TITLE).trim() || DEFAULT_APP_TITLE;
+    const filePath = await getSystemFaviconFile();
+    const bp = detectPublicBasePath();
+    const faviconUrl = filePath
+      ? `${bp}/public/system/favicon/file/${encodeURIComponent(path.basename(filePath))}`
+      : null;
+    return res.json({ appTitle, faviconUrl });
+  } catch (e) {
+    return res.status(500).json({ error: 'Ошибка чтения брендирования' });
+  }
+});
+
+app.put('/api/system/branding', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    const appTitle = String(req.body?.appTitle || '').trim();
+    if (!appTitle) return res.status(400).json({ error: 'Название приложения не может быть пустым' });
+    if (appTitle.length > 80) return res.status(400).json({ error: 'Название приложения слишком длинное (максимум 80)' });
+    await query(
+      `INSERT INTO settings(key, value) VALUES ($1, $2::jsonb)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [BRANDING_TITLE_KEY, JSON.stringify(appTitle)]
+    );
+    return res.json({ success: true, appTitle });
+  } catch (e) {
+    return res.status(500).json({ error: 'Ошибка сохранения названия приложения' });
+  }
+});
+
+app.put('/api/system/favicon', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    const { dataUrl } = req.body || {};
+    if (!dataUrl || typeof dataUrl !== 'string') {
+      return res.status(400).json({ error: 'Некорректные данные изображения' });
+    }
+    if (!dataUrl.startsWith('data:image/')) {
+      return res.status(400).json({ error: 'Ожидается data:image/*;base64,...' });
+    }
+    const headerEnd = dataUrl.indexOf(',');
+    if (headerEnd < 0) return res.status(400).json({ error: 'Неверный формат data URL' });
+    const header = dataUrl.slice(0, headerEnd);
+    const b64 = dataUrl.slice(headerEnd + 1);
+    const mimeMatch = header.match(/^data:image\/([^;]+)(;.*)?;base64$/i);
+    if (!mimeMatch) return res.status(400).json({ error: 'Неверный заголовок data URL (нет ;base64)' });
+    const subtype = String(mimeMatch[1] || '').toLowerCase();
+    const baseType = subtype.includes('+') ? subtype.split('+')[0] : subtype;
+    let ext;
+    if (baseType === 'png') ext = 'png';
+    else if (baseType === 'webp') ext = 'webp';
+    else if (baseType === 'svg' || subtype === 'svg+xml' || baseType === 'jpg' || baseType === 'psvg' || baseType === 'jfif') ext = 'svg';
+    else return res.status(400).json({ error: 'Поддерживаются PNG/svg/WebP (base64)' });
+    const buf = Buffer.from(b64, 'base64');
+    if (buf.length > 15000 * 1024) return res.status(413).json({ error: 'Размер изображения превышает 15MB' });
+    await fs.mkdir(AUTH_PUBLIC_DIR, { recursive: true }).catch(() => {});
+    try {
+      for (const e of ['png', 'svg', 'webp']) {
+        const p = path.join(AUTH_PUBLIC_DIR, `${SYSTEM_FAVICON_NAME}.${e}`);
+        await fs.unlink(p).catch(() => {});
+      }
+    } catch (_) {}
+    const target = path.join(AUTH_PUBLIC_DIR, `${SYSTEM_FAVICON_NAME}.${ext}`);
+    await fs.writeFile(target, buf);
+    const bp = detectPublicBasePath();
+    const rel = `/public/system/favicon/file/${SYSTEM_FAVICON_NAME}.${ext}`;
+    return res.json({ success: true, faviconUrl: `${bp}${rel}` });
+  } catch (e) {
+    console.error('PUT /api/system/favicon error:', e);
+    return res.status(500).json({ error: 'Ошибка сохранения favicon' });
+  }
+});
+
+app.delete('/api/system/favicon', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    for (const e of ['png', 'svg', 'webp']) {
+      const p = path.join(AUTH_PUBLIC_DIR, `${SYSTEM_FAVICON_NAME}.${e}`);
+      await fs.unlink(p).catch(() => {});
+    }
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: 'Ошибка удаления favicon' });
   }
 });
 
