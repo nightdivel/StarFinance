@@ -293,7 +293,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
           collapsible
           collapsed={collapsed}
           theme={darkMode ? 'dark' : 'light'}
-          className="position-relative vh-100 d-flex flex-column sf-main-sider"
+          className="position-relative d-flex flex-column sf-main-sider"
         >
           <div
             className={`${collapsed ? 'px-2 py-3' : 'px-4 py-4'} text-center border-bottom`}

@@ -16,6 +16,7 @@ import {
   Tag,
   Space,
   Table,
+  Tabs,
   Modal,
   Upload,
   Checkbox,
@@ -39,6 +40,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
   const [accessForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [changedSettings, setChangedSettings] = useState({});
+  const [activeSettingsTab, setActiveSettingsTab] = useState('general');
   const [canWrite, setCanWrite] = useState(false);
   const [canManageAccess, setCanManageAccess] = useState(false);
   const [discordScopes, setDiscordScopes] = useState([]);
@@ -592,6 +594,19 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               rates: data?.system.rates || {},
             }}
           >
+            <Tabs
+              className="mb-6"
+              activeKey={activeSettingsTab}
+              onChange={setActiveSettingsTab}
+              items={[
+                { key: 'general', label: 'Основные настройки' },
+                { key: 'system', label: 'Системные параметры' },
+                { key: 'security', label: 'Безопасность' },
+              ]}
+            />
+
+            {activeSettingsTab === 'general' && (
+              <>
             {/* Base Currency Settings */}
             <Card
               title="Основные настройки"
@@ -750,7 +765,11 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               </Form.Item>
             </Card>
 
+              </>
+            )}
+
             {/* System Settings */}
+            {activeSettingsTab === 'system' && (
             <Card
               title="Системные параметры"
               extra={
@@ -958,139 +977,6 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                   </Form.Item>
                 </Col>
               </Row>
-
-              <Divider />
-              <Title level={5}>Права доступа</Title>
-              <Text type="secondary">
-                Управление типами учетных записей и правами доступа по разделам системы.
-              </Text>
-              <div className="mt-3">
-                <Table
-                  size="small"
-                  rowKey={(r) => r.name}
-                  pagination={{ pageSize: 8, showSizeChanger: true }}
-                  columns={[
-                    {
-                      title: 'Тип учетной записи',
-                      dataIndex: 'name',
-                      key: 'name',
-                      width: 220,
-                    },
-                    {
-                      title: 'Права',
-                      key: 'permissions',
-                      render: (_, record) => {
-                        const entries = Object.entries(record.permissions || {});
-                        if (!entries.length) return <Text type="secondary">Нет прав</Text>;
-                        return (
-                          <Space size={[4, 4]} wrap>
-                            {entries.map(([resource, permission]) => (
-                              <Tag key={`${record.name}-${resource}`} color={permission === PERMISSIONS.WRITE ? 'green' : permission === PERMISSIONS.READ ? 'blue' : 'default'}>
-                                {resource}: {formatPermissionLabel(permission)}
-                              </Tag>
-                            ))}
-                          </Space>
-                        );
-                      },
-                    },
-                    {
-                      title: 'Типы склада',
-                      key: 'allowedWarehouseTypes',
-                      width: 260,
-                      render: (_, record) => {
-                        const values = Array.isArray(record.allowedWarehouseTypes)
-                          ? record.allowedWarehouseTypes
-                          : [];
-                        if (!values.length) return <Text type="secondary">Все</Text>;
-                        return values.join(', ');
-                      },
-                    },
-                    {
-                      title: 'Действия',
-                      key: 'actions',
-                      width: 120,
-                      render: (_, record) => (
-                        <Space>
-                          <Button
-                            size="small"
-                            type="text"
-                            icon={<EditOutlined />}
-                            disabled={!canManageAccess}
-                            onClick={() => openEditAccountTypeModal(record)}
-                          />
-                          <Button
-                            size="small"
-                            type="text"
-                            danger
-                            icon={<DeleteOutlined />}
-                            disabled={!canManageAccess}
-                            onClick={() => removeAccountType(record.name)}
-                          />
-                        </Space>
-                      ),
-                    },
-                  ]}
-                  dataSource={accountTypes
-                    .slice()
-                    .sort((a, b) => compareDropdownStrings(a?.name, b?.name))}
-                />
-                <Button
-                  type="primary"
-                  size="small"
-                  onClick={openCreateAccountTypeModal}
-                  disabled={!canManageAccess}
-                >
-                  Добавить тип учетной записи
-                </Button>
-              </div>
-
-              <Modal
-                title={editingAccountType ? 'Редактирование типа учетной записи' : 'Добавление типа учетной записи'}
-                open={accessModalOpen}
-                onCancel={() => {
-                  setAccessModalOpen(false);
-                  setEditingAccountType(null);
-                  accessForm.resetFields();
-                }}
-                onOk={saveAccountType}
-                okText={editingAccountType ? 'Сохранить' : 'Добавить'}
-                okButtonProps={{ disabled: !canManageAccess }}
-              >
-                <Form form={accessForm} layout="vertical">
-                  <Form.Item
-                    name="typeName"
-                    label="Название типа"
-                    rules={[{ required: true, message: 'Введите название типа' }]}
-                  >
-                    <Input placeholder="Напр.: Администратор" />
-                  </Form.Item>
-                  <Row gutter={16}>
-                    {['finance', 'warehouse', 'showcase', 'users', 'directories', 'settings', 'requests', 'news', 'uex'].map((resource) => (
-                      <Col xs={24} sm={12} key={resource}>
-                        <Form.Item name={['permissions', resource]} label={`Права: ${resource === 'uex' ? 'UEX_API' : resource === 'news' ? 'новости' : resource}`}>
-                          <Select placeholder="Выберите права">
-                            <Option value={PERMISSIONS.NONE}>Нет доступа</Option>
-                            <Option value={PERMISSIONS.READ}>Только чтение</Option>
-                            <Option value={PERMISSIONS.WRITE}>Чтение и запись</Option>
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                    ))}
-                  </Row>
-                  <Form.Item name="allowedWarehouseTypes" label="Склад (разрешенные типы)">
-                    <Select mode="multiple" placeholder="Выберите типы склада">
-                      {(data?.directories?.warehouseTypes || [])
-                        .slice()
-                        .sort((a, b) => compareDropdownStrings(a, b))
-                        .map((item) => (
-                          <Option key={item} value={item}>
-                            {item}
-                          </Option>
-                        ))}
-                    </Select>
-                  </Form.Item>
-                </Form>
-              </Modal>
 
               <Divider />
               <Title level={5}>Маппинг по Discord Scopes</Title>
@@ -1330,6 +1216,144 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
 
               
             </Card>
+            )}
+
+            {activeSettingsTab === 'security' && (
+              <>
+                <Card title="Права доступа" className="mb-6">
+                  <Text type="secondary">
+                    Управление типами учетных записей и правами доступа по разделам системы.
+                  </Text>
+                  <div className="mt-3">
+                    <Table
+                      size="small"
+                      rowKey={(r) => r.name}
+                      pagination={{ pageSize: 8, showSizeChanger: true }}
+                      columns={[
+                        {
+                          title: 'Тип учетной записи',
+                          dataIndex: 'name',
+                          key: 'name',
+                          width: 220,
+                        },
+                        {
+                          title: 'Права',
+                          key: 'permissions',
+                          render: (_, record) => {
+                            const entries = Object.entries(record.permissions || {});
+                            if (!entries.length) return <Text type="secondary">Нет прав</Text>;
+                            return (
+                              <Space size={[4, 4]} wrap>
+                                {entries.map(([resource, permission]) => (
+                                  <Tag key={`${record.name}-${resource}`} color={permission === PERMISSIONS.WRITE ? 'green' : permission === PERMISSIONS.READ ? 'blue' : 'default'}>
+                                    {resource}: {formatPermissionLabel(permission)}
+                                  </Tag>
+                                ))}
+                              </Space>
+                            );
+                          },
+                        },
+                        {
+                          title: 'Типы склада',
+                          key: 'allowedWarehouseTypes',
+                          width: 260,
+                          render: (_, record) => {
+                            const values = Array.isArray(record.allowedWarehouseTypes)
+                              ? record.allowedWarehouseTypes
+                              : [];
+                            if (!values.length) return <Text type="secondary">Все</Text>;
+                            return values.join(', ');
+                          },
+                        },
+                        {
+                          title: 'Действия',
+                          key: 'actions',
+                          width: 120,
+                          render: (_, record) => (
+                            <Space>
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<EditOutlined />}
+                                disabled={!canManageAccess}
+                                onClick={() => openEditAccountTypeModal(record)}
+                              />
+                              <Button
+                                size="small"
+                                type="text"
+                                danger
+                                icon={<DeleteOutlined />}
+                                disabled={!canManageAccess}
+                                onClick={() => removeAccountType(record.name)}
+                              />
+                            </Space>
+                          ),
+                        },
+                      ]}
+                      dataSource={accountTypes
+                        .slice()
+                        .sort((a, b) => compareDropdownStrings(a?.name, b?.name))}
+                    />
+                    <Button
+                      type="primary"
+                      size="small"
+                      onClick={openCreateAccountTypeModal}
+                      disabled={!canManageAccess}
+                    >
+                      Добавить тип учетной записи
+                    </Button>
+                  </div>
+                </Card>
+
+                <Modal
+                  title={editingAccountType ? 'Редактирование типа учетной записи' : 'Добавление типа учетной записи'}
+                  open={accessModalOpen}
+                  onCancel={() => {
+                    setAccessModalOpen(false);
+                    setEditingAccountType(null);
+                    accessForm.resetFields();
+                  }}
+                  onOk={saveAccountType}
+                  okText={editingAccountType ? 'Сохранить' : 'Добавить'}
+                  okButtonProps={{ disabled: !canManageAccess }}
+                >
+                  <Form form={accessForm} layout="vertical">
+                    <Form.Item
+                      name="typeName"
+                      label="Название типа"
+                      rules={[{ required: true, message: 'Введите название типа' }]}
+                    >
+                      <Input placeholder="Напр.: Администратор" />
+                    </Form.Item>
+                    <Row gutter={16}>
+                      {['finance', 'warehouse', 'showcase', 'users', 'directories', 'settings', 'requests', 'news', 'uex'].map((resource) => (
+                        <Col xs={24} sm={12} key={resource}>
+                          <Form.Item name={['permissions', resource]} label={`Права: ${resource === 'uex' ? 'UEX_API' : resource === 'news' ? 'новости' : resource}`}>
+                            <Select placeholder="Выберите права">
+                              <Option value={PERMISSIONS.NONE}>Нет доступа</Option>
+                              <Option value={PERMISSIONS.READ}>Только чтение</Option>
+                              <Option value={PERMISSIONS.WRITE}>Чтение и запись</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                      ))}
+                    </Row>
+                    <Form.Item name="allowedWarehouseTypes" label="Склад (разрешенные типы)">
+                      <Select mode="multiple" placeholder="Выберите типы склада">
+                        {(data?.directories?.warehouseTypes || [])
+                          .slice()
+                          .sort((a, b) => compareDropdownStrings(a, b))
+                          .map((item) => (
+                            <Option key={item} value={item}>
+                              {item}
+                            </Option>
+                          ))}
+                      </Select>
+                    </Form.Item>
+                  </Form>
+                </Modal>
+              </>
+            )}
 
             {/* Удалено общее сохранение. Сохранение по разделам выше. */}
           </Form>

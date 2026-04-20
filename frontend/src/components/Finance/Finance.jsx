@@ -10,6 +10,7 @@ import {
   Statistic,
   Tag,
   message,
+  Grid,
 } from 'antd';
 import { Tooltip } from 'antd';
 import { PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, ExpandAltOutlined } from '@ant-design/icons';
@@ -33,9 +34,12 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+const { useBreakpoint } = Grid;
 
 const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
   const queryClient = useQueryClient();
+  const screens = useBreakpoint();
+  const isCompactView = !screens.md;
   const [transactionModalVisible, setTransactionModalVisible] = useState(false);
   const [txSearch, setTxSearch] = useState('');
   const [editingTx, setEditingTx] = useState(null);
@@ -88,16 +92,16 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       { i: 'txRequests', x: 0, y: 42, w: 6, h: 14, minW: 4, minH: 10 },
     ],
     xs: [
-      { i: 'stats', x: 0, y: 0, w: 4, h: 6, minW: 3, minH: 4 },
-      { i: 'transactions', x: 0, y: 6, w: 4, h: 20, minW: 3, minH: 12 },
-      { i: 'currencies', x: 0, y: 26, w: 4, h: 16, minW: 3, minH: 10 },
-      { i: 'txRequests', x: 0, y: 42, w: 4, h: 14, minW: 3, minH: 10 },
+      { i: 'stats', x: 0, y: 0, w: 4, h: 5, minW: 3, minH: 4 },
+      { i: 'transactions', x: 0, y: 5, w: 4, h: 16, minW: 3, minH: 10 },
+      { i: 'currencies', x: 0, y: 21, w: 4, h: 12, minW: 3, minH: 8 },
+      { i: 'txRequests', x: 0, y: 33, w: 4, h: 12, minW: 3, minH: 8 },
     ],
     xxs: [
-      { i: 'stats', x: 0, y: 0, w: 2, h: 6, minW: 2, minH: 4 },
-      { i: 'transactions', x: 0, y: 6, w: 2, h: 20, minW: 2, minH: 12 },
-      { i: 'currencies', x: 0, y: 26, w: 2, h: 16, minW: 2, minH: 10 },
-      { i: 'txRequests', x: 0, y: 42, w: 2, h: 14, minW: 2, minH: 10 },
+      { i: 'stats', x: 0, y: 0, w: 2, h: 5, minW: 2, minH: 4 },
+      { i: 'transactions', x: 0, y: 5, w: 2, h: 16, minW: 2, minH: 10 },
+      { i: 'currencies', x: 0, y: 21, w: 2, h: 11, minW: 2, minH: 8 },
+      { i: 'txRequests', x: 0, y: 32, w: 2, h: 11, minW: 2, minH: 8 },
     ],
   };
 
@@ -582,7 +586,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
         layouts={layouts}
         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-        margin={[16, 16]}
+        margin={{ lg: [16, 16], md: [14, 14], sm: [10, 10], xs: [8, 8], xxs: [6, 6] }}
         rowHeight={8}
         autoSize
         compactType="vertical"
@@ -596,7 +600,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
             .map((currency) => (
               <Card
                 key={currency}
-                size="small"
+                size={isCompactView ? 'default' : 'small'}
                 className="sf-minw-220"
                 title={<span className="card-draggable cursor-move">Баланс ({currency})</span>}
               >
@@ -658,7 +662,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
                 showQuickJumper: true,
                 showTotal: (total, range) => `${range[0]}-${range[1]} из ${total} транзакций`,
               },
-              size: "middle",
+              size: isCompactView ? 'small' : 'middle',
               bordered: true,
               style: { width: '100%' },
               rowClassName: () => 'table-row',
@@ -680,8 +684,8 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
                 .map((c) => ({ currency: c })),
               rowKey: "currency",
               pagination: false,
-              scroll: { y: 400 },
-              size: "middle",
+              scroll: { y: isCompactView ? 260 : 400 },
+              size: isCompactView ? 'small' : 'middle',
               bordered: true,
               style: { width: '100%' },
               rowClassName: () => 'table-row',

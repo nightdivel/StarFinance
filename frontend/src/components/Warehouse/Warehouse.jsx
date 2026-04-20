@@ -70,12 +70,12 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       { i: 'table', x: 0, y: 6, w: 6, h: 36, minW: 4, minH: 16 },
     ],
     xs: [
-      { i: 'stats', x: 0, y: 0, w: 4, h: 6, minW: 3, minH: 4 },
-      { i: 'table', x: 0, y: 6, w: 4, h: 36, minW: 3, minH: 16 },
+      { i: 'stats', x: 0, y: 0, w: 4, h: 5, minW: 3, minH: 4 },
+      { i: 'table', x: 0, y: 5, w: 4, h: 30, minW: 3, minH: 14 },
     ],
     xxs: [
-      { i: 'stats', x: 0, y: 0, w: 2, h: 6, minW: 2, minH: 4 },
-      { i: 'table', x: 0, y: 6, w: 2, h: 36, minW: 2, minH: 16 },
+      { i: 'stats', x: 0, y: 0, w: 2, h: 5, minW: 2, minH: 4 },
+      { i: 'table', x: 0, y: 5, w: 2, h: 28, minW: 2, minH: 12 },
     ],
   };
 
@@ -557,7 +557,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
         layouts={layouts}
         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-        margin={[16, 16]}
+        margin={{ lg: [16, 16], md: [14, 14], sm: [10, 10], xs: [8, 8], xxs: [6, 6] }}
         rowHeight={8}
         autoSize
         compactType="vertical"

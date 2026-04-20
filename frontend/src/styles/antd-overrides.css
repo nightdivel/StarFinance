@@ -9,6 +9,27 @@
   background: transparent;
 }
 
+.sf-app-shell {
+  min-height: 100vh;
+  align-items: stretch;
+}
+
+.sf-app-shell > .ant-layout {
+  min-height: 100vh;
+}
+
+.sf-main-sider {
+  align-self: stretch;
+  min-height: 100%;
+  height: auto !important;
+}
+
+.sf-main-sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
 /* Dark theme root */
 .dark-theme {
   background-color: #0f172a; /* slate-900 */
@@ -235,7 +256,7 @@
   background: #ffffff;
 }
 .dark-theme .ant-table-wrapper {
-  border-color: rgba(99, 102, 241, 0.4); /* indigo-400 с прозрачностью */
+  border-color: rgba(148, 163, 184, 0.18);
   background-color: #0b1220 !important;
 }
 
@@ -474,7 +495,7 @@
   border-right: 1px solid #d7e1e8;
   backdrop-filter: blur(6px);
   min-height: 100vh;
-  height: 100vh;
+  height: auto;
 }
 
 .dark-theme .sf-main-sider {
@@ -497,6 +518,63 @@
 
 .dark-theme .sf-site-footer {
   color: #e2e8f0;
+}
+
+@media (max-width: 768px) {
+  .sf-main-header {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    min-height: 48px;
+  }
+
+  .sf-main-header .ant-tag {
+    margin-inline-end: 4px;
+    font-size: 12px;
+    line-height: 18px;
+    padding-inline: 6px;
+  }
+
+  .sf-header-balances {
+    gap: 4px !important;
+    max-width: calc(100vw - 140px);
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+  }
+
+  .ant-layout-content {
+    padding: 6px !important;
+  }
+
+  .ant-card {
+    border-radius: 10px;
+  }
+
+  .ant-card-head {
+    min-height: 38px;
+    padding: 0 10px;
+  }
+
+  .ant-card-head-title {
+    padding: 8px 0;
+    font-size: 14px;
+  }
+
+  .ant-card-body {
+    padding: 10px;
+  }
+
+  .ant-table-wrapper {
+    border-radius: 10px;
+  }
+
+  .finance-grid .sf-minw-220 {
+    min-width: 160px;
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  .sf-site-footer {
+    display: none;
+  }
 }
 
 .dark-theme .sf-site-footer a {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Tag, Button, Space, Popconfirm, message, Input, Tooltip } from 'antd';
+import { Card, Table, Tag, Button, Space, Popconfirm, message, Input, Tooltip, Tabs } from 'antd';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import { apiService } from '../../services/apiService';
 import { authService } from '../../services/authService';
@@ -218,76 +218,95 @@ const Requests = () => {
 
   return (
     <div className="d-flex flex-column gap-3">
-      <Card title="Заявки на покупку (витрина)" extra={
-        <Input
-          allowClear
-          placeholder="Поиск по всем полям"
-          value={reqSearch}
-          onChange={(e) => setReqSearch(e.target.value)}
-          className="sf-w-260"
-        />
-      }>
-        <TableWithFullscreen
-          tableProps={{
-            columns,
-            dataSource: rows.filter((r) => {
-              const q = String(reqSearch || '').toLowerCase();
-              if (!q) return true;
-              const vals = [
-                r.id,
-                r.itemName,
-                r.buyerUsername,
-                r.ownerLogin,
-                r.quantity != null ? String(r.quantity) : '',
-                r.pricePerUnit != null ? String(r.pricePerUnit) : '',
-                r.currency,
-                r.status,
-                r.createdAt,
-              ];
-              return vals.some((v) => String(v || '').toLowerCase().includes(q));
-            }),
-            rowKey: 'id',
-            loading,
-            pagination: { pageSize: 20 },
-            scroll: { x: '100%' },
-          }}
-        />
-      </Card>
-      <Card title="Финансовые заявки" extra={
-        <Input
-          allowClear
-          placeholder="Поиск по всем полям"
-          value={frSearch}
-          onChange={(e) => setFrSearch(e.target.value)}
-          className="sf-w-260"
-        />
-      }>
-        <TableWithFullscreen
-          tableProps={{
-            columns: financeColumns,
-            dataSource: financeRows.filter((r) => {
-              const q = String(frSearch || '').toLowerCase();
-              if (!q) return true;
-              const vals = [
-                r.id,
-                r.transaction_id,
-                r.from_user,
-                r.from_username,
-                r.to_user,
-                r.to_username,
-                r.amount != null ? String(r.amount) : '',
-                r.currency,
-                r.status,
-                r.type,
-                r.created_at,
-              ];
-              return vals.some((v) => String(v || '').toLowerCase().includes(q));
-            }),
-            rowKey: 'id',
-            loading,
-            pagination: { pageSize: 20 },
-            scroll: { x: '100%' },
-          }}
+      <Card>
+        <Tabs
+          defaultActiveKey="purchase"
+          items={[
+            {
+              key: 'purchase',
+              label: 'Заявки на покупку',
+              children: (
+                <TableWithFullscreen
+                  title="Заявки на покупку"
+                  extra={
+                    <Input
+                      allowClear
+                      placeholder="Поиск по всем полям"
+                      value={reqSearch}
+                      onChange={(e) => setReqSearch(e.target.value)}
+                      className="sf-w-260"
+                    />
+                  }
+                  tableProps={{
+                    columns,
+                    dataSource: rows.filter((r) => {
+                      const q = String(reqSearch || '').toLowerCase();
+                      if (!q) return true;
+                      const vals = [
+                        r.id,
+                        r.itemName,
+                        r.buyerUsername,
+                        r.ownerLogin,
+                        r.quantity != null ? String(r.quantity) : '',
+                        r.pricePerUnit != null ? String(r.pricePerUnit) : '',
+                        r.currency,
+                        r.status,
+                        r.createdAt,
+                      ];
+                      return vals.some((v) => String(v || '').toLowerCase().includes(q));
+                    }),
+                    rowKey: 'id',
+                    loading,
+                    pagination: { pageSize: 20 },
+                    scroll: { x: '100%' },
+                  }}
+                />
+              ),
+            },
+            {
+              key: 'finance',
+              label: 'Финансовые заявки',
+              children: (
+                <TableWithFullscreen
+                  title="Финансовые заявки"
+                  extra={
+                    <Input
+                      allowClear
+                      placeholder="Поиск по всем полям"
+                      value={frSearch}
+                      onChange={(e) => setFrSearch(e.target.value)}
+                      className="sf-w-260"
+                    />
+                  }
+                  tableProps={{
+                    columns: financeColumns,
+                    dataSource: financeRows.filter((r) => {
+                      const q = String(frSearch || '').toLowerCase();
+                      if (!q) return true;
+                      const vals = [
+                        r.id,
+                        r.transaction_id,
+                        r.from_user,
+                        r.from_username,
+                        r.to_user,
+                        r.to_username,
+                        r.amount != null ? String(r.amount) : '',
+                        r.currency,
+                        r.status,
+                        r.type,
+                        r.created_at,
+                      ];
+                      return vals.some((v) => String(v || '').toLowerCase().includes(q));
+                    }),
+                    rowKey: 'id',
+                    loading,
+                    pagination: { pageSize: 20 },
+                    scroll: { x: '100%' },
+                  }}
+                />
+              ),
+            },
+          ]}
         />
       </Card>
     </div>

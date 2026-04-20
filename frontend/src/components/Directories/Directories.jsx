@@ -60,7 +60,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
   // Get directory data for table
   const directoryData = [
     ...Object.entries(data.directories || {})
-      .filter(([key]) => key !== 'warehouseLocations' && key !== 'accountTypes')
+      .filter(([key]) => key !== 'warehouseLocations' && key !== 'accountTypes' && key !== 'uex_sync')
       .map(([key, items]) => ({
         key,
         name: getDirectoryName(key),
