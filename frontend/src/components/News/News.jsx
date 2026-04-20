@@ -31,6 +31,7 @@ import {
 } from '@ant-design/icons';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import dayjs from 'dayjs';
 import { newsService } from '../../services/newsService';
 import { authService } from '../../services/authService';
 import { formatServerDate } from '../../utils/helpers';
@@ -246,11 +247,12 @@ const News = ({ userData, darkMode }) => {
   const openEditModal = (news = null) => {
     setEditingNews(news);
     if (news) {
+      const publishedValue = news.publishedAt || news.published_at || null;
       newsForm.setFieldsValue({
         title: news.title,
         content: news.content,
         summary: news.summary,
-        publishedAt: news.publishedAt ? new Date(news.publishedAt) : null,
+        publishedAt: publishedValue ? dayjs(publishedValue) : null,
       });
       setMarkdownFileList([]);
     } else {
@@ -381,34 +383,40 @@ const News = ({ userData, darkMode }) => {
         ) : (
           newsList.map((news) => (
             <div key={news.id} className="col-12 mb-3">
+              {(() => {
+                const publishedAt = news.publishedAt || news.published_at || news.createdAt || news.created_at;
+                const cardActions = isAdmin
+                  ? [
+                      <Tooltip key="edit" title="Редактировать">
+                        <EditOutlined
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditModal(news);
+                          }}
+                        />
+                      </Tooltip>,
+                      <Tooltip key="delete" title="Удалить">
+                        <span onClick={(e) => e.stopPropagation()}>
+                          <Popconfirm
+                            title="Удалить новость?"
+                            onConfirm={() => deleteNews(news.id)}
+                            okText="Да"
+                            cancelText="Нет"
+                          >
+                            <DeleteOutlined />
+                          </Popconfirm>
+                        </span>
+                      </Tooltip>,
+                    ]
+                  : undefined;
+
+                return (
               <Card
                 hoverable
                 className="news-card-full"
-                actions={[
-                  <Tooltip key="view" title="Подробнее">
-                    <Button 
-                      type="text"
-                      icon={<EyeOutlined />}
-                      onClick={() => openNewsDetail(news)}
-                      style={{ color: 'inherit' }}
-                    />
-                  </Tooltip>,
-                  ...(isAdmin ? [
-                    <Tooltip key="edit" title="Редактировать">
-                      <EditOutlined onClick={() => openEditModal(news)} />
-                    </Tooltip>,
-                    <Tooltip key="delete" title="Удалить">
-                      <Popconfirm
-                        title="Удалить новость?"
-                        onConfirm={() => deleteNews(news.id)}
-                        okText="Да"
-                        cancelText="Нет"
-                      >
-                        <DeleteOutlined />
-                      </Popconfirm>
-                    </Tooltip>,
-                  ] : []),
-                ]}
+                actions={cardActions}
+                onClick={() => openNewsDetail(news)}
+                style={{ cursor: 'pointer' }}
               >
                 <div className="d-flex justify-content-between align-items-start mb-2">
                   <h5 className={`mb-1 ${darkMode ? 'text-white' : 'text-dark'}`}>{news.title}</h5>
@@ -421,13 +429,15 @@ const News = ({ userData, darkMode }) => {
                 
                 <div className={`d-flex justify-content-between align-items-center ${darkMode ? 'text-white' : 'text-muted'} small`}>
                   <span>
-                    <CalendarOutlined /> {formatServerDate(news.publishedAt)}
+                    <CalendarOutlined /> {formatServerDate(publishedAt)}
                   </span>
                   <span>
                     <EyeOutlined /> {news.readCount || 0}
                   </span>
                 </div>
               </Card>
+                );
+              })()}
             </div>
           ))
         )}
@@ -614,7 +624,12 @@ const News = ({ userData, darkMode }) => {
             </div>
 
             <div className={`${darkMode ? 'text-white' : 'text-muted'} small`}>
-              <CalendarOutlined /> {formatServerDate(selectedNews.publishedAt)}
+              <CalendarOutlined /> {formatServerDate(
+                selectedNews.publishedAt ||
+                  selectedNews.published_at ||
+                  selectedNews.createdAt ||
+                  selectedNews.created_at
+              )}
             </div>
           </div>
         )}
