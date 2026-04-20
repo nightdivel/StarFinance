@@ -481,6 +481,28 @@
   border-right-color: #22344d;
 }
 
+.sf-site-footer {
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.sf-site-footer a {
+  color: #0f766e;
+  text-decoration: none;
+}
+
+.sf-site-footer a:hover {
+  text-decoration: underline;
+}
+
+.dark-theme .sf-site-footer {
+  color: #e2e8f0;
+}
+
+.dark-theme .sf-site-footer a {
+  color: #67e8f9;
+}
+
 /* Меню в боковой панели должно растягиваться на всю высоту */
 .sf-main-sider .ant-menu {
   flex: 1;

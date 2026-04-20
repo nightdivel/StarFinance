@@ -112,11 +112,29 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
         if (typeof c === 'string') result[c] = 0;
       });
       
-      const meUsername = userData?.username;
-      if (!meUsername || !Array.isArray(data.transactions)) return result;
-      
-      const me = (data.users || []).find((u) => u.username === meUsername);
-      const meId = me?.id;
+      const meUsernameRaw = String(userData?.username || '').trim();
+      const meUsernameLower = meUsernameRaw.toLowerCase();
+      if (!meUsernameLower || !Array.isArray(data.transactions)) return result;
+
+      const users = Array.isArray(data.users) ? data.users : [];
+      const me = users.find((u) => String(u?.username || '').trim().toLowerCase() === meUsernameLower);
+      const meId = String(userData?.id || me?.id || '').trim();
+
+      const idToUsernameLower = new Map(
+        users
+          .map((u) => [String(u?.id || '').trim(), String(u?.username || '').trim().toLowerCase()])
+          .filter(([id, uname]) => id && uname)
+      );
+
+      const isMe = (value) => {
+        const raw = String(value || '').trim();
+        if (!raw) return false;
+        if (meId && raw === meId) return true;
+        const lowered = raw.toLowerCase();
+        if (lowered === meUsernameLower) return true;
+        const mapped = idToUsernameLower.get(raw);
+        return !!mapped && mapped === meUsernameLower;
+      };
       
       for (const t of data.transactions) {
         if (!t || typeof t !== 'object') continue;
@@ -129,8 +147,8 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
         if (!cur || typeof cur !== 'string') continue;
         if (!(cur in result)) result[cur] = 0;
         
-        const toMatch = t?.to_user === meUsername || t?.to_user === meId;
-        const fromMatch = t?.from_user === meUsername || t?.from_user === meId;
+        const toMatch = isMe(t?.to_user);
+        const fromMatch = isMe(t?.from_user);
         
         // Всегда зачисляем получателю и списываем с отправителя, вне зависимости от поля type
         if (toMatch) result[cur] += Number(t.amount) || 0;
@@ -394,8 +412,8 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme 
         <Content className="p-2">
           {renderContent()}
         </Content>
-        <Footer className="text-center py-3 px-4 bg-transparent text-muted">
-          Разработано Попов Е.Ф. (@StAim)
+        <Footer className="text-center py-3 px-4 bg-transparent sf-site-footer">
+          Разработано Попов Е.Ф. (@StAim) <a href="mailto:hitsnruns@gmail.com">hitsnruns@gmail.com</a>
         </Footer>
       </Layout>
     </Layout>
