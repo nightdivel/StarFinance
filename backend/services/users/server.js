@@ -109,6 +109,8 @@ app.delete(
   async (req, res) => {
     try {
       const id = req.params.id;
+      const TECHNICAL_DELETED_USER_ID = 'deleted_user';
+      const TECHNICAL_DELETED_USERNAME = 'deleted_user';
       await query('BEGIN');
 
       const source = await query('SELECT id, username FROM users WHERE id = $1 FOR UPDATE', [id]);
@@ -118,70 +120,63 @@ app.delete(
       }
 
       const sourceUser = source.rows[0];
-      const isDeletedPlaceholder =
-        String(sourceUser.id || '').startsWith('deleted_') ||
-        String(sourceUser.username || '').startsWith('deleted_user_');
-      if (isDeletedPlaceholder) {
+      if (sourceUser.id === TECHNICAL_DELETED_USER_ID) {
         await query('ROLLBACK');
-        return res.status(400).json({
-          error: 'Технического удаленного пользователя удалять повторно нельзя',
-        });
+        return res.status(400).json({ error: 'Технического пользователя удалить нельзя' });
       }
-      const safeSuffix = String(sourceUser.id || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9_]+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .slice(0, 40) || 'user';
-      const deletedUserId = `deleted_${safeSuffix}`;
-      const deletedUsername = `deleted_user_${safeSuffix}`;
-      const passwordHash = crypto.createHash('sha256').update(`deleted:${deletedUserId}`).digest('hex');
+
+      const passwordHash = crypto
+        .createHash('sha256')
+        .update(`deleted:${TECHNICAL_DELETED_USER_ID}`)
+        .digest('hex');
 
       await query(
         `INSERT INTO users (id, username, email, auth_type, password_hash, account_type, is_active, created_at)
          VALUES ($1, $2, NULL, 'local', $3, 'Гость', FALSE, NOW())
          ON CONFLICT (id) DO NOTHING`,
-        [deletedUserId, deletedUsername, passwordHash]
+        [TECHNICAL_DELETED_USER_ID, TECHNICAL_DELETED_USERNAME, passwordHash]
       );
 
-      await query(
-        `UPDATE users
-         SET email = NULL,
-             nickname = NULL,
-             discord_id = NULL,
-             discord_data = NULL,
-             is_active = FALSE
-         WHERE id = $1`,
-        [sourceUser.id]
-      );
-
-      await query('UPDATE transactions SET from_user = $1 WHERE from_user = $2', [deletedUserId, sourceUser.id]);
-      await query('UPDATE transactions SET to_user = $1 WHERE to_user = $2', [deletedUserId, sourceUser.id]);
+      await query('UPDATE transactions SET from_user = $1 WHERE from_user = $2', [
+        TECHNICAL_DELETED_USER_ID,
+        sourceUser.id,
+      ]);
+      await query('UPDATE transactions SET to_user = $1 WHERE to_user = $2', [
+        TECHNICAL_DELETED_USER_ID,
+        sourceUser.id,
+      ]);
       await query(
         'UPDATE purchase_requests SET buyer_user_id = $1, buyer_username = $2 WHERE buyer_user_id = $3',
-        [deletedUserId, deletedUsername, sourceUser.id]
+        [TECHNICAL_DELETED_USER_ID, TECHNICAL_DELETED_USERNAME, sourceUser.id]
       );
       await query('UPDATE purchase_request_logs SET actor_user_id = $1 WHERE actor_user_id = $2', [
-        deletedUserId,
+        TECHNICAL_DELETED_USER_ID,
         sourceUser.id,
       ]);
       await query('UPDATE finance_requests SET from_user = $1 WHERE from_user = $2', [
-        deletedUserId,
+        TECHNICAL_DELETED_USER_ID,
         sourceUser.id,
       ]);
       await query('UPDATE finance_requests SET to_user = $1 WHERE to_user = $2', [
-        deletedUserId,
+        TECHNICAL_DELETED_USER_ID,
         sourceUser.id,
       ]);
-      await query('UPDATE news SET author_id = $1 WHERE author_id = $2', [deletedUserId, sourceUser.id]);
-      await query('UPDATE news_reads SET user_id = $1 WHERE user_id = $2', [deletedUserId, sourceUser.id]);
+      await query('UPDATE news SET author_id = $1 WHERE author_id = $2', [
+        TECHNICAL_DELETED_USER_ID,
+        sourceUser.id,
+      ]);
+      await query('UPDATE news_reads SET user_id = $1 WHERE user_id = $2', [
+        TECHNICAL_DELETED_USER_ID,
+        sourceUser.id,
+      ]);
       await query('UPDATE warehouse_items SET owner_login = $1 WHERE owner_login = $2', [
-        deletedUsername,
+        TECHNICAL_DELETED_USERNAME,
         sourceUser.username,
       ]);
 
       await query('DELETE FROM users WHERE id = $1', [sourceUser.id]);
       await query('COMMIT');
-      res.json({ success: true, reassignedTo: deletedUserId });
+      res.json({ success: true, reassignedTo: TECHNICAL_DELETED_USER_ID });
     } catch (error) {
       try {
         await query('ROLLBACK');
@@ -195,7 +190,7 @@ app.delete(
 app.get('/api/users', authenticateToken, requirePermission('users', 'read'), async (req, res) => {
   try {
     const ures = await query(
-      'SELECT id, username, email, nickname, auth_type, account_type, is_active, discord_id, discord_data, created_at, last_login FROM users'
+      "SELECT id, username, email, nickname, auth_type, account_type, is_active, discord_id, discord_data, created_at, last_login FROM users WHERE id <> 'deleted_user'"
     );
     const result = [];
     for (const u of ures.rows) {
