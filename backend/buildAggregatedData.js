@@ -190,7 +190,7 @@ const createBuildAggregatedData = ({ query, readSettingsMap, getPermissionsForTy
       const users = [];
       try {
         const ures = await query(
-          'SELECT id, username, email, nickname, auth_type, account_type, is_active, discord_id, discord_data, created_at, last_login FROM users'
+          "SELECT id, username, email, nickname, auth_type, account_type, is_active, discord_id, discord_data, created_at, last_login FROM users WHERE id <> 'deleted_user'"
         );
 
         const defaultPermissions = {

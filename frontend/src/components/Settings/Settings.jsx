@@ -21,6 +21,7 @@ import {
   Checkbox,
 } from 'antd';
 import { compareDropdownStrings } from '../../utils/helpers';
+import { PERMISSIONS } from '../../config/appConfig';
 
 import { SettingOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 
@@ -35,11 +36,15 @@ const { Title, Text } = Typography;
 
 const Settings = ({ data, onDataUpdate, onRefresh }) => {
   const [form] = Form.useForm();
+  const [accessForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [changedSettings, setChangedSettings] = useState({});
   const [canWrite, setCanWrite] = useState(false);
+  const [canManageAccess, setCanManageAccess] = useState(false);
   const [discordScopes, setDiscordScopes] = useState([]);
   const [scopeMappings, setScopeMappings] = useState([]);
+  const [accessModalOpen, setAccessModalOpen] = useState(false);
+  const [editingAccountType, setEditingAccountType] = useState(null);
   const [attrModalOpen, setAttrModalOpen] = useState(false);
   const [attrEditingIndex, setAttrEditingIndex] = useState(null);
   // Guild mappings UI removed
@@ -55,7 +60,86 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
 
   useEffect(() => {
     setCanWrite(authService.hasPermission('settings', 'write'));
+    setCanManageAccess(authService.hasPermission('users', 'write'));
   }, []);
+
+  const accountTypes = Array.isArray(data?.directories?.accountTypes)
+    ? data.directories.accountTypes
+    : [];
+
+  const formatPermissionLabel = (permission) => {
+    if (permission === PERMISSIONS.WRITE) return 'Чтение и запись';
+    if (permission === PERMISSIONS.READ) return 'Только чтение';
+    return 'Нет доступа';
+  };
+
+  const openCreateAccountTypeModal = () => {
+    setEditingAccountType(null);
+    accessForm.resetFields();
+    setAccessModalOpen(true);
+  };
+
+  const openEditAccountTypeModal = (accountType) => {
+    setEditingAccountType(accountType);
+    accessForm.setFieldsValue({
+      typeName: accountType?.name,
+      permissions: accountType?.permissions || {},
+      allowedWarehouseTypes: accountType?.allowedWarehouseTypes || [],
+    });
+    setAccessModalOpen(true);
+  };
+
+  const saveAccountType = async () => {
+    try {
+      const values = await accessForm.validateFields();
+      const payload = {
+        name: String(values.typeName || '').trim(),
+        permissions: values.permissions || {},
+        allowedWarehouseTypes: Array.isArray(values.allowedWarehouseTypes)
+          ? values.allowedWarehouseTypes
+          : [],
+      };
+      if (!payload.name) {
+        message.error('Введите название типа учетной записи');
+        return;
+      }
+
+      if (editingAccountType?.name) {
+        await apiService.updateAccountType(editingAccountType.name, payload);
+        message.success('Тип учетной записи обновлен');
+      } else {
+        await apiService.addAccountType(payload);
+        message.success('Тип учетной записи добавлен');
+      }
+
+      setAccessModalOpen(false);
+      setEditingAccountType(null);
+      accessForm.resetFields();
+      await onRefresh?.();
+    } catch (e) {
+      if (e?.errorFields) return;
+      message.error('Не удалось сохранить тип учетной записи');
+    }
+  };
+
+  const removeAccountType = (accountTypeName) => {
+    Modal.confirm({
+      title: 'Удалить тип учетной записи?',
+      content: 'Это действие нельзя отменить.',
+      okText: 'Удалить',
+      okType: 'danger',
+      cancelText: 'Отмена',
+      onOk: async () => {
+        try {
+          await apiService.deleteAccountType(accountTypeName);
+          message.success('Тип учетной записи удален');
+          await onRefresh?.();
+        } catch (_) {
+          message.error('Не удалось удалить тип учетной записи');
+        }
+      },
+    });
+  };
 
   // Reload scopes on opening the scope rule modal to ensure fresh list
   useEffect(() => {
@@ -874,6 +958,139 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                   </Form.Item>
                 </Col>
               </Row>
+
+              <Divider />
+              <Title level={5}>Права доступа</Title>
+              <Text type="secondary">
+                Управление типами учетных записей и правами доступа по разделам системы.
+              </Text>
+              <div className="mt-3">
+                <Table
+                  size="small"
+                  rowKey={(r) => r.name}
+                  pagination={{ pageSize: 8, showSizeChanger: true }}
+                  columns={[
+                    {
+                      title: 'Тип учетной записи',
+                      dataIndex: 'name',
+                      key: 'name',
+                      width: 220,
+                    },
+                    {
+                      title: 'Права',
+                      key: 'permissions',
+                      render: (_, record) => {
+                        const entries = Object.entries(record.permissions || {});
+                        if (!entries.length) return <Text type="secondary">Нет прав</Text>;
+                        return (
+                          <Space size={[4, 4]} wrap>
+                            {entries.map(([resource, permission]) => (
+                              <Tag key={`${record.name}-${resource}`} color={permission === PERMISSIONS.WRITE ? 'green' : permission === PERMISSIONS.READ ? 'blue' : 'default'}>
+                                {resource}: {formatPermissionLabel(permission)}
+                              </Tag>
+                            ))}
+                          </Space>
+                        );
+                      },
+                    },
+                    {
+                      title: 'Типы склада',
+                      key: 'allowedWarehouseTypes',
+                      width: 260,
+                      render: (_, record) => {
+                        const values = Array.isArray(record.allowedWarehouseTypes)
+                          ? record.allowedWarehouseTypes
+                          : [];
+                        if (!values.length) return <Text type="secondary">Все</Text>;
+                        return values.join(', ');
+                      },
+                    },
+                    {
+                      title: 'Действия',
+                      key: 'actions',
+                      width: 120,
+                      render: (_, record) => (
+                        <Space>
+                          <Button
+                            size="small"
+                            type="text"
+                            icon={<EditOutlined />}
+                            disabled={!canManageAccess}
+                            onClick={() => openEditAccountTypeModal(record)}
+                          />
+                          <Button
+                            size="small"
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            disabled={!canManageAccess}
+                            onClick={() => removeAccountType(record.name)}
+                          />
+                        </Space>
+                      ),
+                    },
+                  ]}
+                  dataSource={accountTypes
+                    .slice()
+                    .sort((a, b) => compareDropdownStrings(a?.name, b?.name))}
+                />
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={openCreateAccountTypeModal}
+                  disabled={!canManageAccess}
+                >
+                  Добавить тип учетной записи
+                </Button>
+              </div>
+
+              <Modal
+                title={editingAccountType ? 'Редактирование типа учетной записи' : 'Добавление типа учетной записи'}
+                open={accessModalOpen}
+                onCancel={() => {
+                  setAccessModalOpen(false);
+                  setEditingAccountType(null);
+                  accessForm.resetFields();
+                }}
+                onOk={saveAccountType}
+                okText={editingAccountType ? 'Сохранить' : 'Добавить'}
+                okButtonProps={{ disabled: !canManageAccess }}
+              >
+                <Form form={accessForm} layout="vertical">
+                  <Form.Item
+                    name="typeName"
+                    label="Название типа"
+                    rules={[{ required: true, message: 'Введите название типа' }]}
+                  >
+                    <Input placeholder="Напр.: Администратор" />
+                  </Form.Item>
+                  <Row gutter={16}>
+                    {['finance', 'warehouse', 'showcase', 'users', 'directories', 'settings', 'requests', 'news', 'uex'].map((resource) => (
+                      <Col xs={24} sm={12} key={resource}>
+                        <Form.Item name={['permissions', resource]} label={`Права: ${resource === 'uex' ? 'UEX_API' : resource === 'news' ? 'новости' : resource}`}>
+                          <Select placeholder="Выберите права">
+                            <Option value={PERMISSIONS.NONE}>Нет доступа</Option>
+                            <Option value={PERMISSIONS.READ}>Только чтение</Option>
+                            <Option value={PERMISSIONS.WRITE}>Чтение и запись</Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                    ))}
+                  </Row>
+                  <Form.Item name="allowedWarehouseTypes" label="Склад (разрешенные типы)">
+                    <Select mode="multiple" placeholder="Выберите типы склада">
+                      {(data?.directories?.warehouseTypes || [])
+                        .slice()
+                        .sort((a, b) => compareDropdownStrings(a, b))
+                        .map((item) => (
+                          <Option key={item} value={item}>
+                            {item}
+                          </Option>
+                        ))}
+                    </Select>
+                  </Form.Item>
+                </Form>
+              </Modal>
 
               <Divider />
               <Title level={5}>Маппинг по Discord Scopes</Title>

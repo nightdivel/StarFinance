@@ -3452,7 +3452,7 @@ app.get('/auth/discord', async (req, res) => {
             (typeof discordUser?.global_name === 'string' && discordUser.global_name.trim()) ||
             (typeof discordUser?.username === 'string' && discordUser.username.trim()) ||
             'discord_user';
-          const discordNickname = `${discordDisplayName} - discord`;
+          const discordNickname = discordDisplayName;
           await query(
             `INSERT INTO users (id, username, email, nickname, auth_type, account_type, is_active, password_hash, discord_id, discord_data, created_at, last_login)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
