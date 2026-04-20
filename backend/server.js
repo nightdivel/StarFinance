@@ -1402,9 +1402,75 @@ app.delete(
   async (req, res) => {
     try {
       const id = req.params.id;
-      await query('DELETE FROM users WHERE id = $1', [id]);
-      res.json({ success: true });
+      await query('BEGIN');
+
+      const source = await query('SELECT id, username FROM users WHERE id = $1 FOR UPDATE', [id]);
+      if (source.rowCount === 0) {
+        await query('ROLLBACK');
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+
+      const sourceUser = source.rows[0];
+      const safeSuffix = String(sourceUser.id || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 40) || 'user';
+      const deletedUserId = `deleted_${safeSuffix}`;
+      const deletedUsername = `deleted_user_${safeSuffix}`;
+      const passwordHash = crypto.createHash('sha256').update(`deleted:${deletedUserId}`).digest('hex');
+
+      await query(
+        `INSERT INTO users (id, username, email, auth_type, password_hash, account_type, is_active, created_at)
+         VALUES ($1, $2, NULL, 'local', $3, 'Гость', FALSE, NOW())
+         ON CONFLICT (id) DO NOTHING`,
+        [deletedUserId, deletedUsername, passwordHash]
+      );
+
+      await query(
+        `UPDATE users
+         SET email = NULL,
+             nickname = NULL,
+             discord_id = NULL,
+             discord_data = NULL,
+             is_active = FALSE
+         WHERE id = $1`,
+        [sourceUser.id]
+      );
+
+      await query('UPDATE transactions SET from_user = $1 WHERE from_user = $2', [deletedUserId, sourceUser.id]);
+      await query('UPDATE transactions SET to_user = $1 WHERE to_user = $2', [deletedUserId, sourceUser.id]);
+      await query(
+        'UPDATE purchase_requests SET buyer_user_id = $1, buyer_username = $2 WHERE buyer_user_id = $3',
+        [deletedUserId, deletedUsername, sourceUser.id]
+      );
+      await query('UPDATE purchase_request_logs SET actor_user_id = $1 WHERE actor_user_id = $2', [
+        deletedUserId,
+        sourceUser.id,
+      ]);
+      await query('UPDATE finance_requests SET from_user = $1 WHERE from_user = $2', [
+        deletedUserId,
+        sourceUser.id,
+      ]);
+      await query('UPDATE finance_requests SET to_user = $1 WHERE to_user = $2', [
+        deletedUserId,
+        sourceUser.id,
+      ]);
+      await query('UPDATE news SET author_id = $1 WHERE author_id = $2', [deletedUserId, sourceUser.id]);
+      await query('UPDATE news_reads SET user_id = $1 WHERE user_id = $2', [deletedUserId, sourceUser.id]);
+      await query('UPDATE warehouse_items SET owner_login = $1 WHERE owner_login = $2', [
+        deletedUsername,
+        sourceUser.username,
+      ]);
+
+      await query('DELETE FROM users WHERE id = $1', [sourceUser.id]);
+      await query('COMMIT');
+      res.json({ success: true, reassignedTo: deletedUserId });
     } catch (error) {
+      try {
+        await query('ROLLBACK');
+      } catch (_) {}
+      console.error('DELETE /api/users/:id error:', error);
       res.status(500).json({ error: 'Ошибка удаления пользователя' });
     }
   }
