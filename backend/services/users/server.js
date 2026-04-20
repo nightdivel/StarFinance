@@ -118,6 +118,15 @@ app.delete(
       }
 
       const sourceUser = source.rows[0];
+      const isDeletedPlaceholder =
+        String(sourceUser.id || '').startsWith('deleted_') ||
+        String(sourceUser.username || '').startsWith('deleted_user_');
+      if (isDeletedPlaceholder) {
+        await query('ROLLBACK');
+        return res.status(400).json({
+          error: 'Технического удаленного пользователя удалять повторно нельзя',
+        });
+      }
       const safeSuffix = String(sourceUser.id || '')
         .toLowerCase()
         .replace(/[^a-z0-9_]+/g, '_')

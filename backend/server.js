@@ -1411,6 +1411,15 @@ app.delete(
       }
 
       const sourceUser = source.rows[0];
+      const isDeletedPlaceholder =
+        String(sourceUser.id || '').startsWith('deleted_') ||
+        String(sourceUser.username || '').startsWith('deleted_user_');
+      if (isDeletedPlaceholder) {
+        await query('ROLLBACK');
+        return res.status(400).json({
+          error: 'Технического удаленного пользователя удалять повторно нельзя',
+        });
+      }
       const safeSuffix = String(sourceUser.id || '')
         .toLowerCase()
         .replace(/[^a-z0-9_]+/g, '_')
@@ -3444,13 +3453,19 @@ app.get('/auth/discord', async (req, res) => {
 
         if (!userRow) {
           const uniqueUsername = await ensureUniqueUsernameDb(discordUser.username);
+          const discordDisplayName =
+            (typeof discordUser?.global_name === 'string' && discordUser.global_name.trim()) ||
+            (typeof discordUser?.username === 'string' && discordUser.username.trim()) ||
+            'discord_user';
+          const discordNickname = `${discordDisplayName} - discord`;
           await query(
-            `INSERT INTO users (id, username, email, auth_type, account_type, is_active, password_hash, discord_id, discord_data, created_at, last_login)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+            `INSERT INTO users (id, username, email, nickname, auth_type, account_type, is_active, password_hash, discord_id, discord_data, created_at, last_login)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
             [
               `discord_${discordUser.id}`,
               uniqueUsername,
               discordUser.email || null,
+              discordNickname,
               'discord',
               targetAccountType,
               targetIsActive,
