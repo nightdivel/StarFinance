@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Card,
   Button,
@@ -46,10 +46,15 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
 
   const [transactionForm] = Form.useForm();
   const txType = Form.useWatch('type', transactionForm);
+  const isPrefillingTxFormRef = useRef(false);
   const isAdmin = authService.hasPermission('users', 'write') || (userData?.accountType === 'Администратор');
 
   // При смене типа операции очищаем контрагента, чтобы избежать некорректного значения
   useEffect(() => {
+    if (isPrefillingTxFormRef.current) {
+      isPrefillingTxFormRef.current = false;
+      return;
+    }
     try {
       transactionForm.setFieldsValue({ counterparty: null });
     } catch (_) {}
@@ -520,6 +525,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
                 setTransactionModalVisible(true);
                 const effectiveType = record._typeForMe || record.type;
                 const cp = effectiveType === 'income' ? (record.from_user || null) : (record.to_user || null);
+                isPrefillingTxFormRef.current = true;
                 transactionForm.setFieldsValue({
                   type: effectiveType,
                   amount: record.amount,
