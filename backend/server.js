@@ -128,6 +128,213 @@ function safeJsonParse(s) {
   }
 }
 
+const TELEGRAM_NEWS_ENABLED_KEY = 'system.telegramNews.enabled';
+const TELEGRAM_NEWS_CHANNEL_KEY = 'system.telegramNews.channel';
+const TELEGRAM_NEWS_SYNC_MINUTES_KEY = 'system.telegramNews.syncMinutes';
+const TELEGRAM_NEWS_LAST_SYNC_KEY = 'system.telegramNews.lastSyncAt';
+const DEFAULT_TELEGRAM_NEWS_CHANNEL = 'JamTVStarCitizen';
+const DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES = 15;
+let telegramNewsSyncInProgress = false;
+let telegramNewsLastRunAtMs = 0;
+
+function normalizeTelegramChannel(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return DEFAULT_TELEGRAM_NEWS_CHANNEL;
+  let s = raw.replace(/^https?:\/\/t\.me\//i, '').replace(/^@/, '').trim();
+  if (s.startsWith('s/')) s = s.slice(2);
+  s = s.replace(/\/.*/, '').trim();
+  return s || DEFAULT_TELEGRAM_NEWS_CHANNEL;
+}
+
+function decodeHtmlEntities(text) {
+  return String(text || '')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function htmlToText(html) {
+  const withBreaks = String(html || '').replace(/<br\s*\/?\s*>/gi, '\n');
+  const noTags = withBreaks.replace(/<[^>]+>/g, ' ');
+  return decodeHtmlEntities(noTags)
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function parseTelegramPostsFromHtml(html, channel) {
+  const normalizedChannel = normalizeTelegramChannel(channel);
+  const chunks = String(html || '').split('<div class="tgme_widget_message_wrap').slice(1);
+  const posts = [];
+
+  for (const part of chunks) {
+    const section = `<div class="tgme_widget_message_wrap${part}`;
+    const urlMatch = section.match(/<a class="tgme_widget_message_date" href="([^"]+)"/i);
+    const dateMatch = section.match(/<time[^>]*datetime="([^"]+)"/i);
+    const textMatch = section.match(
+      /<div class="tgme_widget_message_text js-message_text"[^>]*>([\s\S]*?)<\/div>/i
+    );
+
+    const url = urlMatch?.[1] || '';
+    if (!url.includes(`/t.me/${normalizedChannel}/`) && !url.includes(`/t.me/s/${normalizedChannel}/`)) {
+      continue;
+    }
+
+    const fullText = htmlToText(textMatch?.[1] || '');
+    if (!fullText) continue;
+
+    const lines = fullText
+      .split('\n')
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (lines.length === 0) continue;
+
+    const title = (lines[0] || '').slice(0, 255).trim();
+    const secondLine = (lines[1] || '').trim();
+    const summarySource = secondLine || (lines.slice(1).join(' ').trim() || title);
+    const dotIdx = summarySource.indexOf('.');
+    const summaryRaw = dotIdx >= 0 ? summarySource.slice(0, dotIdx) : summarySource;
+    const summary = summaryRaw.slice(0, 1000).trim() || title;
+    const publishedAt = dateMatch?.[1] ? new Date(dateMatch[1]).toISOString() : new Date().toISOString();
+    const content = `${fullText}\n\nИсточник: ${url}`;
+
+    posts.push({ url, title, summary, content, publishedAt });
+  }
+
+  return posts;
+}
+
+async function readTelegramNewsSettingsDb() {
+  const out = {
+    enabled: true,
+    channel: DEFAULT_TELEGRAM_NEWS_CHANNEL,
+    syncMinutes: DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES,
+    lastSyncAt: null,
+  };
+  try {
+    const rows = (
+      await query('SELECT key, value FROM settings WHERE key = ANY($1)', [
+        [
+          TELEGRAM_NEWS_ENABLED_KEY,
+          TELEGRAM_NEWS_CHANNEL_KEY,
+          TELEGRAM_NEWS_SYNC_MINUTES_KEY,
+          TELEGRAM_NEWS_LAST_SYNC_KEY,
+        ],
+      ])
+    ).rows;
+    for (const r of rows) {
+      if (r.key === TELEGRAM_NEWS_ENABLED_KEY) {
+        const v = r.value;
+        out.enabled =
+          typeof v === 'boolean' ? v : String(v).toLowerCase() === 'false' ? false : true;
+      }
+      if (r.key === TELEGRAM_NEWS_CHANNEL_KEY) {
+        out.channel = normalizeTelegramChannel(r.value);
+      }
+      if (r.key === TELEGRAM_NEWS_SYNC_MINUTES_KEY) {
+        out.syncMinutes = Math.max(1, Math.min(360, Number(r.value) || DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES));
+      }
+      if (r.key === TELEGRAM_NEWS_LAST_SYNC_KEY) {
+        out.lastSyncAt = r.value || null;
+      }
+    }
+  } catch (_) {}
+  return out;
+}
+
+async function writeTelegramNewsSetting(key, value) {
+  await query(
+    `INSERT INTO settings(key, value) VALUES ($1, $2::jsonb)
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+    [key, JSON.stringify(value)]
+  );
+}
+
+async function ensureTelegramNewsAuthorId() {
+  const technicalId = 'deleted_user';
+  const technicalUsername = 'deleted_user';
+  try {
+    const existing = await query('SELECT id FROM users WHERE id = $1', [technicalId]);
+    if (existing.rowCount > 0) return technicalId;
+
+    const passwordHash = crypto
+      .createHash('sha256')
+      .update(`deleted:${technicalId}`)
+      .digest('hex');
+
+    await query(
+      `INSERT INTO users (id, username, email, auth_type, password_hash, account_type, is_active, created_at)
+       VALUES ($1, $2, NULL, 'local', $3, 'Гость', FALSE, NOW())
+       ON CONFLICT (id) DO NOTHING`,
+      [technicalId, technicalUsername, passwordHash]
+    );
+    return technicalId;
+  } catch (_) {
+    const first = await query('SELECT id FROM users ORDER BY created_at ASC LIMIT 1').catch(() => null);
+    return first?.rows?.[0]?.id || null;
+  }
+}
+
+async function syncTelegramNews({ force = false } = {}) {
+  if (telegramNewsSyncInProgress) return { skipped: true, reason: 'busy' };
+  telegramNewsSyncInProgress = true;
+  try {
+    const cfg = await readTelegramNewsSettingsDb();
+    if (!force && !cfg.enabled) return { skipped: true, reason: 'disabled' };
+    const channel = normalizeTelegramChannel(cfg.channel);
+    const url = `https://t.me/s/${encodeURIComponent(channel)}`;
+    const resp = await axios.get(url, {
+      timeout: 25000,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
+      },
+    });
+
+    const parsed = parseTelegramPostsFromHtml(resp.data, channel).slice(0, 25);
+    if (parsed.length === 0) {
+      await writeTelegramNewsSetting(TELEGRAM_NEWS_LAST_SYNC_KEY, new Date().toISOString());
+      return { success: true, inserted: 0, checked: 0 };
+    }
+
+    const authorId = await ensureTelegramNewsAuthorId();
+    if (!authorId) return { skipped: true, reason: 'no_author' };
+
+    let inserted = 0;
+    for (const post of parsed.reverse()) {
+      const marker = `Источник: ${post.url}`;
+      const ins = await query(
+        `INSERT INTO news (title, content, summary, published_at, author_id)
+         SELECT $1, $2, $3, $4, $5
+         WHERE NOT EXISTS (SELECT 1 FROM news WHERE content LIKE $6)
+         RETURNING *`,
+        [post.title, post.content, post.summary, post.publishedAt, authorId, `%${marker}%`]
+      );
+      if (ins.rowCount > 0) {
+        inserted += 1;
+        try {
+          io.emit('news:changed', { action: 'create', news: ins.rows[0] });
+        } catch (_) {}
+      }
+    }
+
+    await writeTelegramNewsSetting(TELEGRAM_NEWS_LAST_SYNC_KEY, new Date().toISOString());
+    return { success: true, inserted, checked: parsed.length, channel };
+  } catch (e) {
+    console.error('Telegram news sync failed:', e?.message || e);
+    return { success: false, error: e?.message || 'sync_failed' };
+  } finally {
+    telegramNewsSyncInProgress = false;
+  }
+}
+
 async function loadDirectoriesFromDb() {
   const productTypes = await (async () => {
     try {
@@ -2398,6 +2605,45 @@ app.post(
 );
 
 // ---------- News CRUD ----------
+app.get('/api/system/telegram-news', authenticateToken, requirePermission('settings', 'read'), async (req, res) => {
+  try {
+    const cfg = await readTelegramNewsSettingsDb();
+    res.json(cfg);
+  } catch (e) {
+    res.status(500).json({ error: 'Ошибка чтения настроек Telegram-новостей' });
+  }
+});
+
+app.put('/api/system/telegram-news', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    const enabled = !!req.body?.enabled;
+    const channel = normalizeTelegramChannel(req.body?.channel);
+    const syncMinutes = Math.max(
+      1,
+      Math.min(360, Number(req.body?.syncMinutes) || DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES)
+    );
+    await writeTelegramNewsSetting(TELEGRAM_NEWS_ENABLED_KEY, enabled);
+    await writeTelegramNewsSetting(TELEGRAM_NEWS_CHANNEL_KEY, channel);
+    await writeTelegramNewsSetting(TELEGRAM_NEWS_SYNC_MINUTES_KEY, syncMinutes);
+    const cfg = await readTelegramNewsSettingsDb();
+    res.json({ success: true, ...cfg });
+  } catch (e) {
+    res.status(500).json({ error: 'Ошибка сохранения настроек Telegram-новостей' });
+  }
+});
+
+app.post('/api/news/telegram/sync', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    const result = await syncTelegramNews({ force: true });
+    if (result?.success === false) {
+      return res.status(500).json({ error: 'Ошибка синхронизации Telegram-новостей', details: result.error || null });
+    }
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: 'Ошибка синхронизации Telegram-новостей' });
+  }
+});
+
 // Get single news by ID
 app.get('/api/news/:id', authenticateToken, async (req, res) => {
   try {
@@ -4246,6 +4492,24 @@ const startServer = async () => {
   server.listen(SERVER_CONFIG.PORT, SERVER_CONFIG.HOST, () => {
     console.log(`🚀 Server running on http://${SERVER_CONFIG.HOST}:${SERVER_CONFIG.PORT}`);
     console.log(`🌐 Frontend: ${SERVER_CONFIG.FRONTEND_URL}`);
+
+    // Telegram channel ingestion loop for news.
+    setTimeout(async () => {
+      try {
+        await syncTelegramNews();
+      } catch (_) {}
+    }, 15000);
+
+    setInterval(async () => {
+      try {
+        const cfg = await readTelegramNewsSettingsDb();
+        const intervalMs = Math.max(1, Number(cfg.syncMinutes) || DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES) * 60 * 1000;
+        const now = Date.now();
+        if (now - telegramNewsLastRunAtMs < intervalMs) return;
+        telegramNewsLastRunAtMs = now;
+        await syncTelegramNews();
+      } catch (_) {}
+    }, 60 * 1000);
   });
 };
 

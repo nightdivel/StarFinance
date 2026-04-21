@@ -84,6 +84,12 @@ const AUTH_ICON_NAME = 'auth-icon';
 const SYSTEM_FAVICON_NAME = 'system-favicon';
 const BRANDING_TITLE_KEY = 'system.appTitle';
 const DEFAULT_APP_TITLE = 'BLSK Star Finance';
+const TELEGRAM_NEWS_ENABLED_KEY = 'system.telegramNews.enabled';
+const TELEGRAM_NEWS_CHANNEL_KEY = 'system.telegramNews.channel';
+const TELEGRAM_NEWS_SYNC_MINUTES_KEY = 'system.telegramNews.syncMinutes';
+const TELEGRAM_NEWS_LAST_SYNC_KEY = 'system.telegramNews.lastSyncAt';
+const DEFAULT_TELEGRAM_NEWS_CHANNEL = 'JamTVStarCitizen';
+const DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES = 15;
 const AUTH_PUBLIC_DIR = path.join(__dirname, '../../public');
 
 async function readSettingValue(key, fallback = null) {
@@ -103,6 +109,35 @@ async function writeSettingValue(key, value) {
      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
     [key, JSON.stringify(value)]
   );
+}
+
+function normalizeTelegramChannel(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return DEFAULT_TELEGRAM_NEWS_CHANNEL;
+  let s = raw.replace(/^https?:\/\/t\.me\//i, '').replace(/^@/, '').trim();
+  if (s.startsWith('s/')) s = s.slice(2);
+  s = s.replace(/\/.*/, '').trim();
+  return s || DEFAULT_TELEGRAM_NEWS_CHANNEL;
+}
+
+async function readTelegramNewsSettings() {
+  const enabledRaw = await readSettingValue(TELEGRAM_NEWS_ENABLED_KEY, true);
+  const channelRaw = await readSettingValue(
+    TELEGRAM_NEWS_CHANNEL_KEY,
+    DEFAULT_TELEGRAM_NEWS_CHANNEL
+  );
+  const syncMinutesRaw = await readSettingValue(
+    TELEGRAM_NEWS_SYNC_MINUTES_KEY,
+    DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES
+  );
+  const lastSyncAt = await readSettingValue(TELEGRAM_NEWS_LAST_SYNC_KEY, null);
+  const syncMinutes = Math.max(1, Math.min(360, Number(syncMinutesRaw) || DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES));
+  return {
+    enabled: !!enabledRaw,
+    channel: normalizeTelegramChannel(channelRaw),
+    syncMinutes,
+    lastSyncAt: lastSyncAt || null,
+  };
 }
 
 async function getAuthBgFile() {
@@ -309,6 +344,30 @@ app.delete('/api/system/favicon', authenticateToken, requirePermission('settings
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: 'Ошибка удаления favicon' });
+  }
+});
+
+app.get('/api/system/telegram-news', authenticateToken, requirePermission('settings', 'read'), async (req, res) => {
+  try {
+    const cfg = await readTelegramNewsSettings();
+    res.json(cfg);
+  } catch (_) {
+    res.status(500).json({ error: 'Ошибка чтения настроек Telegram-новостей' });
+  }
+});
+
+app.put('/api/system/telegram-news', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    const enabled = !!req.body?.enabled;
+    const channel = normalizeTelegramChannel(req.body?.channel);
+    const syncMinutes = Math.max(1, Math.min(360, Number(req.body?.syncMinutes) || DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES));
+    await writeSettingValue(TELEGRAM_NEWS_ENABLED_KEY, enabled);
+    await writeSettingValue(TELEGRAM_NEWS_CHANNEL_KEY, channel);
+    await writeSettingValue(TELEGRAM_NEWS_SYNC_MINUTES_KEY, syncMinutes);
+    const cfg = await readTelegramNewsSettings();
+    res.json({ success: true, ...cfg });
+  } catch (e) {
+    res.status(500).json({ error: 'Ошибка сохранения настроек Telegram-новостей' });
   }
 });
 

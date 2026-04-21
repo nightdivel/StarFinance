@@ -62,6 +62,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
   // App branding state
   const [systemFaviconUrl, setSystemFaviconUrl] = useState(null);
   const [systemFaviconLoading, setSystemFaviconLoading] = useState(false);
+  const [telegramSyncLoading, setTelegramSyncLoading] = useState(false);
 
   useEffect(() => {
     setCanWrite(authService.hasPermission('settings', 'write'));
@@ -167,6 +168,9 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
         currencies: data.system.currencies,
         rates: data.system.rates,
         appTitle: data.system.appTitle || 'BLSK Star Finance',
+        telegramNewsEnabled: data.system.telegramNews?.enabled ?? true,
+        telegramNewsChannel: data.system.telegramNews?.channel || 'JamTVStarCitizen',
+        telegramNewsSyncMinutes: data.system.telegramNews?.syncMinutes || 15,
         enableDiscordAuth: data.system.discord?.enable ?? false,
         clientId: data.system.discord?.clientId || '',
         clientSecret: data.system.discord?.clientSecret || '',
@@ -261,6 +265,18 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
           ? apiService.buildUrl(rawUrl)
           : rawUrl || null;
         setSystemFaviconUrl(normalized);
+      } catch (_) {}
+    })();
+    // Fetch telegram news settings
+    (async () => {
+      try {
+        const cfg = await apiService.getTelegramNewsSettings();
+        form.setFieldsValue({
+          telegramNewsEnabled:
+            typeof cfg?.enabled === 'boolean' ? cfg.enabled : true,
+          telegramNewsChannel: cfg?.channel || 'JamTVStarCitizen',
+          telegramNewsSyncMinutes: Number(cfg?.syncMinutes) || 15,
+        });
       } catch (_) {}
     })();
     // Загрузим справочник scopes и существующие маппинги
@@ -382,6 +398,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
     const newAppTitle = String(values.appTitle || '').trim();
     let discordSaved = false;
     let brandingSaved = false;
+    let telegramSaved = false;
     try {
       if (!newAppTitle) {
         message.warning('Название приложения не может быть пустым');
@@ -410,6 +427,22 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
     } catch (_) {
       message.error('Не удалось сохранить название приложения');
     }
+
+    try {
+      const tgEnabled = !!values.telegramNewsEnabled;
+      const tgChannel = String(values.telegramNewsChannel || '').trim() || 'JamTVStarCitizen';
+      const tgSyncMinutes = Math.max(1, Math.min(360, Number(values.telegramNewsSyncMinutes) || 15));
+      await apiService.updateTelegramNewsSettings({
+        enabled: tgEnabled,
+        channel: tgChannel,
+        syncMinutes: tgSyncMinutes,
+      });
+      telegramSaved = true;
+      message.success('Настройки Telegram-новостей сохранены');
+    } catch (_) {
+      message.error('Не удалось сохранить настройки Telegram-новостей');
+    }
+
     // Сначала сохраним OAuth2 параметры на бэкенде
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
@@ -468,7 +501,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
         }
       } catch (_) {}
     }
-    if (brandingSaved && !discordSaved) {
+    if ((brandingSaved || telegramSaved) && !discordSaved) {
       // no-op branch keeps save flow explicit and readable for future extensions
     }
   };
@@ -497,6 +530,11 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
           currencies: uniqCurrencies,
           rates: nextRates,
           appTitle: String(values.appTitle || data.system.appTitle || 'BLSK Star Finance').trim(),
+          telegramNews: {
+            enabled: !!values.telegramNewsEnabled,
+            channel: String(values.telegramNewsChannel || 'JamTVStarCitizen').trim() || 'JamTVStarCitizen',
+            syncMinutes: Math.max(1, Math.min(360, Number(values.telegramNewsSyncMinutes) || 15)),
+          },
           discord: {
             ...(data.system.discord || {}),
             enable: !!values.enableDiscordAuth,
@@ -924,6 +962,57 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     <Button type="primary" size="small" onClick={() => window.open(systemFaviconUrl, '_blank')}>Открыть</Button>
                   </div>
                 )}
+              </div>
+
+              <Divider />
+              <Title level={5}>Подписка на Telegram-канал новостей</Title>
+              <Text type="secondary">
+                Посты из канала загружаются автоматически в Новости. Первая строка поста используется как заголовок, вторая строка до первой точки — как краткое описание.
+              </Text>
+              <Row gutter={16} className="mt-3">
+                <Col xs={24} md={8}>
+                  <Form.Item name="telegramNewsEnabled" valuePropName="checked" label="Синхронизация">
+                    <Checkbox disabled={!canWrite}>Включить импорт из Telegram</Checkbox>
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={10}>
+                  <Form.Item
+                    name="telegramNewsChannel"
+                    label="Канал Telegram"
+                    rules={[{ required: true, message: 'Укажите канал Telegram' }]}
+                  >
+                    <Input placeholder="JamTVStarCitizen или https://t.me/JamTVStarCitizen" disabled={!canWrite} />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={6}>
+                  <Form.Item
+                    name="telegramNewsSyncMinutes"
+                    label="Интервал (минуты)"
+                    rules={[{ required: true, message: 'Укажите интервал' }]}
+                  >
+                    <InputNumber min={1} max={360} className="w-100" disabled={!canWrite} />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <div className="d-flex gap-2 align-items-center flex-wrap">
+                <Button
+                  onClick={async () => {
+                    setTelegramSyncLoading(true);
+                    try {
+                      const result = await apiService.syncTelegramNewsNow();
+                      const inserted = Number(result?.inserted) || 0;
+                      message.success(`Синхронизация выполнена. Добавлено новостей: ${inserted}`);
+                    } catch (_) {
+                      message.error('Не удалось выполнить синхронизацию Telegram-новостей');
+                    } finally {
+                      setTelegramSyncLoading(false);
+                    }
+                  }}
+                  loading={telegramSyncLoading}
+                  disabled={!canWrite}
+                >
+                  Синхронизировать сейчас
+                </Button>
               </div>
 
               {/* Auth Background Upload */}

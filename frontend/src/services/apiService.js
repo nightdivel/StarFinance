@@ -422,6 +422,20 @@ class ApiService {
     return this.request('/api/system/favicon', { method: 'DELETE' });
   }
 
+  // ----- Telegram news subscription settings -----
+  getTelegramNewsSettings() {
+    return this.request('/api/system/telegram-news', { method: 'GET' });
+  }
+  updateTelegramNewsSettings({ enabled, channel, syncMinutes }) {
+    return this.request('/api/system/telegram-news', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled, channel, syncMinutes }),
+    });
+  }
+  syncTelegramNewsNow() {
+    return this.request('/api/news/telegram/sync', { method: 'POST' });
+  }
+
 }
 
 export default ApiService;
