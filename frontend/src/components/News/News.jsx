@@ -396,14 +396,16 @@ const News = ({ userData, darkMode }) => {
                         />
                       </Tooltip>,
                       <Tooltip key="delete" title="Удалить">
-                        <span onClick={(e) => e.stopPropagation()}>
+                        <span className="news-action-hitbox" onClick={(e) => e.stopPropagation()}>
                           <Popconfirm
                             title="Удалить новость?"
                             onConfirm={() => deleteNews(news.id)}
                             okText="Да"
                             cancelText="Нет"
                           >
-                            <DeleteOutlined />
+                            <span className="news-action-hitbox-inner">
+                              <DeleteOutlined />
+                            </span>
                           </Popconfirm>
                         </span>
                       </Tooltip>,
@@ -643,6 +645,18 @@ const News = ({ userData, darkMode }) => {
       <style>{`
         .news-content {
           line-height: 1.6;
+        }
+        .news-action-hitbox {
+          display: block;
+          width: 100%;
+          height: 100%;
+        }
+        .news-action-hitbox-inner {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          min-height: 22px;
         }
         .news-content img {
           max-width: 100%;

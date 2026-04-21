@@ -63,6 +63,14 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
   const [systemFaviconUrl, setSystemFaviconUrl] = useState(null);
   const [systemFaviconLoading, setSystemFaviconLoading] = useState(false);
   const [telegramSyncLoading, setTelegramSyncLoading] = useState(false);
+  const [telegramLastSyncAt, setTelegramLastSyncAt] = useState(null);
+
+  const formatTelegramSyncTime = (value) => {
+    if (!value) return 'еще не выполнялась';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    return d.toLocaleString('ru-RU');
+  };
 
   useEffect(() => {
     setCanWrite(authService.hasPermission('settings', 'write'));
@@ -277,6 +285,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
           telegramNewsChannel: cfg?.channel || 'JamTVStarCitizen',
           telegramNewsSyncMinutes: Number(cfg?.syncMinutes) || 15,
         });
+        setTelegramLastSyncAt(cfg?.lastSyncAt || null);
       } catch (_) {}
     })();
     // Загрузим справочник scopes и существующие маппинги
@@ -965,20 +974,22 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               </div>
 
               <Divider />
-              <Title level={5}>Подписка на Telegram-канал новостей</Title>
+              <Title level={5}>Настройка подписки на Telegram-канал</Title>
+              <Text strong>Блок подписки</Text>
+              <br />
               <Text type="secondary">
-                Посты из канала загружаются автоматически в Новости. Первая строка поста используется как заголовок, вторая строка до первой точки — как краткое описание.
+                Укажите канал и параметры подписки. Посты из канала загружаются автоматически в Новости. Первая строка поста используется как заголовок, вторая строка до первой точки — как краткое описание.
               </Text>
               <Row gutter={16} className="mt-3">
                 <Col xs={24} md={8}>
-                  <Form.Item name="telegramNewsEnabled" valuePropName="checked" label="Синхронизация">
-                    <Checkbox disabled={!canWrite}>Включить импорт из Telegram</Checkbox>
+                  <Form.Item name="telegramNewsEnabled" valuePropName="checked" label="Подписка">
+                    <Checkbox disabled={!canWrite}>Включить подписку и импорт из Telegram</Checkbox>
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={10}>
                   <Form.Item
                     name="telegramNewsChannel"
-                    label="Канал Telegram"
+                    label="Канал подписки (Telegram)"
                     rules={[{ required: true, message: 'Укажите канал Telegram' }]}
                   >
                     <Input placeholder="JamTVStarCitizen или https://t.me/JamTVStarCitizen" disabled={!canWrite} />
@@ -1001,7 +1012,19 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     try {
                       const result = await apiService.syncTelegramNewsNow();
                       const inserted = Number(result?.inserted) || 0;
-                      message.success(`Синхронизация выполнена. Добавлено новостей: ${inserted}`);
+                      const updated = Number(result?.updated) || 0;
+                      const checked = Number(result?.checked) || 0;
+                      try {
+                        const cfg = await apiService.getTelegramNewsSettings();
+                        setTelegramLastSyncAt(cfg?.lastSyncAt || new Date().toISOString());
+                      } catch (_) {
+                        setTelegramLastSyncAt(new Date().toISOString());
+                      }
+                      if (inserted > 0 || updated > 0) {
+                        message.success(`Синхронизация выполнена. Проверено: ${checked}, добавлено: ${inserted}, обновлено: ${updated}`);
+                      } else {
+                        message.info(`Синхронизация выполнена. Проверено: ${checked}, новых постов не найдено`);
+                      }
                     } catch (_) {
                       message.error('Не удалось выполнить синхронизацию Telegram-новостей');
                     } finally {
@@ -1013,6 +1036,9 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                 >
                   Синхронизировать сейчас
                 </Button>
+                <Text type="secondary">
+                  Последняя синхронизация: {formatTelegramSyncTime(telegramLastSyncAt)}
+                </Text>
               </div>
 
               {/* Auth Background Upload */}

@@ -158,6 +158,62 @@ function decodeHtmlEntities(text) {
     .replace(/&gt;/g, '>');
 }
 
+function escapeHtml(text) {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function normalizeTelegramAssetUrl(rawUrl) {
+  const s = String(rawUrl || '').trim();
+  if (!s) return '';
+  if (s.startsWith('//')) return `https:${s}`;
+  if (s.startsWith('/')) return `https://t.me${s}`;
+  return s;
+}
+
+function extractTelegramMediaUrls(sectionHtml) {
+  const section = String(sectionHtml || '');
+  const urls = new Set();
+
+  // Keep only media that belongs to the message body/photo blocks,
+  // and exclude reaction/emoji/service icons from Telegram UI.
+  const mediaChunks = [];
+  const photoWrapRegex = /<a[^>]*class="[^"]*tgme_widget_message_photo_wrap[^"]*"[^>]*>/gi;
+  let m;
+  while ((m = photoWrapRegex.exec(section)) !== null) {
+    mediaChunks.push(m[0]);
+  }
+
+  const textBlockRegex = /<div class="tgme_widget_message_text js-message_text"[^>]*>([\s\S]*?)<\/div>/i;
+  const textBlock = section.match(textBlockRegex)?.[1] || '';
+  if (textBlock) mediaChunks.push(textBlock);
+
+  for (const chunk of mediaChunks) {
+    const styleUrlRegex = /(?:background-image|background)\s*:\s*url\((['"]?)([^'")]+)\1\)/gi;
+    let s;
+    while ((s = styleUrlRegex.exec(chunk)) !== null) {
+      const normalized = normalizeTelegramAssetUrl(s[2]);
+      if (!/^https?:\/\//i.test(normalized)) continue;
+      if (/telegram\.org\/img\/emoji\//i.test(normalized)) continue;
+      urls.add(normalized);
+    }
+
+    const srcRegex = /<(?:img|source)[^>]+(?:src|srcset)="([^"]+)"/gi;
+    while ((s = srcRegex.exec(chunk)) !== null) {
+      const normalized = normalizeTelegramAssetUrl(s[1]);
+      if (!/^https?:\/\//i.test(normalized)) continue;
+      if (/telegram\.org\/img\/emoji\//i.test(normalized)) continue;
+      urls.add(normalized);
+    }
+  }
+
+  return Array.from(urls).slice(0, 6);
+}
+
 function htmlToText(html) {
   const withBreaks = String(html || '').replace(/<br\s*\/?\s*>/gi, '\n');
   const noTags = withBreaks.replace(/<[^>]+>/g, ' ');
@@ -181,20 +237,22 @@ function parseTelegramPostsFromHtml(html, channel) {
     const textMatch = section.match(
       /<div class="tgme_widget_message_text js-message_text"[^>]*>([\s\S]*?)<\/div>/i
     );
+    const mediaUrls = extractTelegramMediaUrls(section);
 
     const url = urlMatch?.[1] || '';
     if (!url.includes(`/t.me/${normalizedChannel}/`) && !url.includes(`/t.me/s/${normalizedChannel}/`)) {
       continue;
     }
 
-    const fullText = htmlToText(textMatch?.[1] || '');
-    if (!fullText) continue;
+    const rawMessageHtml = textMatch?.[1] || '';
+    const fullText = htmlToText(rawMessageHtml);
+    if (!fullText && mediaUrls.length === 0) continue;
 
     const lines = fullText
       .split('\n')
       .map((x) => x.trim())
       .filter(Boolean);
-    if (lines.length === 0) continue;
+    if (lines.length === 0) lines.push('Пост из Telegram');
 
     const title = (lines[0] || '').slice(0, 255).trim();
     const secondLine = (lines[1] || '').trim();
@@ -203,7 +261,12 @@ function parseTelegramPostsFromHtml(html, channel) {
     const summaryRaw = dotIdx >= 0 ? summarySource.slice(0, dotIdx) : summarySource;
     const summary = summaryRaw.slice(0, 1000).trim() || title;
     const publishedAt = dateMatch?.[1] ? new Date(dateMatch[1]).toISOString() : new Date().toISOString();
-    const content = `${fullText}\n\nИсточник: ${url}`;
+    const safeText = escapeHtml(fullText || title).replace(/\n/g, '<br/>');
+    const mediaHtml = mediaUrls
+      .map((mediaUrl) => `<p><img src="${escapeHtml(mediaUrl)}" alt="Telegram image" /></p>`)
+      .join('');
+    const safeUrl = escapeHtml(url);
+    const content = `<div>${safeText}</div>${mediaHtml}<p><a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Источник в Telegram</a></p><!-- telegram-source:${safeUrl} -->`;
 
     posts.push({ url, title, summary, content, publishedAt });
   }
@@ -308,14 +371,36 @@ async function syncTelegramNews({ force = false } = {}) {
     if (!authorId) return { skipped: true, reason: 'no_author' };
 
     let inserted = 0;
+    let updated = 0;
     for (const post of parsed.reverse()) {
-      const marker = `Источник: ${post.url}`;
+      const markerOld = `Источник: ${post.url}`;
+      const markerNew = `telegram-source:${post.url}`;
+      const updExisting = await query(
+        `UPDATE news
+         SET title = $1,
+             content = $2,
+             summary = $3,
+             published_at = $4
+         WHERE content LIKE $5 OR content LIKE $6
+         RETURNING *`,
+        [post.title, post.content, post.summary, post.publishedAt, `%${markerOld}%`, `%${markerNew}%`]
+      );
+      if (updExisting.rowCount > 0) {
+        updated += updExisting.rowCount;
+        try {
+          for (const row of updExisting.rows) {
+            io.emit('news:changed', { action: 'update', news: row });
+          }
+        } catch (_) {}
+        continue;
+      }
+
       const ins = await query(
         `INSERT INTO news (title, content, summary, published_at, author_id)
          SELECT $1, $2, $3, $4, $5
-         WHERE NOT EXISTS (SELECT 1 FROM news WHERE content LIKE $6)
+         WHERE NOT EXISTS (SELECT 1 FROM news WHERE content LIKE $6 OR content LIKE $7)
          RETURNING *`,
-        [post.title, post.content, post.summary, post.publishedAt, authorId, `%${marker}%`]
+        [post.title, post.content, post.summary, post.publishedAt, authorId, `%${markerOld}%`, `%${markerNew}%`]
       );
       if (ins.rowCount > 0) {
         inserted += 1;
@@ -326,7 +411,7 @@ async function syncTelegramNews({ force = false } = {}) {
     }
 
     await writeTelegramNewsSetting(TELEGRAM_NEWS_LAST_SYNC_KEY, new Date().toISOString());
-    return { success: true, inserted, checked: parsed.length, channel };
+    return { success: true, inserted, updated, checked: parsed.length, channel };
   } catch (e) {
     console.error('Telegram news sync failed:', e?.message || e);
     return { success: false, error: e?.message || 'sync_failed' };
