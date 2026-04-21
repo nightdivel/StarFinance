@@ -436,6 +436,29 @@ class ApiService {
     return this.request('/api/news/telegram/sync', { method: 'POST' });
   }
 
+  // ----- Discord news subscription settings -----
+  getDiscordNewsSettings() {
+    return this.request('/api/system/discord-news', { method: 'GET' });
+  }
+  updateDiscordNewsSettings({ enabled, channel, syncMinutes, botToken }) {
+    return this.request('/api/system/discord-news', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled, channel, syncMinutes, botToken }),
+    });
+  }
+  syncDiscordNewsNow() {
+    return this.request('/api/news/discord/sync', { method: 'POST' });
+  }
+  startDiscordNewsOAuth() {
+    return this.request('/api/news/discord/oauth/start', { method: 'POST' });
+  }
+  getDiscordNewsOAuthStatus() {
+    return this.request('/api/news/discord/oauth/status', { method: 'GET' });
+  }
+  disconnectDiscordNewsOAuth() {
+    return this.request('/api/news/discord/oauth/status', { method: 'DELETE' });
+  }
+
 }
 
 export default ApiService;

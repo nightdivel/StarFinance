@@ -11,8 +11,9 @@ class NewsService {
   }
 
   // Получить все новости с пагинацией
-  async getNews(page = 1, limit = APP_CONFIG.PAGINATION.NEWS_PAGE_SIZE) {
-    return this.request(`/api/news?page=${page}&limit=${limit}&sort=createdAt&order=desc`);
+  async getNews(page = 1, limit = APP_CONFIG.PAGINATION.NEWS_PAGE_SIZE, source = 'all') {
+    const sourceParam = encodeURIComponent(String(source || 'all'));
+    return this.request(`/api/news?page=${page}&limit=${limit}&source=${sourceParam}&sort=createdAt&order=desc`);
   }
 
   // Получить одну новость по ID

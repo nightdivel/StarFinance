@@ -185,6 +185,7 @@ EMAIL=no-reply@blacksky.su
 # URL фронтенда и Discord OAuth
 FRONTEND_URL=https://fin.blacksky.su/economy
 DISCORD_REDIRECT_URI=https://fin.blacksky.su/economy/auth/discord/callback
+DISCORD_BOT_TOKEN=
 
 # PostgreSQL (внутри Docker сети)
 PG_HOST=postgres

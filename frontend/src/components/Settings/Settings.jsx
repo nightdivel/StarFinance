@@ -63,9 +63,12 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
   const [systemFaviconUrl, setSystemFaviconUrl] = useState(null);
   const [systemFaviconLoading, setSystemFaviconLoading] = useState(false);
   const [telegramSyncLoading, setTelegramSyncLoading] = useState(false);
+  const [discordSyncLoading, setDiscordSyncLoading] = useState(false);
   const [telegramLastSyncAt, setTelegramLastSyncAt] = useState(null);
+  const [discordNewsLastSyncAt, setDiscordNewsLastSyncAt] = useState(null);
+  const [discordBotTokenConfigured, setDiscordBotTokenConfigured] = useState(false);
 
-  const formatTelegramSyncTime = (value) => {
+  const formatSyncTime = (value) => {
     if (!value) return 'еще не выполнялась';
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return String(value);
@@ -179,6 +182,10 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
         telegramNewsEnabled: data.system.telegramNews?.enabled ?? true,
         telegramNewsChannel: data.system.telegramNews?.channel || 'JamTVStarCitizen',
         telegramNewsSyncMinutes: data.system.telegramNews?.syncMinutes || 15,
+        discordNewsEnabled: data.system.discordNews?.enabled ?? false,
+        discordNewsChannel: data.system.discordNews?.channel || '',
+        discordNewsSyncMinutes: data.system.discordNews?.syncMinutes || 15,
+        discordNewsBotToken: '',
         enableDiscordAuth: data.system.discord?.enable ?? false,
         clientId: data.system.discord?.clientId || '',
         clientSecret: data.system.discord?.clientSecret || '',
@@ -286,6 +293,21 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
           telegramNewsSyncMinutes: Number(cfg?.syncMinutes) || 15,
         });
         setTelegramLastSyncAt(cfg?.lastSyncAt || null);
+      } catch (_) {}
+    })();
+    // Fetch discord news settings
+    (async () => {
+      try {
+        const cfg = await apiService.getDiscordNewsSettings();
+        form.setFieldsValue({
+          discordNewsEnabled:
+            typeof cfg?.enabled === 'boolean' ? cfg.enabled : false,
+          discordNewsChannel: cfg?.channel || '',
+          discordNewsSyncMinutes: Number(cfg?.syncMinutes) || 15,
+          discordNewsBotToken: '',
+        });
+        setDiscordNewsLastSyncAt(cfg?.lastSyncAt || null);
+        setDiscordBotTokenConfigured(!!cfg?.botTokenConfigured);
       } catch (_) {}
     })();
     // Загрузим справочник scopes и существующие маппинги
@@ -408,6 +430,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
     let discordSaved = false;
     let brandingSaved = false;
     let telegramSaved = false;
+    let discordNewsSaved = false;
     try {
       if (!newAppTitle) {
         message.warning('Название приложения не может быть пустым');
@@ -450,6 +473,32 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
       message.success('Настройки Telegram-новостей сохранены');
     } catch (_) {
       message.error('Не удалось сохранить настройки Telegram-новостей');
+    }
+
+    try {
+      const dcEnabled = !!values.discordNewsEnabled;
+      const dcChannel = String(values.discordNewsChannel || '').trim();
+      const dcSyncMinutes = Math.max(1, Math.min(360, Number(values.discordNewsSyncMinutes) || 15));
+      const dcBotToken = String(values.discordNewsBotToken || '').trim();
+      await apiService.updateDiscordNewsSettings({
+        enabled: dcEnabled,
+        channel: dcChannel,
+        syncMinutes: dcSyncMinutes,
+        ...(dcBotToken ? { botToken: dcBotToken } : {}),
+      });
+      discordNewsSaved = true;
+      if (dcBotToken) {
+        setDiscordBotTokenConfigured(true);
+        form.setFieldValue('discordNewsBotToken', '');
+      }
+      message.success('Настройки Discord-новостей сохранены');
+    } catch (e) {
+      const details = e?.json?.details || e?.details || '';
+      if (String(details).includes('invalid_channel_reference')) {
+        message.error('Некорректный адрес канала Discord. Укажите ID, ссылку на канал или ссылку на сообщение');
+      } else {
+        message.error('Не удалось сохранить настройки Discord-новостей');
+      }
     }
 
     // Сначала сохраним OAuth2 параметры на бэкенде
@@ -510,7 +559,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
         }
       } catch (_) {}
     }
-    if ((brandingSaved || telegramSaved) && !discordSaved) {
+    if ((brandingSaved || telegramSaved || discordNewsSaved) && !discordSaved) {
       // no-op branch keeps save flow explicit and readable for future extensions
     }
   };
@@ -543,6 +592,13 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
             enabled: !!values.telegramNewsEnabled,
             channel: String(values.telegramNewsChannel || 'JamTVStarCitizen').trim() || 'JamTVStarCitizen',
             syncMinutes: Math.max(1, Math.min(360, Number(values.telegramNewsSyncMinutes) || 15)),
+          },
+          discordNews: {
+            enabled: !!values.discordNewsEnabled,
+            channel: String(values.discordNewsChannel || '').trim(),
+            syncMinutes: Math.max(1, Math.min(360, Number(values.discordNewsSyncMinutes) || 15)),
+            lastSyncAt: discordNewsLastSyncAt || null,
+            botTokenConfigured: discordBotTokenConfigured,
           },
           discord: {
             ...(data.system.discord || {}),
@@ -974,72 +1030,170 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               </div>
 
               <Divider />
-              <Title level={5}>Настройка подписки на Telegram-канал</Title>
-              <Text strong>Блок подписки</Text>
-              <br />
-              <Text type="secondary">
-                Укажите канал и параметры подписки. Посты из канала загружаются автоматически в Новости. Первая строка поста используется как заголовок, вторая строка до первой точки — как краткое описание.
-              </Text>
-              <Row gutter={16} className="mt-3">
-                <Col xs={24} md={8}>
-                  <Form.Item name="telegramNewsEnabled" valuePropName="checked" label="Подписка">
-                    <Checkbox disabled={!canWrite}>Включить подписку и импорт из Telegram</Checkbox>
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={10}>
-                  <Form.Item
-                    name="telegramNewsChannel"
-                    label="Канал подписки (Telegram)"
-                    rules={[{ required: true, message: 'Укажите канал Telegram' }]}
+              <Card size="small" title="Подписка Telegram" className="mb-4">
+                <Text type="secondary">
+                  Укажите канал и параметры подписки. Посты из канала загружаются автоматически в Новости. Первая строка поста используется как заголовок, вторая строка до первой точки — как краткое описание.
+                </Text>
+                <Row gutter={16} className="mt-3">
+                  <Col xs={24} md={8}>
+                    <Form.Item name="telegramNewsEnabled" valuePropName="checked" label="Подписка">
+                      <Checkbox disabled={!canWrite}>Включить подписку и импорт из Telegram</Checkbox>
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={10}>
+                    <Form.Item
+                      name="telegramNewsChannel"
+                      label="Канал подписки (Telegram)"
+                      rules={[{ required: true, message: 'Укажите канал Telegram' }]}
+                    >
+                      <Input placeholder="JamTVStarCitizen или https://t.me/JamTVStarCitizen" disabled={!canWrite} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={6}>
+                    <Form.Item
+                      name="telegramNewsSyncMinutes"
+                      label="Интервал (минуты)"
+                      rules={[{ required: true, message: 'Укажите интервал' }]}
+                    >
+                      <InputNumber min={1} max={360} className="w-100" disabled={!canWrite} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <div className="d-flex gap-2 align-items-center flex-wrap">
+                  <Button
+                    onClick={async () => {
+                      setTelegramSyncLoading(true);
+                      try {
+                        const result = await apiService.syncTelegramNewsNow();
+                        const inserted = Number(result?.inserted) || 0;
+                        const updated = Number(result?.updated) || 0;
+                        const checked = Number(result?.checked) || 0;
+                        try {
+                          const cfg = await apiService.getTelegramNewsSettings();
+                          setTelegramLastSyncAt(cfg?.lastSyncAt || new Date().toISOString());
+                        } catch (_) {
+                          setTelegramLastSyncAt(new Date().toISOString());
+                        }
+                        if (inserted > 0 || updated > 0) {
+                          message.success(`Синхронизация выполнена. Проверено: ${checked}, добавлено: ${inserted}, обновлено: ${updated}`);
+                        } else {
+                          message.info(`Синхронизация выполнена. Проверено: ${checked}, новых постов не найдено`);
+                        }
+                      } catch (_) {
+                        message.error('Не удалось выполнить синхронизацию Telegram-новостей');
+                      } finally {
+                        setTelegramSyncLoading(false);
+                      }
+                    }}
+                    loading={telegramSyncLoading}
+                    disabled={!canWrite}
                   >
-                    <Input placeholder="JamTVStarCitizen или https://t.me/JamTVStarCitizen" disabled={!canWrite} />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={6}>
-                  <Form.Item
-                    name="telegramNewsSyncMinutes"
-                    label="Интервал (минуты)"
-                    rules={[{ required: true, message: 'Укажите интервал' }]}
-                  >
-                    <InputNumber min={1} max={360} className="w-100" disabled={!canWrite} />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <div className="d-flex gap-2 align-items-center flex-wrap">
+                    Синхронизировать сейчас
+                  </Button>
+                  <Text type="secondary">
+                    Последняя синхронизация: {formatSyncTime(telegramLastSyncAt)}
+                  </Text>
+                </div>
+              </Card>
+
+              <Card size="small" title="Подписка Discord" className="mb-4">
+                <Text type="secondary">
+                  Укажите канал и параметры подписки для Discord-новостей. Можно вставить ID, ссылку на канал или ссылку на сообщение из канала.
+                </Text>
+                <Row gutter={16} className="mt-3">
+                  <Col xs={24} md={8}>
+                    <Form.Item name="discordNewsEnabled" valuePropName="checked" label="Подписка">
+                      <Checkbox disabled={!canWrite}>Включить подписку и импорт из Discord</Checkbox>
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={10}>
+                    <Form.Item
+                      name="discordNewsChannel"
+                      label="Канал подписки (Discord)"
+                      rules={[{ required: false }]}
+                    >
+                      <Input placeholder="ID канала или https://discord.com/channels/.../..." disabled={!canWrite} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={6}>
+                    <Form.Item
+                      name="discordNewsSyncMinutes"
+                      label="Интервал (минуты)"
+                      rules={[{ required: true, message: 'Укажите интервал' }]}
+                    >
+                      <InputNumber min={1} max={360} className="w-100" disabled={!canWrite} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={12}>
+                    <Form.Item
+                      name="discordNewsBotToken"
+                      label="Токен бота (DISCORD_BOT_TOKEN)"
+                      extra="Оставьте пустым, чтобы не изменять текущий токен"
+                    >
+                      <Input.Password placeholder="Введите Discord bot token" disabled={!canWrite} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={12} className="d-flex align-items-end">
+                    <Text type="secondary">
+                      Токен бота: {discordBotTokenConfigured ? 'настроен' : 'не настроен'}
+                    </Text>
+                  </Col>
+                </Row>
+                <div className="d-flex gap-2 align-items-center flex-wrap">
                 <Button
                   onClick={async () => {
-                    setTelegramSyncLoading(true);
+                    setDiscordSyncLoading(true);
                     try {
-                      const result = await apiService.syncTelegramNewsNow();
+                      const result = await apiService.syncDiscordNewsNow();
                       const inserted = Number(result?.inserted) || 0;
                       const updated = Number(result?.updated) || 0;
                       const checked = Number(result?.checked) || 0;
                       try {
-                        const cfg = await apiService.getTelegramNewsSettings();
-                        setTelegramLastSyncAt(cfg?.lastSyncAt || new Date().toISOString());
+                        const cfg = await apiService.getDiscordNewsSettings();
+                        setDiscordNewsLastSyncAt(cfg?.lastSyncAt || new Date().toISOString());
                       } catch (_) {
-                        setTelegramLastSyncAt(new Date().toISOString());
+                        setDiscordNewsLastSyncAt(new Date().toISOString());
                       }
                       if (inserted > 0 || updated > 0) {
-                        message.success(`Синхронизация выполнена. Проверено: ${checked}, добавлено: ${inserted}, обновлено: ${updated}`);
+                        message.success(`Синхронизация Discord выполнена. Проверено: ${checked}, добавлено: ${inserted}, обновлено: ${updated}`);
                       } else {
-                        message.info(`Синхронизация выполнена. Проверено: ${checked}, новых постов не найдено`);
+                        message.info(`Синхронизация Discord выполнена. Проверено: ${checked}, новых постов не найдено`);
                       }
-                    } catch (_) {
-                      message.error('Не удалось выполнить синхронизацию Telegram-новостей');
+                    } catch (e) {
+                      const details = e?.json?.details || e?.details || e?.message || '';
+                      if (String(details).includes('channel_not_configured')) {
+                        message.error('Укажите ссылку или ID Discord-канала в настройках и сохраните');
+                      } else if (String(details).includes('invalid_channel_reference')) {
+                        message.error('Укажите корректный адрес канала Discord: ID, ссылку на канал или ссылку на сообщение');
+                      } else if (String(details).includes('discord_api_invalid_token')) {
+                        message.error('Токен Discord недействителен. Проверьте DISCORD_BOT_TOKEN на сервере');
+                      } else if (String(details).includes('discord_oauth_channel_read_denied')) {
+                        message.error('Discord отклонил чтение сообщений. Настройте DISCORD_BOT_TOKEN для чтения канала');
+                      } else if (String(details).includes('discord_bot_token_required')) {
+                        message.error('Для чтения сообщений канала Discord нужен DISCORD_BOT_TOKEN. Добавьте бота в сервер и выдайте права View Channel + Read Message History');
+                      } else if (String(details).includes('discord_api_missing_access')) {
+                        message.error('Discord отклонил доступ к сообщениям канала. Проверьте права токена/бота на канал');
+                      } else if (String(details).includes('discord_auth_not_configured')) {
+                        message.error('Задайте DISCORD_BOT_TOKEN на сервере и убедитесь, что бот добавлен в нужный сервер/канал');
+                      } else if (String(details).includes('discord_api_unauthorized')) {
+                        message.error('Discord отклонил доступ к сообщениям канала. Проверьте права токена на канал');
+                      } else {
+                        message.error('Не удалось выполнить синхронизацию Discord-новостей');
+                      }
                     } finally {
-                      setTelegramSyncLoading(false);
+                      setDiscordSyncLoading(false);
                     }
                   }}
-                  loading={telegramSyncLoading}
+                  loading={discordSyncLoading}
                   disabled={!canWrite}
                 >
                   Синхронизировать сейчас
                 </Button>
                 <Text type="secondary">
-                  Последняя синхронизация: {formatTelegramSyncTime(telegramLastSyncAt)}
+                  Последняя синхронизация: {formatSyncTime(discordNewsLastSyncAt)}
                 </Text>
-              </div>
+                </div>
+              </Card>
 
               {/* Auth Background Upload */}
               <Divider />

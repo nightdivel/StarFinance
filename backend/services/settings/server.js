@@ -88,8 +88,15 @@ const TELEGRAM_NEWS_ENABLED_KEY = 'system.telegramNews.enabled';
 const TELEGRAM_NEWS_CHANNEL_KEY = 'system.telegramNews.channel';
 const TELEGRAM_NEWS_SYNC_MINUTES_KEY = 'system.telegramNews.syncMinutes';
 const TELEGRAM_NEWS_LAST_SYNC_KEY = 'system.telegramNews.lastSyncAt';
+const DISCORD_NEWS_ENABLED_KEY = 'system.discordNews.enabled';
+const DISCORD_NEWS_CHANNEL_KEY = 'system.discordNews.channel';
+const DISCORD_NEWS_BOT_TOKEN_KEY = 'system.discordNews.botToken';
+const DISCORD_NEWS_SYNC_MINUTES_KEY = 'system.discordNews.syncMinutes';
+const DISCORD_NEWS_LAST_SYNC_KEY = 'system.discordNews.lastSyncAt';
 const DEFAULT_TELEGRAM_NEWS_CHANNEL = 'JamTVStarCitizen';
 const DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES = 15;
+const DEFAULT_DISCORD_NEWS_CHANNEL = '';
+const DEFAULT_DISCORD_NEWS_SYNC_MINUTES = 15;
 const AUTH_PUBLIC_DIR = path.join(__dirname, '../../public');
 
 async function readSettingValue(key, fallback = null) {
@@ -120,6 +127,12 @@ function normalizeTelegramChannel(input) {
   return s || DEFAULT_TELEGRAM_NEWS_CHANNEL;
 }
 
+function normalizeDiscordChannel(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return DEFAULT_DISCORD_NEWS_CHANNEL;
+  return raw;
+}
+
 async function readTelegramNewsSettings() {
   const enabledRaw = await readSettingValue(TELEGRAM_NEWS_ENABLED_KEY, true);
   const channelRaw = await readSettingValue(
@@ -138,6 +151,50 @@ async function readTelegramNewsSettings() {
     syncMinutes,
     lastSyncAt: lastSyncAt || null,
   };
+}
+
+async function readDiscordNewsSettings() {
+  const out = {
+    enabled: false,
+    channel: DEFAULT_DISCORD_NEWS_CHANNEL,
+    botTokenConfigured: false,
+    syncMinutes: DEFAULT_DISCORD_NEWS_SYNC_MINUTES,
+    lastSyncAt: null,
+  };
+  try {
+    const rows = (
+      await query('SELECT key, value FROM settings WHERE key = ANY($1)', [
+        [
+          DISCORD_NEWS_ENABLED_KEY,
+          DISCORD_NEWS_CHANNEL_KEY,
+          DISCORD_NEWS_BOT_TOKEN_KEY,
+          DISCORD_NEWS_SYNC_MINUTES_KEY,
+          DISCORD_NEWS_LAST_SYNC_KEY,
+        ],
+      ])
+    ).rows;
+    for (const r of rows) {
+      if (r.key === DISCORD_NEWS_ENABLED_KEY) {
+        const v = r.value;
+        out.enabled =
+          typeof v === 'boolean' ? v : String(v).toLowerCase() === 'true';
+      }
+      if (r.key === DISCORD_NEWS_CHANNEL_KEY) {
+        out.channel = normalizeDiscordChannel(r.value);
+      }
+      if (r.key === DISCORD_NEWS_BOT_TOKEN_KEY) {
+        out.botTokenConfigured = !!String(r.value || '').trim();
+      }
+      if (r.key === DISCORD_NEWS_SYNC_MINUTES_KEY) {
+        out.syncMinutes = Math.max(1, Math.min(360, Number(r.value) || DEFAULT_DISCORD_NEWS_SYNC_MINUTES));
+      }
+      if (r.key === DISCORD_NEWS_LAST_SYNC_KEY) {
+        out.lastSyncAt = r.value || null;
+      }
+    }
+  } catch (_) {}
+  out.botTokenConfigured = out.botTokenConfigured || !!String(process.env.DISCORD_BOT_TOKEN || '').trim();
+  return out;
 }
 
 async function getAuthBgFile() {
@@ -368,6 +425,36 @@ app.put('/api/system/telegram-news', authenticateToken, requirePermission('setti
     res.json({ success: true, ...cfg });
   } catch (e) {
     res.status(500).json({ error: 'Ошибка сохранения настроек Telegram-новостей' });
+  }
+});
+
+app.get('/api/system/discord-news', authenticateToken, requirePermission('settings', 'read'), async (req, res) => {
+  try {
+    const cfg = await readDiscordNewsSettings();
+    res.json(cfg);
+  } catch (_) {
+    res.status(500).json({ error: 'Ошибка чтения настроек Discord-новостей' });
+  }
+});
+
+app.put('/api/system/discord-news', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    const enabled = !!req.body?.enabled;
+    const channel = normalizeDiscordChannel(req.body?.channel);
+    const botTokenInput = req.body?.botToken;
+    const hasBotTokenInput = typeof botTokenInput === 'string';
+    const botToken = hasBotTokenInput ? String(botTokenInput || '').trim() : null;
+    const syncMinutes = Math.max(1, Math.min(360, Number(req.body?.syncMinutes) || DEFAULT_DISCORD_NEWS_SYNC_MINUTES));
+    await writeSettingValue(DISCORD_NEWS_ENABLED_KEY, enabled);
+    await writeSettingValue(DISCORD_NEWS_CHANNEL_KEY, channel);
+    if (hasBotTokenInput && botToken) {
+      await writeSettingValue(DISCORD_NEWS_BOT_TOKEN_KEY, botToken);
+    }
+    await writeSettingValue(DISCORD_NEWS_SYNC_MINUTES_KEY, syncMinutes);
+    const cfg = await readDiscordNewsSettings();
+    res.json({ success: true, ...cfg });
+  } catch (e) {
+    res.status(500).json({ error: 'Ошибка сохранения настроек Discord-новостей' });
   }
 });
 

@@ -132,10 +132,25 @@ const TELEGRAM_NEWS_ENABLED_KEY = 'system.telegramNews.enabled';
 const TELEGRAM_NEWS_CHANNEL_KEY = 'system.telegramNews.channel';
 const TELEGRAM_NEWS_SYNC_MINUTES_KEY = 'system.telegramNews.syncMinutes';
 const TELEGRAM_NEWS_LAST_SYNC_KEY = 'system.telegramNews.lastSyncAt';
+const DISCORD_NEWS_ENABLED_KEY = 'system.discordNews.enabled';
+const DISCORD_NEWS_CHANNEL_KEY = 'system.discordNews.channel';
+const DISCORD_NEWS_CHANNEL_INPUT_KEY = 'system.discordNews.channelInput';
+const DISCORD_NEWS_BOT_TOKEN_KEY = 'system.discordNews.botToken';
+const DISCORD_NEWS_SYNC_MINUTES_KEY = 'system.discordNews.syncMinutes';
+const DISCORD_NEWS_LAST_SYNC_KEY = 'system.discordNews.lastSyncAt';
+const DISCORD_NEWS_OAUTH_ACCESS_TOKEN_KEY = 'system.discordNews.oauth.accessToken';
+const DISCORD_NEWS_OAUTH_REFRESH_TOKEN_KEY = 'system.discordNews.oauth.refreshToken';
+const DISCORD_NEWS_OAUTH_SCOPE_KEY = 'system.discordNews.oauth.scope';
+const DISCORD_NEWS_OAUTH_TOKEN_TYPE_KEY = 'system.discordNews.oauth.tokenType';
+const DISCORD_NEWS_OAUTH_EXPIRES_AT_KEY = 'system.discordNews.oauth.expiresAt';
 const DEFAULT_TELEGRAM_NEWS_CHANNEL = 'JamTVStarCitizen';
 const DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES = 15;
+const DEFAULT_DISCORD_NEWS_CHANNEL = '';
+const DEFAULT_DISCORD_NEWS_SYNC_MINUTES = 15;
 let telegramNewsSyncInProgress = false;
 let telegramNewsLastRunAtMs = 0;
+let discordNewsSyncInProgress = false;
+const discordNewsOauthStates = new Map();
 
 function normalizeTelegramChannel(input) {
   const raw = String(input || '').trim();
@@ -144,6 +159,87 @@ function normalizeTelegramChannel(input) {
   if (s.startsWith('s/')) s = s.slice(2);
   s = s.replace(/\/.*/, '').trim();
   return s || DEFAULT_TELEGRAM_NEWS_CHANNEL;
+}
+
+function normalizeDiscordChannel(input) {
+  const parsed = parseDiscordChannelReference(input);
+  return parsed?.channelId || DEFAULT_DISCORD_NEWS_CHANNEL;
+}
+
+function parseDiscordChannelReference(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return null;
+
+  const hashless = raw.replace(/^#/, '').trim();
+  if (/^\d{8,30}$/.test(hashless)) {
+    return {
+      channelId: hashless,
+      guildId: '',
+      messageId: '',
+      source: 'id',
+      input: raw,
+    };
+  }
+
+  const normalizedUrl = /^https?:\/\//i.test(raw)
+    ? raw
+    : /discord(app)?\.com\//i.test(raw)
+      ? `https://${raw}`
+      : '';
+  if (normalizedUrl) {
+    try {
+      const u = new URL(normalizedUrl);
+      const host = String(u.hostname || '').toLowerCase();
+      const hostOk =
+        host === 'discord.com' ||
+        host === 'www.discord.com' ||
+        host === 'canary.discord.com' ||
+        host === 'ptb.discord.com' ||
+        host === 'discordapp.com';
+      if (hostOk) {
+        const parts = String(u.pathname || '')
+          .split('/')
+          .map((x) => x.trim())
+          .filter(Boolean);
+        // /channels/{guildOr@me}/{channelId}/{messageId?}
+        if (parts[0] === 'channels' && parts[2] && /^\d{8,30}$/.test(parts[2])) {
+          return {
+            channelId: parts[2],
+            guildId: parts[1] === '@me' ? '' : String(parts[1] || ''),
+            messageId: /^\d{8,30}$/.test(String(parts[3] || '')) ? String(parts[3]) : '',
+            source: 'url',
+            input: raw,
+          };
+        }
+      }
+    } catch (_) {}
+  }
+
+  const fallback = raw.match(/discord(?:app)?\.com\/channels\/[^/]+\/(\d{8,30})/i);
+  if (fallback?.[1]) {
+    return {
+      channelId: fallback[1],
+      guildId: '',
+      messageId: '',
+      source: 'regex',
+      input: raw,
+    };
+  }
+
+  return null;
+}
+
+function detectNewsSourceFromContent(content) {
+  const body = String(content || '');
+  if (/telegram-source:/i.test(body)) return 'telegram';
+  if (/discord-source:/i.test(body)) return 'discord';
+  return 'local';
+}
+
+function ensureLocalNewsSourceMarker(content) {
+  const body = String(content || '');
+  if (/telegram-source:|discord-source:|news-source:local/i.test(body)) return body;
+  return `${body}\n<!-- news-source:local -->`;
 }
 
 function decodeHtmlEntities(text) {
@@ -225,6 +321,19 @@ function htmlToText(html) {
     .trim();
 }
 
+function buildImportedNewsSummary(lines, title) {
+  const cleanLines = Array.isArray(lines)
+    ? lines.map((x) => String(x || '').trim()).filter(Boolean)
+    : [];
+  const secondLine = cleanLines[1] || '';
+  const thirdLine = cleanLines[2] || '';
+  const combined = [secondLine, thirdLine].filter(Boolean).join(' ').trim();
+  if (combined) {
+    return `${combined} ...`.slice(0, 1000).trim();
+  }
+  return `${String(title || '').trim() || 'Новость'} ...`.slice(0, 1000).trim();
+}
+
 function parseTelegramPostsFromHtml(html, channel) {
   const normalizedChannel = normalizeTelegramChannel(channel);
   const chunks = String(html || '').split('<div class="tgme_widget_message_wrap').slice(1);
@@ -255,11 +364,7 @@ function parseTelegramPostsFromHtml(html, channel) {
     if (lines.length === 0) lines.push('Пост из Telegram');
 
     const title = (lines[0] || '').slice(0, 255).trim();
-    const secondLine = (lines[1] || '').trim();
-    const summarySource = secondLine || (lines.slice(1).join(' ').trim() || title);
-    const dotIdx = summarySource.indexOf('.');
-    const summaryRaw = dotIdx >= 0 ? summarySource.slice(0, dotIdx) : summarySource;
-    const summary = summaryRaw.slice(0, 1000).trim() || title;
+    const summary = buildImportedNewsSummary(lines, title);
     const publishedAt = dateMatch?.[1] ? new Date(dateMatch[1]).toISOString() : new Date().toISOString();
     const safeText = escapeHtml(fullText || title).replace(/\n/g, '<br/>');
     const mediaHtml = mediaUrls
@@ -272,6 +377,98 @@ function parseTelegramPostsFromHtml(html, channel) {
   }
 
   return posts;
+}
+
+function extractDiscordMediaUrls(message) {
+  const urls = new Set();
+  const attachments = Array.isArray(message?.attachments) ? message.attachments : [];
+  for (const a of attachments) {
+    const url = String(a?.url || '').trim();
+    if (/^https?:\/\//i.test(url)) urls.add(url);
+  }
+
+  const embeds = Array.isArray(message?.embeds) ? message.embeds : [];
+  for (const e of embeds) {
+    const image = String(e?.image?.url || '').trim();
+    const thumbnail = String(e?.thumbnail?.url || '').trim();
+    const video = String(e?.video?.url || '').trim();
+    if (/^https?:\/\//i.test(image)) urls.add(image);
+    if (/^https?:\/\//i.test(thumbnail)) urls.add(thumbnail);
+    if (/^https?:\/\//i.test(video)) urls.add(video);
+  }
+
+  return Array.from(urls).slice(0, 8);
+}
+
+function discordMessageToPlainText(message) {
+  const lines = [];
+  const content = String(message?.content || '').trim();
+  if (content) lines.push(content);
+
+  const embeds = Array.isArray(message?.embeds) ? message.embeds : [];
+  for (const e of embeds) {
+    const title = String(e?.title || '').trim();
+    const description = String(e?.description || '').trim();
+    if (title) lines.push(title);
+    if (description) lines.push(description);
+    const fields = Array.isArray(e?.fields) ? e.fields : [];
+    for (const f of fields) {
+      const name = String(f?.name || '').trim();
+      const value = String(f?.value || '').trim();
+      if (name) lines.push(name);
+      if (value) lines.push(value);
+    }
+  }
+
+  return lines.join('\n').trim();
+}
+
+function parseDiscordMessages(messages, channel) {
+  const out = [];
+  const normalizedChannel = normalizeDiscordChannel(channel);
+
+  for (const message of Array.isArray(messages) ? messages : []) {
+    const messageId = String(message?.id || '').trim();
+    if (!messageId) continue;
+    const isSystem = !!message?.system;
+    if (isSystem) continue;
+
+    const fullText = discordMessageToPlainText(message);
+    const mediaUrls = extractDiscordMediaUrls(message);
+    if (!fullText && mediaUrls.length === 0) continue;
+
+    const lines = fullText
+      .split('\n')
+      .map((x) => String(x || '').trim())
+      .filter(Boolean);
+    const authorName = String(message?.author?.global_name || message?.author?.username || 'Discord').trim();
+    const titleBase = lines[0] || `Пост Discord: ${authorName}`;
+    const title = titleBase.slice(0, 255).trim();
+    const summary = buildImportedNewsSummary(lines, title);
+
+    const guildId = String(message?.guild_id || '').trim();
+    const messageUrl = guildId
+      ? `https://discord.com/channels/${guildId}/${normalizedChannel}/${messageId}`
+      : `https://discord.com/channels/@me/${normalizedChannel}/${messageId}`;
+    const safeText = escapeHtml(fullText || title).replace(/\n/g, '<br/>');
+    const mediaHtml = mediaUrls
+      .map((mediaUrl) => `<p><img src="${escapeHtml(mediaUrl)}" alt="Discord media" /></p>`)
+      .join('');
+    const safeUrl = escapeHtml(messageUrl);
+    const content = `<div>${safeText}</div>${mediaHtml}<p><a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Источник в Discord</a></p><!-- discord-source:${normalizedChannel}:${messageId} -->`;
+
+    out.push({
+      id: messageId,
+      channel: normalizedChannel,
+      title,
+      summary,
+      content,
+      publishedAt: message?.timestamp ? new Date(message.timestamp).toISOString() : new Date().toISOString(),
+      url: messageUrl,
+    });
+  }
+
+  return out;
 }
 
 async function readTelegramNewsSettingsDb() {
@@ -312,12 +509,159 @@ async function readTelegramNewsSettingsDb() {
   return out;
 }
 
+async function readDiscordNewsSettingsDb() {
+  const out = {
+    enabled: false,
+    channel: DEFAULT_DISCORD_NEWS_CHANNEL,
+    channelId: '',
+    botTokenConfigured: false,
+    syncMinutes: DEFAULT_DISCORD_NEWS_SYNC_MINUTES,
+    lastSyncAt: null,
+    oauthConnected: false,
+    oauthExpiresAt: null,
+    oauthScope: '',
+  };
+  try {
+    const rows = (
+      await query('SELECT key, value FROM settings WHERE key = ANY($1)', [
+        [
+          DISCORD_NEWS_ENABLED_KEY,
+          DISCORD_NEWS_CHANNEL_KEY,
+          DISCORD_NEWS_CHANNEL_INPUT_KEY,
+          DISCORD_NEWS_BOT_TOKEN_KEY,
+          DISCORD_NEWS_SYNC_MINUTES_KEY,
+          DISCORD_NEWS_LAST_SYNC_KEY,
+          DISCORD_NEWS_OAUTH_ACCESS_TOKEN_KEY,
+          DISCORD_NEWS_OAUTH_EXPIRES_AT_KEY,
+          DISCORD_NEWS_OAUTH_SCOPE_KEY,
+        ],
+      ])
+    ).rows;
+    for (const r of rows) {
+      if (r.key === DISCORD_NEWS_ENABLED_KEY) {
+        const v = r.value;
+        out.enabled =
+          typeof v === 'boolean' ? v : String(v).toLowerCase() === 'true';
+      }
+      if (r.key === DISCORD_NEWS_CHANNEL_KEY) {
+        out.channelId = normalizeDiscordChannel(r.value);
+        if (!out.channel) out.channel = out.channelId;
+      }
+      if (r.key === DISCORD_NEWS_CHANNEL_INPUT_KEY) {
+        out.channel = String(r.value || '').trim();
+      }
+      if (r.key === DISCORD_NEWS_BOT_TOKEN_KEY) {
+        out.botTokenConfigured = !!String(r.value || '').trim();
+      }
+      if (r.key === DISCORD_NEWS_SYNC_MINUTES_KEY) {
+        out.syncMinutes = Math.max(1, Math.min(360, Number(r.value) || DEFAULT_DISCORD_NEWS_SYNC_MINUTES));
+      }
+      if (r.key === DISCORD_NEWS_LAST_SYNC_KEY) {
+        out.lastSyncAt = r.value || null;
+      }
+      if (r.key === DISCORD_NEWS_OAUTH_ACCESS_TOKEN_KEY) {
+        out.oauthConnected = !!String(r.value || '').trim();
+      }
+      if (r.key === DISCORD_NEWS_OAUTH_EXPIRES_AT_KEY) {
+        out.oauthExpiresAt = r.value || null;
+      }
+      if (r.key === DISCORD_NEWS_OAUTH_SCOPE_KEY) {
+        out.oauthScope = String(r.value || '');
+      }
+    }
+  } catch (_) {}
+  out.botTokenConfigured = out.botTokenConfigured || !!String(process.env.DISCORD_BOT_TOKEN || '').trim();
+  if (!out.channel && out.channelId) out.channel = out.channelId;
+  return out;
+}
+
+async function readDiscordNewsBotTokenDb() {
+  try {
+    const r = await query('SELECT value FROM settings WHERE key = $1 LIMIT 1', [DISCORD_NEWS_BOT_TOKEN_KEY]);
+    return String(r?.rows?.[0]?.value || '').trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+async function readDiscordNewsOauthSettingsDb() {
+  const out = {
+    accessToken: '',
+    refreshToken: '',
+    scope: '',
+    tokenType: '',
+    expiresAt: null,
+  };
+  try {
+    const rows = (
+      await query('SELECT key, value FROM settings WHERE key = ANY($1)', [
+        [
+          DISCORD_NEWS_OAUTH_ACCESS_TOKEN_KEY,
+          DISCORD_NEWS_OAUTH_REFRESH_TOKEN_KEY,
+          DISCORD_NEWS_OAUTH_SCOPE_KEY,
+          DISCORD_NEWS_OAUTH_TOKEN_TYPE_KEY,
+          DISCORD_NEWS_OAUTH_EXPIRES_AT_KEY,
+        ],
+      ])
+    ).rows;
+    for (const r of rows) {
+      if (r.key === DISCORD_NEWS_OAUTH_ACCESS_TOKEN_KEY) out.accessToken = String(r.value || '');
+      if (r.key === DISCORD_NEWS_OAUTH_REFRESH_TOKEN_KEY) out.refreshToken = String(r.value || '');
+      if (r.key === DISCORD_NEWS_OAUTH_SCOPE_KEY) out.scope = String(r.value || '');
+      if (r.key === DISCORD_NEWS_OAUTH_TOKEN_TYPE_KEY) out.tokenType = String(r.value || '');
+      if (r.key === DISCORD_NEWS_OAUTH_EXPIRES_AT_KEY) out.expiresAt = r.value || null;
+    }
+  } catch (_) {}
+  return out;
+}
+
+function cleanupDiscordNewsOauthStates() {
+  const now = Date.now();
+  for (const [key, value] of discordNewsOauthStates.entries()) {
+    if (!value || now - Number(value.createdAt || 0) > 10 * 60 * 1000) {
+      discordNewsOauthStates.delete(key);
+    }
+  }
+}
+
+function issueDiscordNewsOauthState(userId) {
+  cleanupDiscordNewsOauthStates();
+  const nonce = crypto.randomBytes(24).toString('hex');
+  const state = `syncnews:${nonce}`;
+  discordNewsOauthStates.set(state, { userId: userId || null, createdAt: Date.now() });
+  return state;
+}
+
+function consumeDiscordNewsOauthState(state) {
+  cleanupDiscordNewsOauthStates();
+  const rec = discordNewsOauthStates.get(state);
+  if (!rec) return null;
+  discordNewsOauthStates.delete(state);
+  return rec;
+}
+
 async function writeTelegramNewsSetting(key, value) {
   await query(
     `INSERT INTO settings(key, value) VALUES ($1, $2::jsonb)
      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
     [key, JSON.stringify(value)]
   );
+}
+
+async function writeDiscordNewsSetting(key, value) {
+  await query(
+    `INSERT INTO settings(key, value) VALUES ($1, $2::jsonb)
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+    [key, JSON.stringify(value)]
+  );
+}
+
+async function clearDiscordNewsOauthSettings() {
+  await writeDiscordNewsSetting(DISCORD_NEWS_OAUTH_ACCESS_TOKEN_KEY, null);
+  await writeDiscordNewsSetting(DISCORD_NEWS_OAUTH_REFRESH_TOKEN_KEY, null);
+  await writeDiscordNewsSetting(DISCORD_NEWS_OAUTH_SCOPE_KEY, null);
+  await writeDiscordNewsSetting(DISCORD_NEWS_OAUTH_TOKEN_TYPE_KEY, null);
+  await writeDiscordNewsSetting(DISCORD_NEWS_OAUTH_EXPIRES_AT_KEY, null);
 }
 
 async function ensureTelegramNewsAuthorId() {
@@ -417,6 +761,211 @@ async function syncTelegramNews({ force = false } = {}) {
     return { success: false, error: e?.message || 'sync_failed' };
   } finally {
     telegramNewsSyncInProgress = false;
+  }
+}
+
+async function syncDiscordNews({ force = false } = {}) {
+  if (discordNewsSyncInProgress) return { skipped: true, reason: 'busy' };
+  discordNewsSyncInProgress = true;
+  let oauth = {
+    accessToken: '',
+    refreshToken: '',
+    scope: '',
+    tokenType: '',
+    expiresAt: null,
+  };
+  let authMode = '';
+  try {
+    const cfg = await readDiscordNewsSettingsDb();
+    if (!force && !cfg.enabled) return { skipped: true, reason: 'disabled' };
+    const channelSource = String(cfg.channel || cfg.channelId || '').trim();
+    const parsedRef = parseDiscordChannelReference(channelSource);
+    const channel = parsedRef?.channelId || '';
+    if (!channel) {
+      if (!channelSource) {
+        return { success: false, error: 'channel_not_configured' };
+      }
+      return { success: false, error: 'invalid_channel_reference' };
+    }
+
+    const botTokenFromDb = await readDiscordNewsBotTokenDb();
+    const botToken = String(process.env.DISCORD_BOT_TOKEN || botTokenFromDb || '').trim();
+    if (!botToken) {
+      return { success: false, error: 'discord_bot_token_required' };
+    }
+    oauth = await readDiscordNewsOauthSettingsDb();
+    let authorization = '';
+    const refreshDiscordOauthAccessToken = async () => {
+      if (!oauth.refreshToken) return false;
+      try {
+        const eff = await readDiscordEffective();
+        const clientId = eff.clientId || DISCORD_CONFIG.CLIENT_ID;
+        const clientSecret = eff.clientSecret || DISCORD_CONFIG.CLIENT_SECRET;
+        const redirectUri = eff.redirectUri || DISCORD_CONFIG.REDIRECT_URI;
+        if (!clientId || !clientSecret || !redirectUri) return false;
+
+        const refreshed = await axios.post(
+          'https://discord.com/api/oauth2/token',
+          new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            grant_type: 'refresh_token',
+            refresh_token: oauth.refreshToken,
+            redirect_uri: redirectUri,
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              Accept: 'application/json',
+            },
+            timeout: 20000,
+          }
+        );
+
+        const expiresInSec = Number(refreshed?.data?.expires_in) || 0;
+        const refreshedExpiresAt = expiresInSec > 0
+          ? new Date(Date.now() + expiresInSec * 1000).toISOString()
+          : null;
+        await writeDiscordNewsSetting(
+          DISCORD_NEWS_OAUTH_ACCESS_TOKEN_KEY,
+          refreshed?.data?.access_token || oauth.accessToken || null
+        );
+        await writeDiscordNewsSetting(
+          DISCORD_NEWS_OAUTH_REFRESH_TOKEN_KEY,
+          refreshed?.data?.refresh_token || oauth.refreshToken || null
+        );
+        await writeDiscordNewsSetting(
+          DISCORD_NEWS_OAUTH_SCOPE_KEY,
+          refreshed?.data?.scope || oauth.scope || null
+        );
+        await writeDiscordNewsSetting(
+          DISCORD_NEWS_OAUTH_TOKEN_TYPE_KEY,
+          refreshed?.data?.token_type || oauth.tokenType || null
+        );
+        await writeDiscordNewsSetting(DISCORD_NEWS_OAUTH_EXPIRES_AT_KEY, refreshedExpiresAt);
+        oauth = await readDiscordNewsOauthSettingsDb();
+        return !!String(oauth.accessToken || '').trim();
+      } catch (refreshError) {
+        console.warn('Discord OAuth refresh failed:', refreshError?.message || refreshError);
+        return false;
+      }
+    };
+
+    authorization = `Bot ${botToken}`;
+    authMode = 'bot';
+
+    const fetchMessages = async (authHeader) =>
+      axios.get(`https://discord.com/api/v10/channels/${encodeURIComponent(channel)}/messages`, {
+        params: { limit: 50 },
+        timeout: 25000,
+        headers: {
+          Authorization: authHeader,
+          Accept: 'application/json',
+          'User-Agent': 'StarFinance Discord Sync/1.0',
+        },
+      });
+
+    let resp;
+    try {
+      resp = await fetchMessages(authorization);
+    } catch (requestError) {
+      const status = Number(requestError?.response?.status) || 0;
+      if (authMode === 'oauth' && (status === 401 || status === 403) && oauth.refreshToken) {
+        const refreshed = await refreshDiscordOauthAccessToken();
+        if (refreshed) {
+          authorization = `Bearer ${oauth.accessToken}`;
+          resp = await fetchMessages(authorization);
+        } else {
+          throw requestError;
+        }
+      } else {
+        throw requestError;
+      }
+    }
+
+    const parsed = parseDiscordMessages(resp.data, channel).slice(0, 50);
+    if (parsed.length === 0) {
+      await writeDiscordNewsSetting(DISCORD_NEWS_LAST_SYNC_KEY, new Date().toISOString());
+      return { success: true, inserted: 0, updated: 0, checked: 0, channel, authMode };
+    }
+
+    const authorId = await ensureTelegramNewsAuthorId();
+    if (!authorId) return { skipped: true, reason: 'no_author' };
+
+    let inserted = 0;
+    let updated = 0;
+    for (const post of parsed.reverse()) {
+      const markerNew = `discord-source:${post.channel}:${post.id}`;
+      const markerLegacy = `discord-source:${post.id}`;
+      const updExisting = await query(
+        `UPDATE news
+         SET title = $1,
+             content = $2,
+             summary = $3,
+             published_at = $4
+         WHERE content LIKE $5 OR content LIKE $6
+         RETURNING *`,
+        [post.title, post.content, post.summary, post.publishedAt, `%${markerNew}%`, `%${markerLegacy}%`]
+      );
+      if (updExisting.rowCount > 0) {
+        updated += updExisting.rowCount;
+        try {
+          for (const row of updExisting.rows) {
+            io.emit('news:changed', { action: 'update', news: row });
+          }
+        } catch (_) {}
+        continue;
+      }
+
+      const ins = await query(
+        `INSERT INTO news (title, content, summary, published_at, author_id)
+         SELECT $1, $2, $3, $4, $5
+         WHERE NOT EXISTS (SELECT 1 FROM news WHERE content LIKE $6 OR content LIKE $7)
+         RETURNING *`,
+        [post.title, post.content, post.summary, post.publishedAt, authorId, `%${markerNew}%`, `%${markerLegacy}%`]
+      );
+      if (ins.rowCount > 0) {
+        inserted += 1;
+        try {
+          io.emit('news:changed', { action: 'create', news: ins.rows[0] });
+        } catch (_) {}
+      }
+    }
+
+    await writeDiscordNewsSetting(DISCORD_NEWS_LAST_SYNC_KEY, new Date().toISOString());
+    return {
+      success: true,
+      inserted,
+      updated,
+      checked: parsed.length,
+      channel,
+      channelInput: cfg.channel || '',
+      authMode,
+    };
+  } catch (e) {
+    const status = Number(e?.response?.status) || null;
+    const apiBody = e?.response?.data;
+    const apiMessage =
+      (typeof apiBody?.message === 'string' && apiBody.message) ||
+      (typeof apiBody?.error === 'string' && apiBody.error) ||
+      e?.message ||
+      'sync_failed';
+    console.error('Discord news sync failed:', status || '', apiMessage);
+    if (status === 401) {
+      if (authMode === 'oauth') {
+        try {
+          await clearDiscordNewsOauthSettings();
+        } catch (_) {}
+        return { success: false, error: 'discord_oauth_channel_read_denied' };
+      }
+      return { success: false, error: 'discord_api_invalid_token' };
+    }
+    if (status === 403) {
+      return { success: false, error: 'discord_api_missing_access' };
+    }
+    return { success: false, error: apiMessage || 'sync_failed' };
+  } finally {
+    discordNewsSyncInProgress = false;
   }
 }
 
@@ -2699,6 +3248,48 @@ app.get('/api/system/telegram-news', authenticateToken, requirePermission('setti
   }
 });
 
+app.get('/api/system/discord-news', authenticateToken, requirePermission('settings', 'read'), async (req, res) => {
+  try {
+    const cfg = await readDiscordNewsSettingsDb();
+    res.json(cfg);
+  } catch (e) {
+    res.status(500).json({ error: 'Ошибка чтения настроек Discord-новостей' });
+  }
+});
+
+app.put('/api/system/discord-news', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    const enabled = !!req.body?.enabled;
+    const channelInput = String(req.body?.channel || '').trim();
+    const botTokenInput = req.body?.botToken;
+    const hasBotTokenInput = typeof botTokenInput === 'string';
+    const botToken = hasBotTokenInput ? String(botTokenInput || '').trim() : '';
+    const parsedChannel = channelInput ? parseDiscordChannelReference(channelInput) : null;
+    if (channelInput && !parsedChannel?.channelId) {
+      return res.status(400).json({
+        error: 'Некорректный адрес канала Discord',
+        details: 'invalid_channel_reference',
+      });
+    }
+    const channel = parsedChannel?.channelId || '';
+    const syncMinutes = Math.max(
+      1,
+      Math.min(360, Number(req.body?.syncMinutes) || DEFAULT_DISCORD_NEWS_SYNC_MINUTES)
+    );
+    await writeDiscordNewsSetting(DISCORD_NEWS_ENABLED_KEY, enabled);
+    await writeDiscordNewsSetting(DISCORD_NEWS_CHANNEL_KEY, channelInput || null);
+    await writeDiscordNewsSetting(DISCORD_NEWS_CHANNEL_INPUT_KEY, channelInput || channel || null);
+    if (hasBotTokenInput && botToken) {
+      await writeDiscordNewsSetting(DISCORD_NEWS_BOT_TOKEN_KEY, botToken);
+    }
+    await writeDiscordNewsSetting(DISCORD_NEWS_SYNC_MINUTES_KEY, syncMinutes);
+    const cfg = await readDiscordNewsSettingsDb();
+    res.json({ success: true, ...cfg });
+  } catch (e) {
+    res.status(500).json({ error: 'Ошибка сохранения настроек Discord-новостей' });
+  }
+});
+
 app.put('/api/system/telegram-news', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
   try {
     const enabled = !!req.body?.enabled;
@@ -2729,6 +3320,85 @@ app.post('/api/news/telegram/sync', authenticateToken, requirePermission('settin
   }
 });
 
+app.post('/api/news/discord/sync', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    const result = await syncDiscordNews({ force: true });
+    if (result?.success === false) {
+      const details = result.error || null;
+      let status = 500;
+      if (details === 'channel_not_configured' || details === 'invalid_channel_reference') {
+        status = 400;
+      } else if (details === 'discord_auth_not_configured' || details === 'discord_bot_token_required') {
+        status = 400;
+      } else if (details === 'discord_api_invalid_token' || details === 'discord_oauth_channel_read_denied') {
+        status = 401;
+      } else if (details === 'discord_api_missing_access') {
+        status = 403;
+      }
+      return res.status(status).json({ error: 'Ошибка синхронизации Discord-новостей', details });
+    }
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({
+      error: 'Ошибка синхронизации Discord-новостей',
+      details: e?.message || 'internal_sync_error',
+    });
+  }
+});
+
+app.post('/api/news/discord/oauth/start', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    const eff = await readDiscordEffective();
+    const clientId = eff.clientId || DISCORD_CONFIG.CLIENT_ID;
+    const redirectUri = eff.redirectUri || DISCORD_CONFIG.REDIRECT_URI;
+    if (!clientId || !redirectUri) {
+      return res.status(400).json({
+        error: 'Discord OAuth не настроен',
+        details: 'missing_client_or_redirect_uri',
+      });
+    }
+
+    const state = issueDiscordNewsOauthState(req.user?.id);
+    const scopes = ['identify', 'guilds'];
+    const url =
+      `https://discord.com/api/oauth2/authorize?client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      '&response_type=code' +
+      `&scope=${encodeURIComponent(scopes.join(' '))}` +
+      `&state=${encodeURIComponent(state)}` +
+      '&prompt=consent';
+
+    return res.json({ success: true, url, state });
+  } catch (e) {
+    return res.status(500).json({ error: 'Ошибка запуска OAuth Discord', details: e?.message || null });
+  }
+});
+
+app.get('/api/news/discord/oauth/status', authenticateToken, requirePermission('settings', 'read'), async (req, res) => {
+  try {
+    const oauth = await readDiscordNewsOauthSettingsDb();
+    const connected = !!String(oauth.accessToken || '').trim();
+    return res.json({
+      success: true,
+      connected,
+      expiresAt: oauth.expiresAt || null,
+      scope: oauth.scope || '',
+      tokenType: oauth.tokenType || '',
+    });
+  } catch (e) {
+    return res.status(500).json({ error: 'Ошибка чтения статуса OAuth Discord', details: e?.message || null });
+  }
+});
+
+app.delete('/api/news/discord/oauth/status', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    await clearDiscordNewsOauthSettings();
+    return res.json({ success: true, connected: false });
+  } catch (e) {
+    return res.status(500).json({ error: 'Ошибка отключения OAuth Discord', details: e?.message || null });
+  }
+});
+
 // Get single news by ID
 app.get('/api/news/:id', authenticateToken, async (req, res) => {
   try {
@@ -2756,7 +3426,8 @@ app.get('/api/news/:id', authenticateToken, async (req, res) => {
     res.json({
       ...news,
       readCount: parseInt(news.read_count) || 0,
-      isRead: readResult.rows.length > 0
+      isRead: readResult.rows.length > 0,
+      source: detectNewsSourceFromContent(news.content)
     });
   } catch (error) {
     console.error('GET /api/news/:id error:', error);
@@ -2770,19 +3441,40 @@ app.get('/api/news', authenticateToken, async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
     const offset = (page - 1) * limit;
+    const source = String(req.query.source || 'all').toLowerCase();
+
+    let whereSql = '';
+    let whereParams = [];
+    if (source === 'telegram') {
+      whereSql = 'WHERE n.content LIKE $1';
+      whereParams = ['%telegram-source:%'];
+    } else if (source === 'discord') {
+      whereSql = 'WHERE n.content LIKE $1';
+      whereParams = ['%discord-source:%'];
+    } else if (source === 'local') {
+      whereSql = 'WHERE n.content NOT LIKE $1 AND n.content NOT LIKE $2';
+      whereParams = ['%telegram-source:%', '%discord-source:%'];
+    }
 
     // Get total count
-    const countResult = await query('SELECT COUNT(*) as total FROM news');
+    const countResult = await query(
+      `SELECT COUNT(*) as total FROM news n ${whereSql}`,
+      whereParams
+    );
     const total = parseInt(countResult.rows[0].total);
 
     // Get news list
+    const dataParams = [...whereParams, limit, offset];
+    const limitParamIdx = whereParams.length + 1;
+    const offsetParamIdx = whereParams.length + 2;
     const newsResult = await query(
       `SELECT n.*, 
               (SELECT COUNT(*) FROM news_reads WHERE news_id = n.id) as read_count
        FROM news n 
+       ${whereSql}
        ORDER BY n.published_at DESC 
-       LIMIT $1 OFFSET $2`,
-      [limit, offset]
+       LIMIT $${limitParamIdx} OFFSET $${offsetParamIdx}`,
+      dataParams
     );
 
     const readNewsIds = new Set();
@@ -2802,7 +3494,8 @@ app.get('/api/news', authenticateToken, async (req, res) => {
     const newsWithReadStatus = newsResult.rows.map((news) => ({
       ...news,
       readCount: parseInt(news.read_count) || 0,
-      isRead: readNewsIds.has(news.id)
+      isRead: readNewsIds.has(news.id),
+      source: detectNewsSourceFromContent(news.content)
     }));
 
     res.json({
@@ -2832,11 +3525,12 @@ app.post('/api/news', authenticateToken, requirePermission('news', 'write'), asy
     }
     // Убрано ограничение на длину контента
 
+    const contentWithSource = ensureLocalNewsSourceMarker(content);
     const result = await query(
       `INSERT INTO news (title, content, summary, published_at, author_id)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [title, content, summary, publishedAt || new Date().toISOString(), req.user.id]
+      [title, contentWithSource, summary, publishedAt || new Date().toISOString(), req.user.id]
     );
 
     const news = result.rows[0];
@@ -2866,12 +3560,13 @@ app.put('/api/news/:id', authenticateToken, requirePermission('news', 'write'), 
     }
     // Убрано ограничение на длину контента
 
+    const contentWithSource = ensureLocalNewsSourceMarker(content);
     const result = await query(
       `UPDATE news 
        SET title = $1, content = $2, summary = $3, published_at = $4, updated_at = NOW()
        WHERE id = $5
        RETURNING *`,
-      [title, content, summary, publishedAt, id]
+      [title, contentWithSource, summary, publishedAt, id]
     );
 
     if (result.rows.length === 0) {
@@ -3639,6 +4334,7 @@ app.get('/auth/discord', async (req, res) => {
     app.get(callbackPath, async (req, res) => {
       try {
         const { code } = req.query;
+        const state = String(req.query?.state || '');
 
         if (!code) {
           return res.redirect(
@@ -3668,6 +4364,32 @@ app.get('/auth/discord', async (req, res) => {
             },
           }
         );
+
+        const syncOauthState = consumeDiscordNewsOauthState(state);
+        if (syncOauthState) {
+          const expiresInSec = Number(tokenResponse?.data?.expires_in) || 0;
+          const expiresAt = expiresInSec > 0
+            ? new Date(Date.now() + expiresInSec * 1000).toISOString()
+            : null;
+          await writeDiscordNewsSetting(
+            DISCORD_NEWS_OAUTH_ACCESS_TOKEN_KEY,
+            tokenResponse?.data?.access_token || null
+          );
+          await writeDiscordNewsSetting(
+            DISCORD_NEWS_OAUTH_REFRESH_TOKEN_KEY,
+            tokenResponse?.data?.refresh_token || null
+          );
+          await writeDiscordNewsSetting(
+            DISCORD_NEWS_OAUTH_SCOPE_KEY,
+            tokenResponse?.data?.scope || null
+          );
+          await writeDiscordNewsSetting(
+            DISCORD_NEWS_OAUTH_TOKEN_TYPE_KEY,
+            tokenResponse?.data?.token_type || null
+          );
+          await writeDiscordNewsSetting(DISCORD_NEWS_OAUTH_EXPIRES_AT_KEY, expiresAt);
+          return res.redirect(`${frontendBase}/?discordSyncOAuth=success`);
+        }
 
         const userResponse = await axios.get('https://discord.com/api/users/@me', {
           headers: {
@@ -3953,6 +4675,18 @@ app.get('/auth/discord', async (req, res) => {
       } catch (error) {
         console.error('Discord OAuth error:', error.response?.data || error.message);
         try {
+          if (String(req.query?.state || '').startsWith('syncnews:')) {
+            const details =
+              (typeof error?.response?.data?.message === 'string' && error.response.data.message) ||
+              (typeof error?.message === 'string' && error.message) ||
+              'OAuth failed';
+            const frontendBase = getDiscordFrontendBaseFromRedirect(
+              (await readDiscordEffective()).redirectUri || DISCORD_CONFIG.REDIRECT_URI
+            );
+            return res.redirect(
+              `${frontendBase}/?discordSyncOAuth=error&message=${encodeURIComponent(details)}`
+            );
+          }
           const status = error?.response?.status;
           const body = error?.response?.data;
           const errCode =

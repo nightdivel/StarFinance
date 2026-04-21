@@ -71,6 +71,7 @@ EMAIL=hitsnruns@gmail.com
 CERT_NAME=blsk.fin-tech.com
 FRONTEND_URL=https://blsk.fin-tech.com/economy
 DISCORD_REDIRECT_URI=https://blsk.fin-tech.com/economy/auth/discord/callback
+DISCORD_BOT_TOKEN=
 
 # PostgreSQL (docker network)
 PG_HOST=postgres
@@ -87,6 +88,13 @@ TOKEN_EXPIRY=24h
 DISCORD_CLIENT_ID=xxxx
 DISCORD_CLIENT_SECRET=xxxxxx
 ```
+
+Для корректной синхронизации Discord-новостей дополнительно требуется:
+
+1. Заполнить `DISCORD_BOT_TOKEN` в `.env`.
+2. Добавить бота на сервер Discord, где находится канал новостей.
+3. Выдать боту права минимум: `View Channel` и `Read Message History` (при отправке сообщений также `Send Messages`).
+4. В настройках приложения указать `Канал подписки (Discord)` и включить подписку.
 
 `frontend/.env` (пример):
 

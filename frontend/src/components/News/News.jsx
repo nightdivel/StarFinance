@@ -17,6 +17,7 @@ import {
   Spin,
   Popconfirm,
   Tag,
+  Segmented,
 } from 'antd';
 import {
   PlusOutlined,
@@ -117,9 +118,22 @@ const News = ({ userData, darkMode }) => {
     pageSize: APP_CONFIG.PAGINATION.NEWS_PAGE_SIZE,
     total: 0,
   });
+  const [sourceFilter, setSourceFilter] = useState('all');
 
   const [newsForm] = Form.useForm();
   const isAdmin = authService.hasPermission('news', 'write') || userData?.accountType === 'Администратор';
+
+  const sourceMeta = {
+    local: { label: 'Локальные', color: 'blue' },
+    telegram: { label: 'Телеграм', color: 'cyan' },
+    discord: { label: 'Дискорд', color: 'geekblue' },
+  };
+
+  const getNewsSource = (news) => {
+    const source = String(news?.source || '').toLowerCase();
+    if (source === 'telegram' || source === 'discord') return source;
+    return 'local';
+  };
 
   // Модули для React Quill
   const quillModules = {
@@ -147,10 +161,10 @@ const News = ({ userData, darkMode }) => {
   ];
 
   // Загрузка новостей
-  const loadNews = async (page = 1) => {
+  const loadNews = async (page = 1, source = sourceFilter) => {
     setLoading(true);
     try {
-      const response = await newsService.getNews(page, pagination.pageSize);
+      const response = await newsService.getNews(page, pagination.pageSize, source);
       setNewsList(response.data || []);
       setPagination(prev => ({
         ...prev,
@@ -277,7 +291,7 @@ const News = ({ userData, darkMode }) => {
   // Обработка пагинации
   const handlePageChange = (page, pageSize) => {
     setPagination(prev => ({ ...prev, current: page, pageSize }));
-    loadNews(page);
+    loadNews(page, sourceFilter);
   };
 
   // Загрузка изображений
@@ -351,8 +365,9 @@ const News = ({ userData, darkMode }) => {
   };
 
   useEffect(() => {
-    loadNews();
-  }, []);
+    loadNews(1, sourceFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceFilter]);
 
   return (
     <div className="p-3">
@@ -371,6 +386,23 @@ const News = ({ userData, darkMode }) => {
       </div>
 
       {/* Список новостей */}
+      <div className="mb-3 d-flex align-items-center gap-2 flex-wrap">
+        <span className={darkMode ? 'text-white' : 'text-muted'}>Источник:</span>
+        <Segmented
+          value={sourceFilter}
+          onChange={(value) => {
+            setPagination((prev) => ({ ...prev, current: 1 }));
+            setSourceFilter(String(value));
+          }}
+          options={[
+            { label: 'Все', value: 'all' },
+            { label: 'Локальные', value: 'local' },
+            { label: 'Телеграм', value: 'telegram' },
+            { label: 'Дискорд', value: 'discord' },
+          ]}
+        />
+      </div>
+
       <div className="row">
         {loading ? (
           <div className="col-12 text-center py-5">
@@ -385,6 +417,8 @@ const News = ({ userData, darkMode }) => {
             <div key={news.id} className="col-12 mb-3">
               {(() => {
                 const publishedAt = news.publishedAt || news.published_at || news.createdAt || news.created_at;
+                const source = getNewsSource(news);
+                const sourceConfig = sourceMeta[source] || sourceMeta.local;
                 const cardActions = isAdmin
                   ? [
                       <Tooltip key="edit" title="Редактировать">
@@ -422,9 +456,12 @@ const News = ({ userData, darkMode }) => {
               >
                 <div className="d-flex justify-content-between align-items-start mb-2">
                   <h5 className={`mb-1 ${darkMode ? 'text-white' : 'text-dark'}`}>{news.title}</h5>
-                  {!news.isRead && (
-                    <Tag color="green">Новая</Tag>
-                  )}
+                  <div className="d-flex gap-1 align-items-center flex-wrap justify-content-end">
+                    <Tag color={sourceConfig.color}>{sourceConfig.label}</Tag>
+                    {!news.isRead && (
+                      <Tag color="green">Новая</Tag>
+                    )}
+                  </div>
                 </div>
                 
                 <p className={`${darkMode ? 'text-white' : 'text-dark'} mb-2`}>{news.summary}</p>
@@ -581,6 +618,13 @@ const News = ({ userData, darkMode }) => {
       >
         {selectedNews && (
           <div>
+            <div className="mb-2">
+              {(() => {
+                const source = getNewsSource(selectedNews);
+                const sourceConfig = sourceMeta[source] || sourceMeta.local;
+                return <Tag color={sourceConfig.color}>{sourceConfig.label}</Tag>;
+              })()}
+            </div>
             {/* Хлебные крошки со списком ознакомившихся */}
             <div className={`mb-3 p-3 rounded ${darkMode ? 'bg-dark' : 'bg-light'}`}>
               <div className="d-flex justify-content-between align-items-center mb-2">
