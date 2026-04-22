@@ -1,5 +1,5 @@
 StarFinance (StarFinance v2)
-Copyright (C) 2025 @StAim, Popov E.F.
+Copyright (C) 2025 @StAim, Popov E.F. hitsnruns@gmail.com
 
 This work is licensed under the Creative Commons Attribution-NonCommercial 4.0
 International License (CC BY-NC 4.0).
