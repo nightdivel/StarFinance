@@ -43,6 +43,25 @@ const { Header, Sider, Content, Footer } = Layout;
 const { Title } = Typography;
 const { useBreakpoint } = Grid;
 
+const MENU_ORDER_DEFAULT = [
+  'news',
+  'finance',
+  'warehouse',
+  'showcase',
+  'requests',
+  'users',
+  'directories',
+  'uex',
+  'tools',
+  'settings',
+];
+
+function normalizeMenuOrder(order) {
+  const incoming = Array.isArray(order) ? order : [];
+  const filtered = incoming.filter((k) => MENU_ORDER_DEFAULT.includes(k));
+  return [...filtered, ...MENU_ORDER_DEFAULT.filter((k) => !filtered.includes(k))];
+}
+
 const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme, appTitle }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -185,6 +204,12 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
     { key: 'settings', icon: <SettingOutlined />, label: 'Настройки', section: 'settings' },
   ];
 
+  const orderedRawMenuItems = (() => {
+    const order = normalizeMenuOrder(data?.system?.menuOrder);
+    const map = new Map(rawMenuItems.map((item) => [item.key, item]));
+    return order.map((key) => map.get(key)).filter(Boolean);
+  })();
+
   const canRead = (section) => {
     try {
       const atName = userData?.accountType;
@@ -196,7 +221,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
     return authService.hasPermission(section, 'read');
   };
 
-  const menuItems = rawMenuItems.filter((item) => canRead(item.section));
+  const menuItems = orderedRawMenuItems.filter((item) => canRead(item.section));
 
   const getCurrentKey = () => {
     const path = location.pathname.replace('/', '');
@@ -214,7 +239,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
   useEffect(() => {
     if (menuItems.length > 0) {
       const currentKey = getCurrentKey();
-      const current = rawMenuItems.find((i) => i.key === currentKey);
+      const current = orderedRawMenuItems.find((i) => i.key === currentKey);
       if (!current || !authService.hasPermission(current.section, 'read')) {
         navigate(`/${menuItems[0].key}`);
       }

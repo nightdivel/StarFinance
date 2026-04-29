@@ -35,6 +35,39 @@ import { authService } from '../../services/authService';
 const { Option } = Select;
 const { Title, Text } = Typography;
 
+const MENU_ORDER_DEFAULT = [
+  'news',
+  'finance',
+  'warehouse',
+  'showcase',
+  'requests',
+  'users',
+  'directories',
+  'uex',
+  'tools',
+  'settings',
+];
+
+const MENU_ORDER_META = {
+  news: 'Новости',
+  finance: 'Финансы',
+  warehouse: 'Склад',
+  showcase: 'Витрина',
+  requests: 'Заявки',
+  users: 'Пользователи',
+  directories: 'Справочники',
+  uex: 'UEX API',
+  tools: 'Инструменты',
+  settings: 'Настройки',
+};
+
+function normalizeMenuOrder(order) {
+  const input = Array.isArray(order) ? order : [];
+  const filtered = input.filter((k) => MENU_ORDER_DEFAULT.includes(k));
+  const merged = [...filtered, ...MENU_ORDER_DEFAULT.filter((k) => !filtered.includes(k))];
+  return merged;
+}
+
 const Settings = ({ data, onDataUpdate, onRefresh }) => {
   const [form] = Form.useForm();
   const [accessForm] = Form.useForm();
@@ -67,6 +100,8 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
   const [telegramLastSyncAt, setTelegramLastSyncAt] = useState(null);
   const [discordNewsLastSyncAt, setDiscordNewsLastSyncAt] = useState(null);
   const [discordBotTokenConfigured, setDiscordBotTokenConfigured] = useState(false);
+  const [menuOrder, setMenuOrder] = useState(MENU_ORDER_DEFAULT);
+  const [draggedMenuKey, setDraggedMenuKey] = useState(null);
 
   const formatSyncTime = (value) => {
     if (!value) return 'еще не выполнялась';
@@ -174,6 +209,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
   // Initialize form with current data
   React.useEffect(() => {
     if (data) {
+      setMenuOrder(normalizeMenuOrder(data?.system?.menuOrder));
       form.setFieldsValue({
         baseCurrency: data.system.baseCurrency,
         currencies: data.system.currencies,
@@ -611,6 +647,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               ? values.discordGuildMappings.filter((m) => m && m.guildId && m.accountType)
               : [],
           },
+          menuOrder: normalizeMenuOrder(menuOrder),
         },
       };
 
@@ -710,6 +747,28 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
 
     form.setFieldsValue({ rates: newRates });
     setChangedSettings((prev) => ({ ...prev, rates: newRates }));
+  };
+
+  const onMenuDragStart = (key) => setDraggedMenuKey(key);
+
+  const onMenuDrop = (targetKey) => {
+    if (!draggedMenuKey || draggedMenuKey === targetKey) return;
+    setMenuOrder((prev) => {
+      const next = [...prev];
+      const from = next.indexOf(draggedMenuKey);
+      const to = next.indexOf(targetKey);
+      if (from < 0 || to < 0) return prev;
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return next;
+    });
+    setChangedSettings((prev) => ({ ...prev, menuOrder: true }));
+    setDraggedMenuKey(null);
+  };
+
+  const resetMenuOrder = () => {
+    setMenuOrder(MENU_ORDER_DEFAULT);
+    setChangedSettings((prev) => ({ ...prev, menuOrder: true }));
   };
 
   return (
@@ -939,97 +998,6 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                 </Button>
               }
             >
-              <Form.Item
-                name="appTitle"
-                label="Название приложения"
-                rules={[
-                  { required: true, message: 'Введите название приложения' },
-                  { max: 80, message: 'Максимум 80 символов' },
-                ]}
-              >
-                <Input placeholder="BLSK Star Finance" disabled={!canWrite} />
-              </Form.Item>
-
-              <Divider />
-              <Title level={5}>Favicon вкладки браузера</Title>
-              <Text type="secondary">
-                Поддерживаются PNG, SVG, WebP. Максимальный размер файла — 15 MB.
-              </Text>
-              <div className="mt-3 d-flex gap-3 align-items-center flex-wrap">
-                <input
-                  type="file"
-                  accept="image/png,image/svg+xml,image/webp"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    if (!/image\/(png|svg\+xml|jpg|webp)/i.test(file.type)) {
-                      message.error('Допускаются только PNG/svg/WebP');
-                      return;
-                    }
-                    if (file.size > 15000 * 1024) {
-                      message.error('Размер файла превышает 15MB');
-                      return;
-                    }
-                    setSystemFaviconLoading(true);
-                    try {
-                      const reader = new FileReader();
-                      const dataUrl = await new Promise((resolve, reject) => {
-                        reader.onload = () => resolve(reader.result);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(file);
-                      });
-                      await apiService.setSystemFavicon(String(dataUrl));
-                      const branding = await apiService.getBrandingMeta();
-                      const rawUrl = branding?.faviconUrl;
-                      const normalized = typeof rawUrl === 'string' && rawUrl.startsWith('/')
-                        ? apiService.buildUrl(rawUrl)
-                        : rawUrl || null;
-                      setSystemFaviconUrl(normalized);
-                      const titleFromForm = String(form.getFieldValue('appTitle') || '').trim() || 'BLSK Star Finance';
-                      window.dispatchEvent(new CustomEvent('branding:changed', {
-                        detail: { appTitle: titleFromForm, faviconUrl: normalized || null },
-                      }));
-                      message.success('Favicon обновлен');
-                    } catch (_) {
-                      message.error('Не удалось загрузить favicon');
-                    } finally {
-                      setSystemFaviconLoading(false);
-                      e.target.value = '';
-                    }
-                  }}
-                  disabled={!canWrite || systemFaviconLoading}
-                />
-                <Button
-                  danger
-                  onClick={async () => {
-                    setSystemFaviconLoading(true);
-                    try {
-                      await apiService.deleteSystemFavicon();
-                      setSystemFaviconUrl(null);
-                      const titleFromForm = String(form.getFieldValue('appTitle') || '').trim() || 'BLSK Star Finance';
-                      window.dispatchEvent(new CustomEvent('branding:changed', {
-                        detail: { appTitle: titleFromForm, faviconUrl: null },
-                      }));
-                      message.success('Favicon удален');
-                    } catch (_) {
-                      message.error('Не удалось удалить favicon');
-                    } finally {
-                      setSystemFaviconLoading(false);
-                    }
-                  }}
-                  disabled={!canWrite || systemFaviconLoading || !systemFaviconUrl}
-                >
-                  Удалить favicon
-                </Button>
-                {systemFaviconUrl && (
-                  <div className="d-flex align-items-center gap-2">
-                    <img src={systemFaviconUrl} alt="System favicon" className="sf-maxw-96 sf-maxh-96 sf-object-contain rounded border" />
-                    <Button type="primary" size="small" onClick={() => window.open(systemFaviconUrl, '_blank')}>Открыть</Button>
-                  </div>
-                )}
-              </div>
-
-              <Divider />
               <Card size="small" title="Подписка Telegram" className="mb-4">
                 <Text type="secondary">
                   Укажите канал и параметры подписки. Посты из канала загружаются автоматически в Новости. Первая строка поста используется как заголовок, вторая строка до первой точки — как краткое описание.
@@ -1194,6 +1162,97 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                 </Text>
                 </div>
               </Card>
+
+              <Divider />
+              <Form.Item
+                name="appTitle"
+                label="Название приложения"
+                rules={[
+                  { required: true, message: 'Введите название приложения' },
+                  { max: 80, message: 'Максимум 80 символов' },
+                ]}
+              >
+                <Input placeholder="BLSK Star Finance" disabled={!canWrite} />
+              </Form.Item>
+
+              <Divider />
+              <Title level={5}>Favicon вкладки браузера</Title>
+              <Text type="secondary">
+                Поддерживаются PNG, SVG, WebP. Максимальный размер файла — 15 MB.
+              </Text>
+              <div className="mt-3 d-flex gap-3 align-items-center flex-wrap">
+                <input
+                  type="file"
+                  accept="image/png,image/svg+xml,image/webp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (!/image\/(png|svg\+xml|jpg|webp)/i.test(file.type)) {
+                      message.error('Допускаются только PNG/svg/WebP');
+                      return;
+                    }
+                    if (file.size > 15000 * 1024) {
+                      message.error('Размер файла превышает 15MB');
+                      return;
+                    }
+                    setSystemFaviconLoading(true);
+                    try {
+                      const reader = new FileReader();
+                      const dataUrl = await new Promise((resolve, reject) => {
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                      });
+                      await apiService.setSystemFavicon(String(dataUrl));
+                      const branding = await apiService.getBrandingMeta();
+                      const rawUrl = branding?.faviconUrl;
+                      const normalized = typeof rawUrl === 'string' && rawUrl.startsWith('/')
+                        ? apiService.buildUrl(rawUrl)
+                        : rawUrl || null;
+                      setSystemFaviconUrl(normalized);
+                      const titleFromForm = String(form.getFieldValue('appTitle') || '').trim() || 'BLSK Star Finance';
+                      window.dispatchEvent(new CustomEvent('branding:changed', {
+                        detail: { appTitle: titleFromForm, faviconUrl: normalized || null },
+                      }));
+                      message.success('Favicon обновлен');
+                    } catch (_) {
+                      message.error('Не удалось загрузить favicon');
+                    } finally {
+                      setSystemFaviconLoading(false);
+                      e.target.value = '';
+                    }
+                  }}
+                  disabled={!canWrite || systemFaviconLoading}
+                />
+                <Button
+                  danger
+                  onClick={async () => {
+                    setSystemFaviconLoading(true);
+                    try {
+                      await apiService.deleteSystemFavicon();
+                      setSystemFaviconUrl(null);
+                      const titleFromForm = String(form.getFieldValue('appTitle') || '').trim() || 'BLSK Star Finance';
+                      window.dispatchEvent(new CustomEvent('branding:changed', {
+                        detail: { appTitle: titleFromForm, faviconUrl: null },
+                      }));
+                      message.success('Favicon удален');
+                    } catch (_) {
+                      message.error('Не удалось удалить favicon');
+                    } finally {
+                      setSystemFaviconLoading(false);
+                    }
+                  }}
+                  disabled={!canWrite || systemFaviconLoading || !systemFaviconUrl}
+                >
+                  Удалить favicon
+                </Button>
+                {systemFaviconUrl && (
+                  <div className="d-flex align-items-center gap-2">
+                    <img src={systemFaviconUrl} alt="System favicon" className="sf-maxw-96 sf-maxh-96 sf-object-contain rounded border" />
+                    <Button type="primary" size="small" onClick={() => window.open(systemFaviconUrl, '_blank')}>Открыть</Button>
+                  </div>
+                )}
+              </div>
 
               {/* Auth Background Upload */}
               <Divider />
@@ -1624,6 +1683,46 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     </Form>
                   )}
                 </Modal>
+
+                <Divider />
+                <Title level={5}>Настройка меню</Title>
+                <Text type="secondary">
+                  Меняйте порядок пунктов меню перетаскиванием. Новый порядок сохранится после нажатия «Сохранить».
+                </Text>
+                <div className="mt-3 d-flex gap-2 flex-wrap align-items-center">
+                  <Button onClick={resetMenuOrder} disabled={!canWrite}>Сбросить порядок</Button>
+                  <Text type="secondary">Перетаскивайте элементы за саму строку</Text>
+                </div>
+                <div className="mt-3">
+                  {menuOrder.map((key, idx) => (
+                    <div
+                      key={key}
+                      draggable={canWrite}
+                      onDragStart={() => onMenuDragStart(key)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => onMenuDrop(key)}
+                      onDragEnd={() => setDraggedMenuKey(null)}
+                      style={{
+                        border: '1px solid #d9d9d9',
+                        borderRadius: 8,
+                        padding: '8px 12px',
+                        marginBottom: 8,
+                        background: draggedMenuKey === key ? '#f0f5ff' : '#fff',
+                        cursor: canWrite ? 'grab' : 'default',
+                        userSelect: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span>
+                        <Text type="secondary" style={{ marginRight: 8 }}>{idx + 1}.</Text>
+                        <Text>{MENU_ORDER_META[key] || key}</Text>
+                      </span>
+                      <Text type="secondary">⇅</Text>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               
