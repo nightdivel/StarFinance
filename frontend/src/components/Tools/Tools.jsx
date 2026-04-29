@@ -4,13 +4,16 @@ import {
   Avatar,
   Button,
   Card,
+  Checkbox,
   Col,
+  Dropdown,
   Empty,
   Form,
   Input,
   InputNumber,
   List,
   Modal,
+  Popover,
   Row,
   Select,
   Space,
@@ -155,6 +158,202 @@ function JsonTreeViewer({ data }) {
         </div>
       )}
       {isEmpty && !errorMsg && <Text type="secondary">Ответ пуст</Text>}
+    </Space>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// TableViewer: drill-down table with column/row visibility toggles
+// ──────────────────────────────────────────────────────────────────
+function TableViewer({ data }) {
+  const output = useMemo(() => data?.output ?? data, [data]);
+  const [path, setPath] = useState([]);
+  // hiddenFields keyed by serialised path → Set of hidden field names/indices
+  const [hiddenFields, setHiddenFields] = useState({});
+
+  // Reset when data changes (modal re-opened for different tool)
+  useEffect(() => { setPath([]); setHiddenFields({}); }, [data]);
+
+  const current = useMemo(() => {
+    let node = output;
+    for (const step of path) node = node?.[step];
+    return node;
+  }, [output, path]);
+
+  const pathKey = path.join('\0');
+  const hidden = hiddenFields[pathKey] ?? new Set();
+
+  const toggleField = (field) => {
+    setHiddenFields(prev => {
+      const cur = new Set(prev[pathKey] ?? []);
+      cur.has(field) ? cur.delete(field) : cur.add(field);
+      return { ...prev, [pathKey]: new Set(cur) };
+    });
+  };
+
+  const drillDown = (...keys) => setPath(p => [...p, ...keys]);
+
+  const renderCell = (val, ...drillKeys) => {
+    if (val === null || val === undefined) return <span style={{ color: '#888' }}>—</span>;
+    if (typeof val === 'boolean')
+      return <Tag color={val ? 'success' : 'default'} style={{ fontSize: 11 }}>{String(val)}</Tag>;
+    if (typeof val !== 'object') {
+      const s = String(val);
+      return <Text style={{ fontSize: 12 }}>{s.length > 120 ? s.slice(0, 120) + '…' : s}</Text>;
+    }
+    const count = Array.isArray(val) ? val.length : Object.keys(val).length;
+    const label = Array.isArray(val) ? `[${count}]` : `{${count}}`;
+    return (
+      <Button
+        size="small" type="link"
+        style={{ padding: 0, fontSize: 11, height: 'auto', lineHeight: '20px' }}
+        onClick={() => drillDown(...drillKeys)}
+      >
+        {label}
+      </Button>
+    );
+  };
+
+  // ── Breadcrumb ──
+  const breadcrumb = (
+    <Space size={2} wrap style={{ marginBottom: 6 }}>
+      <Button size="small" type={path.length === 0 ? 'primary' : 'default'} onClick={() => setPath([])}>
+        root
+      </Button>
+      {path.map((step, i) => (
+        <React.Fragment key={i}>
+          <Text type="secondary" style={{ fontSize: 12 }}>/</Text>
+          <Button
+            size="small"
+            type={i === path.length - 1 ? 'primary' : 'default'}
+            onClick={() => setPath(path.slice(0, i + 1))}
+          >
+            {String(step)}
+          </Button>
+        </React.Fragment>
+      ))}
+    </Space>
+  );
+
+  // ── Field toggle popover content ──
+  const fieldToggle = (fields, label) => {
+    const content = (
+      <div style={{ maxHeight: 300, overflowY: 'auto', minWidth: 160 }}>
+        {fields.map(f => (
+          <div key={f} style={{ padding: '3px 0' }}>
+            <Checkbox
+              checked={!hidden.has(f)}
+              onChange={() => toggleField(f)}
+            >
+              <span style={{ fontSize: 12 }}>{String(f)}</span>
+            </Checkbox>
+          </div>
+        ))}
+      </div>
+    );
+    const visible = fields.filter(f => !hidden.has(f)).length;
+    return (
+      <Popover content={content} title={label} trigger="click" placement="bottomLeft">
+        <Button size="small" style={{ marginBottom: 6 }}>
+          {label} ({visible}/{fields.length}) ▾
+        </Button>
+      </Popover>
+    );
+  };
+
+  if (current === null || current === undefined)
+    return <Space direction="vertical" style={{ width: '100%' }} size={4}>{breadcrumb}<Text type="secondary">null</Text></Space>;
+
+  if (typeof current !== 'object')
+    return <Space direction="vertical" style={{ width: '100%' }} size={4}>{breadcrumb}<Text copyable style={{ fontSize: 13 }}>{String(current)}</Text></Space>;
+
+  // ── Array of objects → column-per-key table ──
+  if (Array.isArray(current) && current.length > 0 &&
+    current.some(v => v !== null && typeof v === 'object' && !Array.isArray(v))) {
+    const allKeys = Array.from(new Set(
+      current.flatMap(item => (item !== null && typeof item === 'object' ? Object.keys(item) : []))
+    ));
+    const visibleKeys = allKeys.filter(k => !hidden.has(k));
+
+    const columns = [
+      {
+        key: '_i', title: '#', width: 48, fixed: 'left',
+        render: (_, row) => <Text type="secondary" style={{ fontSize: 11 }}>{row._rowIdx}</Text>,
+      },
+      ...visibleKeys.map(k => ({
+        key: k,
+        title: <span style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{k}</span>,
+        dataIndex: k,
+        ellipsis: true,
+        width: 150,
+        render: (val, row) => renderCell(val, row._rowIdx, k),
+      })),
+    ];
+
+    return (
+      <Space direction="vertical" style={{ width: '100%' }} size={4}>
+        {breadcrumb}
+        {fieldToggle(allKeys, 'Столбцы')}
+        <Table
+          size="small"
+          dataSource={current.map((row, i) => ({
+            ...(row !== null && typeof row === 'object' ? row : { value: row }),
+            _rowKey: `r${i}`,
+            _rowIdx: i,
+          }))}
+          rowKey="_rowKey"
+          columns={columns}
+          pagination={current.length > 50 ? { pageSize: 50, size: 'small', showSizeChanger: false } : false}
+          scroll={{ x: visibleKeys.length * 150 + 48, y: 400 }}
+        />
+      </Space>
+    );
+  }
+
+  // ── Array of primitives or mixed ──
+  if (Array.isArray(current)) {
+    const allIndexes = current.map((_, i) => String(i));
+    const visibleData = current
+      .map((val, i) => ({ key: String(i), idx: i, val }))
+      .filter(row => !hidden.has(String(row.idx)));
+
+    const columns = [
+      { key: 'idx', dataIndex: 'idx', title: '#', width: 60 },
+      { key: 'val', dataIndex: 'val', title: 'Значение', render: (val, row) => renderCell(val, row.idx) },
+    ];
+
+    return (
+      <Space direction="vertical" style={{ width: '100%' }} size={4}>
+        {breadcrumb}
+        {fieldToggle(allIndexes, 'Строки')}
+        <Table size="small" dataSource={visibleData} columns={columns}
+          pagination={visibleData.length > 100 ? { pageSize: 100, size: 'small' } : false}
+          scroll={{ y: 400 }} />
+      </Space>
+    );
+  }
+
+  // ── Plain object → key / value rows ──
+  const allKeys = Object.keys(current);
+  const visibleKeys = allKeys.filter(k => !hidden.has(k));
+  const tableData = visibleKeys.map(k => ({ key: k, field: k, value: current[k] }));
+  const columns = [
+    {
+      key: 'field', dataIndex: 'field', title: 'Ключ', width: 200, fixed: 'left',
+      render: v => <Text strong style={{ fontSize: 12 }}>{v}</Text>,
+    },
+    {
+      key: 'value', dataIndex: 'value', title: 'Значение',
+      render: (val, row) => renderCell(val, row.field),
+    },
+  ];
+
+  return (
+    <Space direction="vertical" style={{ width: '100%' }} size={4}>
+      {breadcrumb}
+      {fieldToggle(allKeys, 'Строки')}
+      <Table size="small" dataSource={tableData} columns={columns}
+        pagination={false} scroll={{ y: 420 }} />
     </Space>
   );
 }
@@ -913,7 +1112,22 @@ function Tools({ userData, onRefresh }) {
         width="90vw"
         style={{ maxWidth: 1200 }}
       >
-        <JsonTreeViewer data={lastRunResult} />
+        <Tabs
+          size="small"
+          style={{ minHeight: 540 }}
+          items={[
+            {
+              key: 'answer',
+              label: 'Ответ',
+              children: <JsonTreeViewer data={lastRunResult} />,
+            },
+            {
+              key: 'table',
+              label: 'Таблица',
+              children: <TableViewer data={lastRunResult} />,
+            },
+          ]}
+        />
       </Modal>
 
     </div>
