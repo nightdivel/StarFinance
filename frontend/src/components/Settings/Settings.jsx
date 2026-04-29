@@ -921,6 +921,14 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
               </div>
 
               <Divider />
+              <Form.Item
+                name="toolsHistoryAutoClearMonths"
+                label="Автоочистка истории инструментов (месяцев)"
+                extra="История запусков инструментов будет автоматически очищаться по истечении заданного срока. По умолчанию — 3 месяца."
+                rules={[{ required: true, message: 'Укажите интервал автоочистки' }]}
+              >
+                <InputNumber min={1} max={24} defaultValue={3} className="w-100" disabled={!canWrite} />
+              </Form.Item>
 
               <Form.Item name="currencies" label="Доступные валюты">
                 <Select

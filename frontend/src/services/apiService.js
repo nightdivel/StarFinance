@@ -5,6 +5,22 @@ class ApiService {
     this.baseURL = API_BASE_URL;
   }
 
+  // Настройки инструментов (auto-clear)
+  getToolsSettings() {
+    return this.request('/api/system/tools-settings', { method: 'GET' });
+  }
+  updateToolsSettings(settings) {
+    return this.request('/api/system/tools-settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  // Очистка истории запусков инструментов
+  deleteToolRuns() {
+    return this.request('/api/tools/runs', { method: 'DELETE' });
+  }
+
   handleAuthExpired(status) {
     if (typeof window === 'undefined') return;
     if (status !== 401 && status !== 403) return;

@@ -708,6 +708,7 @@ function ToolCard({ tool, onRun, running }) {
 }
 
 function Tools({ userData, onRefresh }) {
+    const [toolsSettings, setToolsSettings] = useState({ toolsHistoryAutoClearMonths: 3 });
   const [tools, setTools] = useState([]);
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -750,9 +751,36 @@ function Tools({ userData, onRefresh }) {
     }
   };
 
+  // Автоочистка истории запусков инструментов
   useEffect(() => {
-    loadTools();
-    loadRuns();
+    const init = async () => {
+      await loadTools();
+      // Получаем настройки автоочистки
+      let settings = { toolsHistoryAutoClearMonths: 3 };
+      try {
+        const s = await apiService.getToolsSettings();
+        if (s && typeof s.toolsHistoryAutoClearMonths === 'number') settings = s;
+      } catch (_) {}
+      setToolsSettings(settings);
+      // Загружаем историю запусков
+      const response = await apiService.getToolRuns();
+      const runsArr = Array.isArray(response?.items) ? response.items : [];
+      setRuns(runsArr);
+      // Проверяем, требуется ли автоочистка
+      if (runsArr.length > 0 && settings.toolsHistoryAutoClearMonths > 0) {
+        const now = Date.now();
+        const msLimit = settings.toolsHistoryAutoClearMonths * 30 * 24 * 60 * 60 * 1000;
+        const oldest = Math.min(...runsArr.map(r => new Date(r.createdAt || r.timestamp || r.date || 0).getTime()));
+        if (now - oldest > msLimit) {
+          try {
+            await apiService.deleteToolRuns();
+            message.info('История запусков инструментов автоматически очищена по истечении срока.');
+            await loadRuns();
+          } catch (_) {}
+        }
+      }
+    };
+    init();
   }, []);
 
   const sortedTools = useMemo(
@@ -978,7 +1006,21 @@ function Tools({ userData, onRefresh }) {
       label: 'История',
       children: (
         <Card>
-          <Table rowKey="id" loading={runsLoading} columns={runColumns} dataSource={runs} pagination={{ pageSize: 8 }} />
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Space style={{ justifyContent: 'space-between', width: '100%' }}>
+              <span>История запусков инструментов</span>
+              <Button danger icon={<DeleteOutlined />} onClick={async () => {
+                try {
+                  await apiService.deleteToolRuns();
+                  message.success('История запусков очищена');
+                  await loadRuns();
+                } catch (e) {
+                  message.error('Ошибка при очистке истории');
+                }
+              }}>Очистить историю</Button>
+            </Space>
+            <Table rowKey="id" loading={runsLoading} columns={runColumns} dataSource={runs} pagination={{ pageSize: 8 }} />
+          </Space>
         </Card>
       ),
     },
