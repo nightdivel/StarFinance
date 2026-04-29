@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Col,
-  Descriptions,
   Empty,
   Form,
   Input,
@@ -39,139 +38,126 @@ import { apiService } from '../../services/apiService';
 import { authService } from '../../services/authService';
 
 const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
 
-// ──────────────────────────────────────────────────────────────
-// SmartJsonViewer: человекочитаемый рендер JSON-ответа от API
-// ──────────────────────────────────────────────────────────────
-function isPlainObject(v) {
-  return v !== null && typeof v === 'object' && !Array.isArray(v);
-}
+// ──────────────────────────────────────────────────────────────────
+// Postman-style collapsible JSON tree with syntax highlighting
+// ──────────────────────────────────────────────────────────────────
+const JC = {
+  key:     '#66d9e8',
+  str:     '#a6e22e',
+  num:     '#fd971f',
+  bool:    '#ae81ff',
+  nil:     '#f92672',
+  bracket: '#f8f8f2',
+  meta:    '#75715e',
+};
 
-function isArrayOfObjects(v) {
-  return Array.isArray(v) && v.length > 0 && v.every(isPlainObject);
-}
+const MAX_STR_LEN = 300;
 
-function isLeaf(v) {
-  return v === null || v === undefined || typeof v !== 'object';
-}
+function JValue({ value, isLast, depth }) {
+  const [open, setOpen] = useState(depth < 2);
+  const comma = !isLast ? <span style={{ color: JC.meta }}>,</span> : null;
 
-function renderLeaf(v) {
-  if (v === null || v === undefined) return <Text type="secondary">—</Text>;
-  if (typeof v === 'boolean') {
-    return <Tag color={v ? 'success' : 'default'}>{v ? 'true' : 'false'}</Tag>;
-  }
-  return <Text>{String(v)}</Text>;
-}
-
-function SmartValue({ value, depth = 0 }) {
-  if (isLeaf(value)) return renderLeaf(value);
-
-  if (isArrayOfObjects(value)) {
-    const keys = Array.from(new Set(value.flatMap(Object.keys)));
-    const columns = keys.map((k) => ({
-      key: k,
-      dataIndex: k,
-      title: <span style={{ whiteSpace: 'nowrap' }}>{k}</span>,
-      width: 160,
-      render: (cell) => isLeaf(cell)
-        ? <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap', fontSize: 12 }}>{renderLeaf(cell)}</div>
-        : <SmartValue value={cell} depth={depth + 1} />,
-    }));
-    return (
-      <Table
-        size="small"
-        columns={columns}
-        dataSource={value.map((row, i) => ({ ...row, _key: i }))}
-        rowKey="_key"
-        pagination={value.length > 20 ? { pageSize: 20, size: 'small' } : false}
-        scroll={{ x: keys.length * 160, y: 340 }}
-        style={{ marginTop: 4 }}
-      />
-    );
+  if (value === null || value === undefined)
+    return <span><span style={{ color: JC.nil }}>null</span>{comma}</span>;
+  if (typeof value === 'boolean')
+    return <span><span style={{ color: JC.bool }}>{String(value)}</span>{comma}</span>;
+  if (typeof value === 'number')
+    return <span><span style={{ color: JC.num }}>{value}</span>{comma}</span>;
+  if (typeof value === 'string') {
+    const display = value.length > MAX_STR_LEN ? value.slice(0, MAX_STR_LEN) + '…' : value;
+    return <span><span style={{ color: JC.str }}>"{display}"</span>{comma}</span>;
   }
 
   if (Array.isArray(value)) {
+    if (!open) return (
+      <span>
+        <span title="Развернуть" style={{ cursor: 'pointer', color: JC.meta, userSelect: 'none' }} onClick={() => setOpen(true)}>
+          ▶ [<span style={{ color: JC.num }}>{value.length}</span>]
+        </span>{comma}
+      </span>
+    );
     return (
-      <Space direction="vertical" size={2} style={{ width: '100%' }}>
-        {value.map((item, i) => (
-          <Space key={i} size={4}>
-            <Text type="secondary" style={{ minWidth: 24 }}>{i}.</Text>
-            <SmartValue value={item} depth={depth + 1} />
-          </Space>
-        ))}
-      </Space>
+      <span>
+        <span style={{ cursor: 'pointer', color: JC.bracket, userSelect: 'none' }} onClick={() => setOpen(false)}>▼ [</span>
+        <div style={{ paddingLeft: 16 }}>
+          {value.map((item, i) => (
+            <div key={i}><JValue value={item} isLast={i === value.length - 1} depth={depth + 1} /></div>
+          ))}
+        </div>
+        <span style={{ color: JC.bracket }}>]</span>{comma}
+      </span>
     );
   }
 
-  if (isPlainObject(value)) {
-    if (depth === 0) {
-      const items = Object.entries(value).map(([k, v]) => ({
-        key: k,
-        label: <Text strong>{k}</Text>,
-        children: isLeaf(v) ? renderLeaf(v) : <SmartValue value={v} depth={depth + 1} />,
-        span: (isLeaf(v) || (Array.isArray(v) && v.every(isLeaf))) ? 1 : 3,
-      }));
-      return (
-        <Descriptions
-          size="small"
-          bordered
-          column={3}
-          items={items}
-          style={{ marginTop: 4 }}
-        />
-      );
-    }
+  if (typeof value === 'object') {
+    const entries = Object.entries(value);
+    if (!open) return (
+      <span>
+        <span title="Развернуть" style={{ cursor: 'pointer', color: JC.meta, userSelect: 'none' }} onClick={() => setOpen(true)}>
+          ▶ {'{'}<span style={{ color: JC.num }}>{entries.length}</span>{'}'}
+        </span>{comma}
+      </span>
+    );
     return (
-      <Space direction="vertical" size={2} style={{ width: '100%' }}>
-        {Object.entries(value).map(([k, v]) => (
-          <Space key={k} size={4} align="start">
-            <Text type="secondary" style={{ minWidth: 90 }}>{k}:</Text>
-            <SmartValue value={v} depth={depth + 1} />
-          </Space>
-        ))}
-      </Space>
+      <span>
+        <span style={{ cursor: 'pointer', color: JC.bracket, userSelect: 'none' }} onClick={() => setOpen(false)}>▼ {'{'}</span>
+        <div style={{ paddingLeft: 16 }}>
+          {entries.map(([k, v], i) => (
+            <div key={k} style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 0 }}>
+              <span style={{ color: JC.key, flexShrink: 0 }}>"{k}"</span>
+              <span style={{ color: JC.meta, flexShrink: 0, margin: '0 4px 0 0' }}>:</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <JValue value={v} isLast={i === entries.length - 1} depth={depth + 1} />
+              </span>
+            </div>
+          ))}
+        </div>
+        <span style={{ color: JC.bracket }}>{'}'}</span>{comma}
+      </span>
     );
   }
 
-  return <Text>{String(value)}</Text>;
+  return <span style={{ color: JC.str }}>{String(value)}</span>;
 }
 
-function SmartJsonViewer({ data }) {
-  const [raw, setRaw] = useState(false);
-
+function JsonTreeViewer({ data }) {
   if (!data) return null;
-
   const output = data?.output ?? data;
   const status = data?.status;
   const errorMsg = data?.error;
+  const isEmpty = !output ||
+    (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size={12}>
+    <Space direction="vertical" style={{ width: '100%' }} size={8}>
       {status && (
         <Space>
           <Tag color={status === 'success' ? 'success' : 'error'}>{status}</Tag>
           {errorMsg && <Text type="danger">{errorMsg}</Text>}
         </Space>
       )}
-      {!errorMsg && output && Object.keys(output).length > 0 && (
-        <div>
-          {!raw ? <SmartValue value={output} depth={0} /> : (
-            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 380, overflow: 'auto', background: '#1e1e1e', color: '#d4d4d4', padding: 12, borderRadius: 6, fontSize: 12 }}>
-              {JSON.stringify(output, null, 2)}
-            </pre>
-          )}
+      {!errorMsg && !isEmpty && (
+        <div style={{
+          background: '#1b1e2e',
+          borderRadius: 6,
+          padding: '10px 14px',
+          fontFamily: '"Fira Mono","Cascadia Code","Consolas",monospace',
+          fontSize: 12,
+          lineHeight: '1.7',
+          overflow: 'auto',
+          maxHeight: 520,
+          color: JC.bracket,
+          border: '1px solid #2e3250',
+        }}>
+          <JValue value={output} isLast depth={0} />
         </div>
       )}
-      {(!output || Object.keys(output ?? {}).length === 0) && !errorMsg && (
-        <Text type="secondary">Ответ пуст</Text>
-      )}
-      <Button size="small" type="link" style={{ padding: 0 }} onClick={() => setRaw((r) => !r)}>
-        {raw ? 'Читаемый вид' : 'Raw JSON'}
-      </Button>
+      {isEmpty && !errorMsg && <Text type="secondary">Ответ пуст</Text>}
     </Space>
   );
 }
-const { TextArea } = Input;
 
 const ACTION_META = {
   open_url: {
@@ -927,7 +913,7 @@ function Tools({ userData, onRefresh }) {
         width="90vw"
         style={{ maxWidth: 1200 }}
       >
-        <SmartJsonViewer data={lastRunResult} />
+        <JsonTreeViewer data={lastRunResult} />
       </Modal>
 
     </div>
