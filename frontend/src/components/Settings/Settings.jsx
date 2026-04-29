@@ -1738,9 +1738,9 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                       <Input placeholder="Напр.: Администратор" />
                     </Form.Item>
                     <Row gutter={16}>
-                      {['finance', 'warehouse', 'showcase', 'users', 'directories', 'settings', 'requests', 'news', 'uex'].map((resource) => (
+                      {['finance', 'warehouse', 'showcase', 'users', 'directories', 'settings', 'requests', 'news', 'uex', 'tools'].map((resource) => (
                         <Col xs={24} sm={12} key={resource}>
-                          <Form.Item name={['permissions', resource]} label={`Права: ${resource === 'uex' ? 'UEX_API' : resource === 'news' ? 'новости' : resource}`}>
+                          <Form.Item name={['permissions', resource]} label={`Права: ${resource === 'uex' ? 'UEX_API' : resource === 'news' ? 'новости' : resource === 'tools' ? 'Инструменты' : resource}`}>
                             <Select placeholder="Выберите права">
                               <Option value={PERMISSIONS.NONE}>Нет доступа</Option>
                               <Option value={PERMISSIONS.READ}>Только чтение</Option>
