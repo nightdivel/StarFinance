@@ -138,4 +138,4 @@
 - Интеграция с внешними биллингами/платёжными системами.
 
 ---
-Связанные документы: `docs/system-overview.md`, `docs/api-spec.md`, `docs/db-schema.md`, `docs/deploy.md`.
+Связанные документы: `docs/system-overview.md`, `docs/api-spec.md`, `docs/db-schema.md`, `docs/deploy.md`, `docs/tools-spec.md`.
