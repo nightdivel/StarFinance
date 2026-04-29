@@ -5,7 +5,7 @@ import TableWithFullscreen from '../common/TableWithFullscreen';
 import { DownloadOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { APP_DATA_QUERY_KEY } from '../../lib/queries/appData';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { compareDropdownStrings } from '../../utils/helpers';
 
 const { Title, Text } = Typography;
@@ -280,7 +280,7 @@ const UEX = () => {
   ];
 }, [filteredData]);
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     try {
       const rows = Array.isArray(filteredData) ? filteredData : [];
       if (!rows.length) return;
@@ -292,22 +292,29 @@ const UEX = () => {
         Object.keys(r).forEach((k) => keysSet.add(k));
       }
       const headers = Array.from(keysSet);
-      // Normalize rows: stringify objects to preserve structure in cells
-      const mapped = rows.map((r) => {
-        const o = {};
-        headers.forEach((h) => {
+      // Create workbook and worksheet
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('UEX Export');
+      worksheet.addRow(headers);
+      rows.forEach((r) => {
+        const row = headers.map((h) => {
           const v = r?.[h];
-          o[h] = v != null && typeof v === 'object' ? JSON.stringify(v) : v;
+          return v != null && typeof v === 'object' ? JSON.stringify(v) : v;
         });
-        return o;
+        worksheet.addRow(row);
       });
-      const ws = XLSX.utils.json_to_sheet(mapped, { header: headers });
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'UEX Export');
       const now = new Date();
       const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
-      XLSX.writeFile(wb, `uex_export_${ts}.xlsx`);
-    } catch (_) {}
+      const filename = `uex_export_${ts}.xlsx`;
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) { console.error(e); }
   };
 
   return (
