@@ -459,6 +459,71 @@ class ApiService {
     return this.request('/api/news/discord/oauth/status', { method: 'DELETE' });
   }
 
+  // Tools
+  getTools() {
+    return this.request('/api/tools', { method: 'GET' });
+  }
+  getToolRuns(filters = {}) {
+    const search = new URLSearchParams();
+    if (filters.toolId) search.set('toolId', filters.toolId);
+    if (filters.status) search.set('status', filters.status);
+    const query = search.toString();
+    return this.request(`/api/tools/runs${query ? `?${query}` : ''}`, { method: 'GET' });
+  }
+  saveTool(tool) {
+    const payload = {
+      title: tool.title,
+      description: tool.description,
+      actionType: tool.actionType,
+      iconSource: tool.iconSource,
+      iconUrl: tool.iconUrl,
+      iconFilePath: tool.iconFilePath,
+      category: tool.category,
+      isActive: tool.isActive,
+      sortOrder: tool.sortOrder,
+      config: tool.config,
+    };
+    if (tool?.id) {
+      return this.request(`/api/tools/${encodeURIComponent(tool.id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+    }
+    return this.request('/api/tools', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+  deleteTool(id) {
+    return this.request(`/api/tools/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  }
+  runTool(id, input = {}) {
+    return this.request(`/api/tools/${encodeURIComponent(id)}/run`, {
+      method: 'POST',
+      body: JSON.stringify({ input }),
+    });
+  }
+  async uploadToolIcon(file) {
+    const url = this.buildUrl('/api/tools/upload-icon');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+    const formData = new FormData();
+    formData.append('icon', file);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorJson = await response.json();
+        errorMessage = errorJson?.error || errorMessage;
+      } catch (_) {}
+      this.handleAuthExpired(response.status);
+      throw new Error(errorMessage);
+    }
+    return response.json();
+  }
 }
 
 export default ApiService;

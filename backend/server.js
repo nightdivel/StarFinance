@@ -52,6 +52,31 @@ const upload = multer({
   }
 });
 
+const toolIconStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'public', 'uploads', 'tools');
+    try {
+      await fs.mkdir(uploadDir, { recursive: true });
+      cb(null, uploadDir);
+    } catch (error) {
+      cb(error);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, `tool-icon-${uniqueSuffix}${path.extname(file.originalname)}`);
+  },
+});
+
+const toolIconUpload = multer({
+  storage: toolIconStorage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 3 * 1024 * 1024,
+    files: 1,
+  },
+});
+
 // Helper: build Discord authorize URL based on effective settings and mappings
 function buildDiscordAuthorizeUrl(eff) {
   const clientId = eff.clientId || DISCORD_CONFIG.CLIENT_ID;
@@ -126,6 +151,347 @@ function safeJsonParse(s) {
   } catch {
     return null;
   }
+}
+
+function createTextId(prefix) {
+  return `${prefix}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+}
+
+function coerceJsonObject(value, fallback = {}) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  return fallback;
+}
+
+function parseMaybeBoolean(value, fallback = false) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  return fallback;
+}
+
+function parseMaybeNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function sanitizeHttpUrl(rawUrl) {
+  const value = String(rawUrl || '').trim();
+  if (!value) return '';
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    return parsed.toString();
+  } catch {
+    return '';
+  }
+}
+
+function escapeTelegramMarkdown(text) {
+  const specialChars = new Set(['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']);
+  return Array.from(String(text || ''), (char) => (specialChars.has(char) ? `\\${char}` : char)).join('');
+}
+
+function applyTemplateString(template, context) {
+  return String(template || '').replace(/\{\{\s*([^}]+)\s*\}\}/g, (_, expr) => {
+    const pathParts = String(expr || '')
+      .split('.')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    let current = context;
+    for (const part of pathParts) {
+      if (!current || typeof current !== 'object' || !(part in current)) return '';
+      current = current[part];
+    }
+    if (current === null || current === undefined) return '';
+    if (typeof current === 'object') return JSON.stringify(current);
+    return String(current);
+  });
+}
+
+function applyTemplateDeep(value, context) {
+  if (typeof value === 'string') return applyTemplateString(value, context);
+  if (Array.isArray(value)) return value.map((entry) => applyTemplateDeep(entry, context));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, applyTemplateDeep(entry, context)])
+    );
+  }
+  return value;
+}
+
+function safeToolPublicRow(row) {
+  return {
+    id: row.id,
+    code: row.code,
+    title: row.title,
+    description: row.description || '',
+    actionType: row.action_type,
+    iconSource: row.icon_source,
+    iconUrl: row.icon_url || '',
+    iconFilePath: row.icon_file_path || '',
+    config: row.config_json || {},
+    category: row.category || '',
+    isActive: row.is_active !== false,
+    sortOrder: Number(row.sort_order) || 100,
+    createdBy: row.created_by || null,
+    updatedBy: row.updated_by || null,
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+    updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+  };
+}
+
+function safeToolRunRow(row) {
+  return {
+    id: row.id,
+    toolId: row.tool_id,
+    initiatedBy: row.initiated_by,
+    status: row.status,
+    input: row.input_json || {},
+    output: row.output_json || {},
+    errorMessage: row.error_message || '',
+    startedAt: row.started_at ? new Date(row.started_at).toISOString() : null,
+    finishedAt: row.finished_at ? new Date(row.finished_at).toISOString() : null,
+  };
+}
+
+function buildToolCode(title) {
+  const normalized = String(title || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9а-яё]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50);
+  return normalized || `tool-${Date.now()}`;
+}
+
+function validateToolPayload(payload) {
+  const title = String(payload?.title || '').trim();
+  const description = String(payload?.description || '').trim();
+  const actionType = String(payload?.actionType || '').trim();
+  const iconSourceRaw = String(payload?.iconSource || 'external_url').trim();
+  const iconSource = iconSourceRaw === 'upload' ? 'upload' : 'external_url';
+  const iconUrl = sanitizeHttpUrl(payload?.iconUrl || '');
+  const iconFilePath = String(payload?.iconFilePath || '').trim();
+  const category = String(payload?.category || '').trim();
+  const sortOrder = parseMaybeNumber(payload?.sortOrder, 100);
+  const isActive = parseMaybeBoolean(payload?.isActive, true);
+  const config = coerceJsonObject(payload?.config, {});
+
+  if (title.length < 2 || title.length > 60) {
+    return { error: 'Название должно содержать от 2 до 60 символов' };
+  }
+  if (description.length > 500) {
+    return { error: 'Описание не должно превышать 500 символов' };
+  }
+  if (!['open_url', 'rest_call', 'telegram_send', 'discord_send'].includes(actionType)) {
+    return { error: 'Некорректный тип действия' };
+  }
+
+  if (actionType === 'open_url') {
+    const url = sanitizeHttpUrl(config.url || '');
+    if (!url) return { error: 'Для перехода требуется корректный HTTP/HTTPS URL' };
+    config.url = url;
+    config.openMode = String(config.openMode || 'new_tab') === 'same_tab' ? 'same_tab' : 'new_tab';
+  }
+
+  if (actionType === 'rest_call') {
+    const url = sanitizeHttpUrl(config.url || '');
+    const method = String(config.method || 'POST').toUpperCase();
+    if (!url) return { error: 'Для REST API требуется корректный URL' };
+    if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      return { error: 'Некорректный HTTP метод для REST API' };
+    }
+    // Validate that TOOLS_API_TOKEN is set
+    if (!process.env.TOOLS_API_TOKEN || process.env.TOOLS_API_TOKEN.trim().length === 0) {
+      return { error: 'REST API не настроена: переменная TOOLS_API_TOKEN не задана' };
+    }
+    config.url = url;
+    config.method = method;
+    config.timeoutMs = Math.min(Math.max(parseMaybeNumber(config.timeoutMs, 10000), 1000), 15000);
+    config.headers = coerceJsonObject(config.headers, {});
+    config.auth = coerceJsonObject(config.auth, {});
+  }
+
+  if (actionType === 'telegram_send') {
+    const chatId = String(config.chatId || '').trim();
+    const template = String(config.messageTemplate || '').trim();
+    if (!chatId) return { error: 'Для Telegram требуется chatId' };
+    if (!template) return { error: 'Для Telegram требуется шаблон сообщения' };
+    // Validate that TELEGRAM_BOT_TOKEN is set
+    if (!process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN.trim().length === 0) {
+      return { error: 'Telegram не настроена: переменная TELEGRAM_BOT_TOKEN не задана' };
+    }
+    config.chatId = chatId;
+    config.messageTemplate = template;
+    config.parseMode = String(config.parseMode || 'Markdown').trim() || 'Markdown';
+    config.botTokenEnv = String(config.botTokenEnv || 'TELEGRAM_BOT_TOKEN').trim() || 'TELEGRAM_BOT_TOKEN';
+  }
+
+  if (actionType === 'discord_send') {
+    const template = String(config.messageTemplate || '').trim();
+    if (!template) return { error: 'Для Discord требуется шаблон сообщения' };
+    // Validate that DISCORD_TOOLS_WEBHOOK_URL is set and valid
+    const webhookUrl = (process.env.DISCORD_TOOLS_WEBHOOK_URL || '').trim();
+    if (!webhookUrl || webhookUrl.length === 0) {
+      return { error: 'Discord не настроена: переменная DISCORD_TOOLS_WEBHOOK_URL не задана' };
+    }
+    if (!webhookUrl.startsWith('https://discord.com/api/webhooks/')) {
+      return { error: 'Discord не настроена: DISCORD_TOOLS_WEBHOOK_URL имеет некорректный формат' };
+    }
+    config.messageTemplate = template;
+    config.username = String(config.username || 'StarFinance Bot').trim() || 'StarFinance Bot';
+    config.webhookUrlEnv =
+      String(config.webhookUrlEnv || 'DISCORD_TOOLS_WEBHOOK_URL').trim() || 'DISCORD_TOOLS_WEBHOOK_URL';
+  }
+
+  if (iconSource === 'external_url' && payload?.iconUrl && !iconUrl) {
+    return { error: 'URL иконки должен быть HTTP/HTTPS адресом' };
+  }
+  if (iconSource === 'upload' && !iconFilePath && !iconUrl) {
+    return { error: 'Для загруженной иконки требуется файл изображения' };
+  }
+
+  return {
+    value: {
+      title,
+      description,
+      actionType,
+      iconSource,
+      iconUrl,
+      iconFilePath,
+      category,
+      sortOrder,
+      isActive,
+      config,
+    },
+  };
+}
+
+async function executeToolAction(tool, currentUser, input) {
+  const toolConfig = coerceJsonObject(tool.config_json, {});
+  const context = {
+    currentUser: {
+      id: currentUser.id,
+      username: currentUser.username,
+      nickname: currentUser.nickname || currentUser.username,
+      accountType: currentUser.account_type,
+    },
+    tool: {
+      id: tool.id,
+      code: tool.code,
+      title: tool.title,
+      actionType: tool.action_type,
+    },
+    input: coerceJsonObject(input, {}),
+  };
+
+  if (tool.action_type === 'open_url') {
+    return {
+      status: 'success',
+      output: {
+        openUrl: toolConfig.url,
+        openMode: toolConfig.openMode || 'new_tab',
+        message: 'Ссылка подготовлена к открытию',
+      },
+    };
+  }
+
+  if (tool.action_type === 'rest_call') {
+    const headers = { ...coerceJsonObject(toolConfig.headers, {}) };
+    const auth = coerceJsonObject(toolConfig.auth, {});
+    if (String(auth.type || '') === 'bearer_env') {
+      const tokenEnvName = String(auth.tokenEnv || '').trim();
+      const tokenValue = tokenEnvName ? process.env[tokenEnvName] : '';
+      if (!tokenValue) {
+        throw new Error(`Не задан секрет окружения ${tokenEnvName || 'для REST вызова'}`);
+      }
+      headers.Authorization = `Bearer ${tokenValue}`;
+    }
+    const bodyTemplate = toolConfig.bodyTemplate;
+    const body = bodyTemplate !== undefined ? applyTemplateDeep(bodyTemplate, context) : coerceJsonObject(input, {});
+    const response = await axios({
+      method: toolConfig.method || 'POST',
+      url: toolConfig.url,
+      headers,
+      data: body,
+      timeout: parseMaybeNumber(toolConfig.timeoutMs, 10000),
+      validateStatus: () => true,
+    });
+    if (response.status >= 400) {
+      const details = typeof response.data === 'string' ? response.data.slice(0, 500) : response.data;
+      throw new Error(`REST вызов завершился с кодом ${response.status}${details ? `: ${JSON.stringify(details).slice(0, 500)}` : ''}`);
+    }
+    return {
+      status: 'success',
+      output: {
+        statusCode: response.status,
+        data: typeof response.data === 'string' ? response.data.slice(0, 1000) : response.data,
+      },
+    };
+  }
+
+  if (tool.action_type === 'telegram_send') {
+    const tokenEnvName = String(toolConfig.botTokenEnv || 'TELEGRAM_BOT_TOKEN').trim();
+    const botToken = process.env[tokenEnvName];
+    if (!botToken) throw new Error(`Не задан секрет окружения ${tokenEnvName}`);
+    let text = applyTemplateString(toolConfig.messageTemplate || '', context).trim();
+    if (!text) throw new Error('Шаблон Telegram сообщения не сформировал текст');
+    const parseMode = String(toolConfig.parseMode || 'Markdown').trim();
+    if (parseMode.toLowerCase() === 'markdown') {
+      text = escapeTelegramMarkdown(text);
+    }
+    const response = await axios.post(
+      `https://api.telegram.org/bot${botToken}/sendMessage`,
+      {
+        chat_id: toolConfig.chatId,
+        text,
+        parse_mode: parseMode,
+        disable_web_page_preview: true,
+      },
+      { timeout: 10000 }
+    );
+    if (!response.data?.ok) {
+      throw new Error(response.data?.description || 'Telegram API вернул ошибку');
+    }
+    return {
+      status: 'success',
+      output: {
+        messageId: response.data?.result?.message_id || null,
+        chatId: toolConfig.chatId,
+      },
+    };
+  }
+
+  if (tool.action_type === 'discord_send') {
+    const webhookEnv = String(toolConfig.webhookUrlEnv || 'DISCORD_TOOLS_WEBHOOK_URL').trim();
+    const webhookUrl = process.env[webhookEnv];
+    const safeWebhookUrl = sanitizeHttpUrl(webhookUrl);
+    if (!safeWebhookUrl) throw new Error(`Не задан корректный webhook URL в ${webhookEnv}`);
+    const content = applyTemplateString(toolConfig.messageTemplate || '', context).trim();
+    if (!content) throw new Error('Шаблон Discord сообщения не сформировал текст');
+    const response = await axios.post(
+      safeWebhookUrl,
+      {
+        content,
+        username: toolConfig.username || 'StarFinance Bot',
+      },
+      { timeout: 10000, validateStatus: () => true }
+    );
+    if (response.status >= 400) {
+      throw new Error(`Discord webhook завершился с кодом ${response.status}`);
+    }
+    return {
+      status: 'success',
+      output: {
+        delivered: true,
+        channel: webhookEnv,
+      },
+    };
+  }
+
+  throw new Error('Неподдерживаемый тип действия');
 }
 
 const TELEGRAM_NEWS_ENABLED_KEY = 'system.telegramNews.enabled';
@@ -3715,6 +4081,253 @@ app.post('/api/news/upload-image', authenticateToken, requirePermission('news', 
   }
 });
 
+app.post(
+  '/api/tools/upload-icon',
+  authenticateToken,
+  requirePermission('tools', 'write'),
+  toolIconUpload.single('icon'),
+  async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
+      res.json({
+        url: `/uploads/tools/${req.file.filename}`,
+        filePath: `/uploads/tools/${req.file.filename}`,
+        fileName: req.file.filename,
+      });
+    } catch (error) {
+      console.error('POST /api/tools/upload-icon error:', error);
+      if (req.file?.path) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch (_) {}
+      }
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Размер файла превышает 3MB' });
+      }
+      return res.status(500).json({ error: 'Ошибка загрузки иконки' });
+    }
+  }
+);
+
+app.get('/api/tools', authenticateToken, requirePermission('tools', 'read'), async (req, res) => {
+  try {
+    const rows = (
+      await query(
+        `SELECT id, code, title, description, action_type, icon_source, icon_url, icon_file_path,
+                config_json, category, is_active, sort_order, created_by, updated_by, created_at, updated_at
+           FROM tools
+          WHERE is_deleted = FALSE
+          ORDER BY sort_order ASC, created_at DESC`
+      )
+    ).rows;
+    res.json({ items: rows.map(safeToolPublicRow) });
+  } catch (error) {
+    console.error('GET /api/tools error:', error);
+    res.status(500).json({ error: 'Ошибка чтения инструментов' });
+  }
+});
+
+app.get('/api/tools/runs', authenticateToken, requirePermission('tools', 'read'), async (req, res) => {
+  try {
+    const filters = [];
+    const params = [];
+    if (req.query.toolId) {
+      params.push(String(req.query.toolId));
+      filters.push(`tr.tool_id = $${params.length}`);
+    }
+    if (req.query.status) {
+      params.push(String(req.query.status));
+      filters.push(`tr.status = $${params.length}`);
+    }
+    const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
+    const rows = (
+      await query(
+        `SELECT tr.id, tr.tool_id, tr.initiated_by, tr.input_json, tr.output_json, tr.status, tr.error_message,
+                tr.started_at, tr.finished_at, t.title AS tool_title, u.username AS initiated_username
+           FROM tool_runs tr
+           JOIN tools t ON t.id = tr.tool_id
+           LEFT JOIN users u ON u.id = tr.initiated_by
+           ${whereClause}
+          ORDER BY tr.started_at DESC
+          LIMIT 100`,
+        params
+      )
+    ).rows.map((row) => ({
+      ...safeToolRunRow(row),
+      toolTitle: row.tool_title || '',
+      initiatedUsername: row.initiated_username || '',
+    }));
+    res.json({ items: rows });
+  } catch (error) {
+    console.error('GET /api/tools/runs error:', error);
+    res.status(500).json({ error: 'Ошибка чтения истории запусков' });
+  }
+});
+
+app.post('/api/tools', authenticateToken, requirePermission('tools', 'write'), async (req, res) => {
+  try {
+    const validation = validateToolPayload(req.body || {});
+    if (validation.error) return res.status(400).json({ error: validation.error });
+    const payload = validation.value;
+    const id = createTextId('tool');
+    const baseCode = buildToolCode(payload.title);
+    let code = baseCode;
+    let suffix = 1;
+    while ((await query('SELECT 1 FROM tools WHERE code = $1', [code])).rowCount > 0) {
+      suffix += 1;
+      code = `${baseCode}-${suffix}`;
+    }
+    await query(
+      `INSERT INTO tools (
+         id, code, title, description, action_type, icon_source, icon_url, icon_file_path,
+         config_json, category, is_active, sort_order, created_by, updated_by, created_at, updated_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13,now(),now())`,
+      [
+        id,
+        code,
+        payload.title,
+        payload.description || null,
+        payload.actionType,
+        payload.iconSource,
+        payload.iconUrl || null,
+        payload.iconFilePath || null,
+        JSON.stringify(payload.config),
+        payload.category || null,
+        payload.isActive,
+        payload.sortOrder,
+        req.user.id,
+      ]
+    );
+    const row = (await query('SELECT * FROM tools WHERE id = $1', [id])).rows[0];
+    try { app.locals.io.emit('tools:changed', { id, action: 'created' }); } catch (_) {}
+    res.status(201).json({ id, item: safeToolPublicRow(row) });
+  } catch (error) {
+    console.error('POST /api/tools error:', error);
+    res.status(500).json({ error: 'Ошибка создания инструмента' });
+  }
+});
+
+app.put('/api/tools/:id', authenticateToken, requirePermission('tools', 'write'), async (req, res) => {
+  try {
+    const id = String(req.params.id || '');
+    const existing = (await query('SELECT * FROM tools WHERE id = $1 AND is_deleted = FALSE', [id])).rows[0];
+    if (!existing) return res.status(404).json({ error: 'Инструмент не найден' });
+    const mergedPayload = {
+      title: req.body?.title ?? existing.title,
+      description: req.body?.description ?? existing.description,
+      actionType: req.body?.actionType ?? existing.action_type,
+      iconSource: req.body?.iconSource ?? existing.icon_source,
+      iconUrl: req.body?.iconUrl ?? existing.icon_url,
+      iconFilePath: req.body?.iconFilePath ?? existing.icon_file_path,
+      category: req.body?.category ?? existing.category,
+      isActive: req.body?.isActive ?? existing.is_active,
+      sortOrder: req.body?.sortOrder ?? existing.sort_order,
+      config: req.body?.config ?? existing.config_json,
+    };
+    const validation = validateToolPayload(mergedPayload);
+    if (validation.error) return res.status(400).json({ error: validation.error });
+    const payload = validation.value;
+    await query(
+      `UPDATE tools
+          SET title = $2,
+              description = $3,
+              action_type = $4,
+              icon_source = $5,
+              icon_url = $6,
+              icon_file_path = $7,
+              config_json = $8,
+              category = $9,
+              is_active = $10,
+              sort_order = $11,
+              updated_by = $12,
+              updated_at = now()
+        WHERE id = $1`,
+      [
+        id,
+        payload.title,
+        payload.description || null,
+        payload.actionType,
+        payload.iconSource,
+        payload.iconUrl || null,
+        payload.iconFilePath || null,
+        JSON.stringify(payload.config),
+        payload.category || null,
+        payload.isActive,
+        payload.sortOrder,
+        req.user.id,
+      ]
+    );
+    const row = (await query('SELECT * FROM tools WHERE id = $1', [id])).rows[0];
+    try { app.locals.io.emit('tools:changed', { id, action: 'updated' }); } catch (_) {}
+    res.json({ ok: true, item: safeToolPublicRow(row) });
+  } catch (error) {
+    console.error('PUT /api/tools/:id error:', error);
+    res.status(500).json({ error: 'Ошибка обновления инструмента' });
+  }
+});
+
+app.delete('/api/tools/:id', authenticateToken, requirePermission('tools', 'write'), async (req, res) => {
+  try {
+    const id = String(req.params.id || '');
+    const existing = (await query('SELECT id FROM tools WHERE id = $1 AND is_deleted = FALSE', [id])).rows[0];
+    if (!existing) return res.status(404).json({ error: 'Инструмент не найден' });
+    await query('UPDATE tools SET is_deleted = TRUE, is_active = FALSE, updated_by = $2, updated_at = now() WHERE id = $1', [id, req.user.id]);
+    try { app.locals.io.emit('tools:changed', { id, action: 'deleted' }); } catch (_) {}
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('DELETE /api/tools/:id error:', error);
+    res.status(500).json({ error: 'Ошибка удаления инструмента' });
+  }
+});
+
+app.post('/api/tools/:id/run', authenticateToken, requirePermission('tools', 'read'), async (req, res) => {
+  try {
+    const id = String(req.params.id || '');
+    const tool = (await query('SELECT * FROM tools WHERE id = $1 AND is_deleted = FALSE AND is_active = TRUE', [id])).rows[0];
+    if (!tool) return res.status(404).json({ error: 'Инструмент не найден или выключен' });
+    const currentUser = (
+      await query('SELECT id, username, nickname, account_type FROM users WHERE id = $1', [req.user.id])
+    ).rows[0];
+    if (!currentUser) return res.status(401).json({ error: 'Пользователь не найден' });
+
+    const runId = createTextId('toolrun');
+    const inputPayload = coerceJsonObject(req.body?.input, {});
+    await query(
+      `INSERT INTO tool_runs (id, tool_id, initiated_by, input_json, status, started_at)
+       VALUES ($1,$2,$3,$4,'queued',now())`,
+      [runId, id, req.user.id, JSON.stringify(inputPayload)]
+    );
+
+    try {
+      const result = await executeToolAction(tool, currentUser, inputPayload);
+      await query(
+        `UPDATE tool_runs
+            SET status = $2,
+                output_json = $3,
+                error_message = NULL,
+                finished_at = now()
+          WHERE id = $1`,
+        [runId, result.status || 'success', JSON.stringify(result.output || {})]
+      );
+      res.json({ runId, status: result.status || 'success', output: result.output || {} });
+    } catch (error) {
+      await query(
+        `UPDATE tool_runs
+            SET status = 'failed',
+                output_json = $2,
+                error_message = $3,
+                finished_at = now()
+          WHERE id = $1`,
+        [runId, JSON.stringify({ message: error.message || 'Ошибка выполнения' }), String(error.message || 'Ошибка выполнения').slice(0, 1000)]
+      );
+      res.status(400).json({ runId, status: 'failed', error: error.message || 'Ошибка выполнения' });
+    }
+  } catch (error) {
+    console.error('POST /api/tools/:id/run error:', error);
+    res.status(500).json({ error: 'Ошибка запуска инструмента' });
+  }
+});
+
 // ---------- Finance Requests workflow ----------
 // Related to current user (as sender or recipient)
 app.get('/api/finance-requests/related', authenticateToken, async (req, res) => {
@@ -5308,6 +5921,46 @@ const startServer = async () => {
     console.warn('Не удалось добавить колонку users.nickname:', e.message);
   }
   await checkDbAndWarn();
+  
+  // Validate Tools environment variables
+  const toolsWarnings = [];
+  
+  // REST API action type validation
+  if (process.env.TOOLS_API_TOKEN) {
+    if (process.env.TOOLS_API_TOKEN.trim().length === 0) {
+      toolsWarnings.push('TOOLS_API_TOKEN задан но пуст. REST API вызовы не будут работать.');
+    }
+  } else {
+    toolsWarnings.push('TOOLS_API_TOKEN не задан. REST API вызовы (action_type=rest_call) не будут работать.');
+  }
+  
+  // Telegram bot token validation
+  if (process.env.TELEGRAM_BOT_TOKEN) {
+    if (process.env.TELEGRAM_BOT_TOKEN.trim().length === 0) {
+      toolsWarnings.push('TELEGRAM_BOT_TOKEN задан но пуст. Telegram сообщения не будут отправляться.');
+    }
+  } else {
+    toolsWarnings.push('TELEGRAM_BOT_TOKEN не задан. Telegram сообщения (action_type=telegram_send) не будут работать.');
+  }
+  
+  // Discord webhook URL validation
+  if (process.env.DISCORD_TOOLS_WEBHOOK_URL) {
+    const webhookUrl = process.env.DISCORD_TOOLS_WEBHOOK_URL.trim();
+    if (webhookUrl.length === 0) {
+      toolsWarnings.push('DISCORD_TOOLS_WEBHOOK_URL задан но пуст. Discord сообщения не будут отправляться.');
+    } else if (!webhookUrl.startsWith('https://discord.com/api/webhooks/')) {
+      toolsWarnings.push('DISCORD_TOOLS_WEBHOOK_URL имеет некорректный формат. Discord сообщения не будут работать.');
+    }
+  } else {
+    toolsWarnings.push('DISCORD_TOOLS_WEBHOOK_URL не задан. Discord сообщения (action_type=discord_send) не будут работать.');
+  }
+  
+  // Output tools warnings
+  if (toolsWarnings.length) {
+    console.warn('⚠️  Предупреждения конфигурации Tools:');
+    for (const w of toolsWarnings) console.warn(' -', w);
+  }
+  
   server.listen(SERVER_CONFIG.PORT, SERVER_CONFIG.HOST, () => {
     console.log(`🚀 Server running on http://${SERVER_CONFIG.HOST}:${SERVER_CONFIG.PORT}`);
     console.log(`🌐 Frontend: ${SERVER_CONFIG.FRONTEND_URL}`);

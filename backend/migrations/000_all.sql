@@ -234,6 +234,43 @@ CREATE TABLE IF NOT EXISTS finance_requests (
 CREATE INDEX IF NOT EXISTS idx_finance_requests_to_user ON finance_requests(to_user);
 CREATE INDEX IF NOT EXISTS idx_finance_requests_status ON finance_requests(status);
 
+CREATE TABLE IF NOT EXISTS tools (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  description TEXT,
+  action_type TEXT NOT NULL,
+  icon_source TEXT NOT NULL DEFAULT 'external_url',
+  icon_url TEXT,
+  icon_file_path TEXT,
+  config_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  category TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  sort_order INTEGER NOT NULL DEFAULT 100,
+  created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+  CONSTRAINT tools_action_type_check CHECK (action_type IN ('open_url', 'rest_call', 'telegram_send', 'discord_send')),
+  CONSTRAINT tools_icon_source_check CHECK (icon_source IN ('upload', 'external_url'))
+);
+CREATE INDEX IF NOT EXISTS idx_tools_active_not_deleted ON tools(is_active, is_deleted, sort_order, created_at);
+
+CREATE TABLE IF NOT EXISTS tool_runs (
+  id TEXT PRIMARY KEY,
+  tool_id TEXT NOT NULL REFERENCES tools(id) ON DELETE CASCADE,
+  initiated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  input_json JSONB,
+  output_json JSONB,
+  status TEXT NOT NULL DEFAULT 'queued',
+  error_message TEXT,
+  started_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+  finished_at TIMESTAMP WITHOUT TIME ZONE,
+  CONSTRAINT tool_runs_status_check CHECK (status IN ('queued', 'success', 'failed', 'blocked'))
+);
+CREATE INDEX IF NOT EXISTS idx_tool_runs_tool_id_started_at ON tool_runs(tool_id, started_at DESC);
+
 -- Seed defaults (idempotent)
 -- Permissions for Admin
 INSERT INTO account_type_permissions(account_type, resource, level) VALUES
@@ -241,7 +278,8 @@ INSERT INTO account_type_permissions(account_type, resource, level) VALUES
 ('Администратор','warehouse','write'),
 ('Администратор','users','write'),
 ('Администратор','directories','write'),
-('Администратор','settings','write')
+('Администратор','settings','write'),
+('Администратор','tools','write')
 ON CONFLICT DO NOTHING;
 
 -- Permissions for User
@@ -250,7 +288,8 @@ INSERT INTO account_type_permissions(account_type, resource, level) VALUES
 ('Пользователь','warehouse','read'),
 ('Пользователь','users','none'),
 ('Пользователь','directories','none'),
-('Пользователь','settings','none')
+('Пользователь','settings','none'),
+('Пользователь','tools','read')
 ON CONFLICT DO NOTHING;
 
 -- Permissions for Guest
@@ -259,7 +298,8 @@ INSERT INTO account_type_permissions(account_type, resource, level) VALUES
 ('Гость','warehouse','read'),
 ('Гость','users','none'),
 ('Гость','directories','none'),
-('Гость','settings','none')
+('Гость','settings','none'),
+('Гость','tools','none')
 ON CONFLICT DO NOTHING;
 
 -- Permissions for Showcase module
