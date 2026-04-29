@@ -538,6 +538,13 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
       }
     }
 
+    try {
+      await apiService.updateMenuOrder(normalizeMenuOrder(menuOrder));
+      message.success('Порядок меню сохранен');
+    } catch (_) {
+      message.error('Не удалось сохранить порядок меню');
+    }
+
     // Сначала сохраним OAuth2 параметры на бэкенде
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
@@ -579,6 +586,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
     } finally {
       setLoading(false);
     }
+    await onRefresh?.();
     // Обновим форму эффективными значениями (если сервер доступен)
     if (discordSaved) {
       try {

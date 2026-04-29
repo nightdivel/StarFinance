@@ -526,6 +526,19 @@ const DISCORD_NEWS_OAUTH_REFRESH_TOKEN_KEY = 'system.discordNews.oauth.refreshTo
 const DISCORD_NEWS_OAUTH_SCOPE_KEY = 'system.discordNews.oauth.scope';
 const DISCORD_NEWS_OAUTH_TOKEN_TYPE_KEY = 'system.discordNews.oauth.tokenType';
 const DISCORD_NEWS_OAUTH_EXPIRES_AT_KEY = 'system.discordNews.oauth.expiresAt';
+const SYSTEM_MENU_ORDER_KEY = 'system.menuOrder';
+const SYSTEM_MENU_ORDER_DEFAULT = [
+  'news',
+  'finance',
+  'warehouse',
+  'showcase',
+  'requests',
+  'users',
+  'directories',
+  'uex',
+  'tools',
+  'settings',
+];
 const DEFAULT_TELEGRAM_NEWS_CHANNEL = 'JamTVStarCitizen';
 const DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES = 15;
 const DEFAULT_DISCORD_NEWS_CHANNEL = '';
@@ -547,6 +560,15 @@ function normalizeTelegramChannel(input) {
 function normalizeDiscordChannel(input) {
   const parsed = parseDiscordChannelReference(input);
   return parsed?.channelId || DEFAULT_DISCORD_NEWS_CHANNEL;
+}
+
+function normalizeMenuOrder(input) {
+  const arr = Array.isArray(input) ? input : [];
+  const filtered = arr.filter((k) => SYSTEM_MENU_ORDER_DEFAULT.includes(k));
+  return [
+    ...filtered,
+    ...SYSTEM_MENU_ORDER_DEFAULT.filter((k) => !filtered.includes(k)),
+  ];
 }
 
 function parseDiscordChannelReference(input) {
@@ -2059,6 +2081,30 @@ app.put('/api/system/branding', authenticateToken, requirePermission('settings',
     return res.json({ success: true, appTitle });
   } catch (e) {
     return res.status(500).json({ error: 'Ошибка сохранения названия приложения' });
+  }
+});
+
+app.get('/api/system/menu-order', authenticateToken, requirePermission('settings', 'read'), async (req, res) => {
+  try {
+    const settingsMap = await readSettingsMap();
+    const order = normalizeMenuOrder(settingsMap[SYSTEM_MENU_ORDER_KEY]);
+    return res.json({ menuOrder: order });
+  } catch (e) {
+    return res.status(500).json({ error: 'Ошибка чтения порядка меню' });
+  }
+});
+
+app.put('/api/system/menu-order', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    const order = normalizeMenuOrder(req.body?.menuOrder);
+    await query(
+      `INSERT INTO settings(key, value) VALUES ($1, $2::jsonb)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [SYSTEM_MENU_ORDER_KEY, JSON.stringify(order)]
+    );
+    return res.json({ success: true, menuOrder: order });
+  } catch (e) {
+    return res.status(500).json({ error: 'Ошибка сохранения порядка меню' });
   }
 });
 

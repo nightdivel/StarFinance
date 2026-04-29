@@ -412,6 +412,15 @@ class ApiService {
       body: JSON.stringify({ appTitle }),
     });
   }
+  getMenuOrder() {
+    return this.request('/api/system/menu-order', { method: 'GET' });
+  }
+  updateMenuOrder(menuOrder) {
+    return this.request('/api/system/menu-order', {
+      method: 'PUT',
+      body: JSON.stringify({ menuOrder }),
+    });
+  }
   setSystemFavicon(dataUrl) {
     return this.request('/api/system/favicon', {
       method: 'PUT',

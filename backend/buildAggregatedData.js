@@ -10,6 +10,23 @@ const createBuildAggregatedData = ({ query, readSettingsMap, getPermissionsForTy
       const version = s['system.version'] ?? '1.0.0';
       const baseCurrency = s['system.baseCurrency'] ?? 'aUEC';
       const appTitle = s['system.appTitle'] ?? 'BLSK Star Finance';
+      const defaultMenuOrder = [
+        'news',
+        'finance',
+        'warehouse',
+        'showcase',
+        'requests',
+        'users',
+        'directories',
+        'uex',
+        'tools',
+        'settings',
+      ];
+      const menuOrderRaw = Array.isArray(s['system.menuOrder']) ? s['system.menuOrder'] : [];
+      const menuOrder = [
+        ...menuOrderRaw.filter((k) => defaultMenuOrder.includes(k)),
+        ...defaultMenuOrder.filter((k) => !menuOrderRaw.includes(k)),
+      ];
 
       // Currencies and rates from tables (fallback to settings if empty)
       let currencies = [];
@@ -32,7 +49,7 @@ const createBuildAggregatedData = ({ query, readSettingsMap, getPermissionsForTy
       if (Object.keys(rates).length === 0) {
         rates = s['system.rates'] ?? { aUEC: 1, КП: 0.9 };
       }
-      const system = { version, currencies, baseCurrency, rates, appTitle };
+      const system = { version, currencies, baseCurrency, rates, appTitle, menuOrder };
 
       // Directories from tables (fallback to settings)
       const productTypes = await (async () => {
