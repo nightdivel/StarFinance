@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Avatar,
   Button,
   Card,
   Col,
+  Descriptions,
   Empty,
   Form,
   Input,
@@ -37,6 +39,136 @@ import { apiService } from '../../services/apiService';
 import { authService } from '../../services/authService';
 
 const { Title, Text, Paragraph } = Typography;
+
+// ──────────────────────────────────────────────────────────────
+// SmartJsonViewer: человекочитаемый рендер JSON-ответа от API
+// ──────────────────────────────────────────────────────────────
+function isPlainObject(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
+
+function isArrayOfObjects(v) {
+  return Array.isArray(v) && v.length > 0 && v.every(isPlainObject);
+}
+
+function isLeaf(v) {
+  return v === null || v === undefined || typeof v !== 'object';
+}
+
+function renderLeaf(v) {
+  if (v === null || v === undefined) return <Text type="secondary">—</Text>;
+  if (typeof v === 'boolean') {
+    return <Tag color={v ? 'success' : 'default'}>{v ? 'true' : 'false'}</Tag>;
+  }
+  return <Text>{String(v)}</Text>;
+}
+
+function SmartValue({ value, depth = 0 }) {
+  if (isLeaf(value)) return renderLeaf(value);
+
+  if (isArrayOfObjects(value)) {
+    const keys = Array.from(new Set(value.flatMap(Object.keys)));
+    const columns = keys.map((k) => ({
+      key: k,
+      dataIndex: k,
+      title: k,
+      ellipsis: true,
+      render: (cell) => isLeaf(cell) ? renderLeaf(cell) : <SmartValue value={cell} depth={depth + 1} />,
+    }));
+    return (
+      <Table
+        size="small"
+        columns={columns}
+        dataSource={value.map((row, i) => ({ ...row, _key: i }))}
+        rowKey="_key"
+        pagination={value.length > 10 ? { pageSize: 10, size: 'small' } : false}
+        scroll={{ x: 'max-content' }}
+        style={{ marginTop: 4 }}
+      />
+    );
+  }
+
+  if (Array.isArray(value)) {
+    return (
+      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+        {value.map((item, i) => (
+          <Space key={i} size={4}>
+            <Text type="secondary" style={{ minWidth: 24 }}>{i}.</Text>
+            <SmartValue value={item} depth={depth + 1} />
+          </Space>
+        ))}
+      </Space>
+    );
+  }
+
+  if (isPlainObject(value)) {
+    if (depth === 0) {
+      const items = Object.entries(value).map(([k, v]) => ({
+        key: k,
+        label: <Text strong>{k}</Text>,
+        children: isLeaf(v) ? renderLeaf(v) : <SmartValue value={v} depth={depth + 1} />,
+        span: (isLeaf(v) || (Array.isArray(v) && v.every(isLeaf))) ? 1 : 3,
+      }));
+      return (
+        <Descriptions
+          size="small"
+          bordered
+          column={3}
+          items={items}
+          style={{ marginTop: 4 }}
+        />
+      );
+    }
+    return (
+      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+        {Object.entries(value).map(([k, v]) => (
+          <Space key={k} size={4} align="start">
+            <Text type="secondary" style={{ minWidth: 90 }}>{k}:</Text>
+            <SmartValue value={v} depth={depth + 1} />
+          </Space>
+        ))}
+      </Space>
+    );
+  }
+
+  return <Text>{String(value)}</Text>;
+}
+
+function SmartJsonViewer({ data }) {
+  const [raw, setRaw] = useState(false);
+
+  if (!data) return null;
+
+  const output = data?.output ?? data;
+  const status = data?.status;
+  const errorMsg = data?.error;
+
+  return (
+    <Space direction="vertical" style={{ width: '100%' }} size={12}>
+      {status && (
+        <Space>
+          <Tag color={status === 'success' ? 'success' : 'error'}>{status}</Tag>
+          {errorMsg && <Text type="danger">{errorMsg}</Text>}
+        </Space>
+      )}
+      {!errorMsg && output && Object.keys(output).length > 0 && (
+        <div>
+          {!raw ? <SmartValue value={output} depth={0} /> : (
+            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 380, overflow: 'auto', background: '#1e1e1e', color: '#d4d4d4', padding: 12, borderRadius: 6, fontSize: 12 }}>
+              {JSON.stringify(output, null, 2)}
+            </pre>
+          )}
+        </div>
+      )}
+      {(!output || Object.keys(output ?? {}).length === 0) && !errorMsg && (
+        <Text type="secondary">Ответ пуст</Text>
+      )}
+      <Button size="small" type="link" style={{ padding: 0 }} onClick={() => setRaw((r) => !r)}>
+        {raw ? 'Читаемый вид' : 'Raw JSON'}
+      </Button>
+    </Space>
+  );
+}
 const { TextArea } = Input;
 
 const ACTION_META = {
@@ -203,81 +335,15 @@ function buildPayload(values, uploadedIcon) {
   return payload;
 }
 
-function getToolIconCandidates(tool) {
+function resolveToolIconSrc(tool) {
   const externalUrl = String(tool?.iconUrl || '').trim();
-  const localPath = String(tool?.iconFilePath || '').trim();
-  const candidates = [];
-
   if (externalUrl && /^https?:\/\//i.test(externalUrl)) {
     const proxiedPath = `/api/tools/icon-proxy?url=${encodeURIComponent(externalUrl)}`;
-    candidates.push(apiService.buildUrl(proxiedPath));
-    candidates.push(externalUrl);
+    return apiService.buildUrl(proxiedPath);
   }
-
-  if (localPath) candidates.push(localPath);
-  return candidates.filter(Boolean);
-}
-
-function ToolIcon({ tool, size = 64, block = false }) {
-  const candidates = getToolIconCandidates(tool);
-  const [idx, setIdx] = useState(0);
-
-  useEffect(() => {
-    setIdx(0);
-  }, [tool?.id, tool?.iconUrl, tool?.iconFilePath]);
-
-  const src = candidates[idx];
-  const hasImage = Boolean(src);
-  const isBlock = Boolean(block);
-
-  return (
-    <div
-      style={
-        isBlock
-          ? {
-              width: '100%',
-              height: 92,
-              borderRadius: 10,
-              overflow: 'hidden',
-              background: '#0d1628',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }
-          : {
-              width: size,
-              height: size,
-              borderRadius: 8,
-              overflow: 'hidden',
-              background: '#0d1628',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }
-      }
-    >
-      {hasImage ? (
-        <img
-          src={src}
-          alt={tool?.title || 'tool-icon'}
-          loading="eager"
-          decoding="async"
-          onError={() => {
-            if (idx < candidates.length - 1) setIdx((prev) => prev + 1);
-          }}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            objectPosition: 'center',
-            display: 'block',
-          }}
-        />
-      ) : (
-        <ToolOutlined style={{ fontSize: isBlock ? 28 : 20, color: 'rgba(255, 255, 255, 0.75)' }} />
-      )}
-    </div>
-  );
+  const localPath = String(tool?.iconFilePath || '').trim();
+  if (localPath) return localPath;
+  return undefined;
 }
 
 function renderInfoLabel(label, tooltip) {
@@ -320,10 +386,10 @@ function ToolCard({ tool, onRun, running }) {
         loading={running}
         disabled={!tool.isActive || running}
         onClick={() => onRun(tool)}
-        style={{ height: '100%', minHeight: 160, padding: 10 }}
+        style={{ height: '100%', minHeight: 140, padding: 12 }}
       >
-        <Space direction="vertical" align="center" size={8} style={{ width: '100%', justifyContent: 'center' }}>
-          <ToolIcon tool={tool} block />
+        <Space direction="vertical" align="center" size={10} style={{ width: '100%', justifyContent: 'center' }}>
+          <Avatar shape="square" size={56} src={resolveToolIconSrc(tool)} icon={<ToolOutlined />} />
           <Text strong style={{ maxWidth: '100%', textAlign: 'center' }} ellipsis>
             {tool.title}
           </Text>
@@ -587,7 +653,7 @@ function Tools({ userData, onRefresh }) {
                       ]}
                     >
                       <List.Item.Meta
-                        avatar={<ToolIcon tool={tool} size={40} />}
+                        avatar={<Avatar shape="square" src={resolveToolIconSrc(tool)} icon={<ToolOutlined />} />}
                         title={<Space wrap><span>{tool.title}</span><ToolActionBadge actionType={tool.actionType} /></Space>}
                         description={tool.description || 'Описание не заполнено'}
                       />
@@ -623,6 +689,9 @@ function Tools({ userData, onRefresh }) {
                 <InfoCircleOutlined />
               </Tooltip>
             </Space>
+            <Text type="secondary">
+              Каталог операционных действий с описанием, иконкой, безопасным запуском и историей.
+            </Text>
           </div>
           {canWrite ? (
             <Tooltip title="Создать новую кнопку-инструмент с описанием, иконкой и сценарием запуска.">
@@ -855,9 +924,7 @@ function Tools({ userData, onRefresh }) {
         ]}
         width={760}
       >
-        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 420, overflow: 'auto' }}>
-          {JSON.stringify(lastRunResult || {}, null, 2)}
-        </pre>
+        <SmartJsonViewer data={lastRunResult} />
       </Modal>
 
     </div>
