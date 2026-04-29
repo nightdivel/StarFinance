@@ -324,10 +324,6 @@ function validateToolPayload(payload) {
     if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
       return { error: 'Некорректный HTTP метод для REST API' };
     }
-    // Validate that TOOLS_API_TOKEN is set
-    if (!process.env.TOOLS_API_TOKEN || process.env.TOOLS_API_TOKEN.trim().length === 0) {
-      return { error: 'REST API не настроена: переменная TOOLS_API_TOKEN не задана' };
-    }
     config.url = url;
     config.method = method;
     config.timeoutMs = Math.min(Math.max(parseMaybeNumber(config.timeoutMs, 10000), 1000), 15000);
