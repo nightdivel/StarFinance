@@ -205,7 +205,7 @@ const createBuildAggregatedData = ({ query, readSettingsMap, getPermissionsForTy
       } catch (_) {}
 
       // Users from DB with derived permissions
-      const users = [];
+      let users = [];
       try {
         const ures = await query(
           "SELECT id, username, email, nickname, auth_type, account_type, is_active, discord_id, discord_data, created_at, last_login FROM users WHERE id <> 'deleted_user'"
@@ -222,6 +222,15 @@ const createBuildAggregatedData = ({ query, readSettingsMap, getPermissionsForTy
         const permissionsByType = await getPermissionsForTypesDb(ures.rows.map((u) => u.account_type));
         for (const t of new Set(ures.rows.map((u) => u.account_type).filter(Boolean))) {
           if (!permissionsByType.has(t)) permissionsByType.set(t, { ...defaultPermissions });
+        }
+
+        // Hide sensitive user fields unless caller can read users section.
+        let canReadUsersSection = false;
+        if (userId) {
+          const me = ures.rows.find((u) => String(u?.id || '') === String(userId));
+          const mePerms = permissionsByType.get(me?.account_type || '') || {};
+          const lvl = mePerms?.users;
+          canReadUsersSection = lvl === 'read' || lvl === 'write';
         }
 
         for (const u of ures.rows) {
@@ -252,6 +261,16 @@ const createBuildAggregatedData = ({ query, readSettingsMap, getPermissionsForTy
             createdAt: u.created_at ? new Date(u.created_at).toISOString() : undefined,
             lastLogin: u.last_login ? new Date(u.last_login).toISOString() : undefined,
           });
+        }
+
+        if (!canReadUsersSection) {
+          users = users.map((u) => ({
+            id: u.id,
+            username: u.username,
+            nickname: u.nickname || null,
+            accountType: u.accountType,
+            avatarUrl: u.avatarUrl,
+          }));
         }
       } catch (_) {}
 
