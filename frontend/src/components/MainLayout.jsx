@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Card, Tooltip, Tag, Skeleton, Drawer, Grid } from 'antd';
 import {
@@ -348,22 +349,41 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
               />
             </div>
           </div>
-          <Menu
-            theme={darkMode ? 'dark' : 'light'}
-            mode="inline"
-            inlineIndent={16}
-            selectedKeys={[selectedKey]}
-            onClick={({ key }) => onSelectMenuKey(key)}
-            items={menuItems.map((mi) => ({
-              ...mi,
-              label: (
-                <span className={`${mi.key === selectedKey ? 'fw-semibold' : 'fw-medium'}`}>
-                  {mi.label}
-                </span>
-              ),
-            }))}
-            className="border-end-0 flex-grow-1 px-2 pt-2"
-          />
+          <div className="border-end-0 flex-grow-1 px-2 pt-2">
+            <AnimatePresence initial={true}>
+              {menuItems.map((mi, idx) => (
+                <motion.div
+                  key={mi.key}
+                  initial={{ opacity: 0, translateY: 60 }}
+                  animate={{ opacity: 1, translateY: 0 }}
+                  exit={{ opacity: 0, translateY: 60 }}
+                  transition={{
+                    duration: 0.5,
+                    delay: (menuItems.length - idx - 1) * 0.08,
+                    type: 'spring',
+                    stiffness: 120,
+                  }}
+                  style={{ marginBottom: 2 }}
+                >
+                  <Menu
+                    theme={darkMode ? 'dark' : 'light'}
+                    mode="inline"
+                    inlineIndent={16}
+                    selectedKeys={[selectedKey]}
+                    onClick={({ key }) => onSelectMenuKey(key)}
+                    items={[{
+                      ...mi,
+                      label: (
+                        <span className={`${mi.key === selectedKey ? 'fw-semibold' : 'fw-medium'}`}>
+                          {mi.label}
+                        </span>
+                      ),
+                    }]}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
         </Sider>
       )}
       <Layout>
