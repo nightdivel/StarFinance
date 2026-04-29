@@ -93,6 +93,19 @@ const DISCORD_NEWS_CHANNEL_KEY = 'system.discordNews.channel';
 const DISCORD_NEWS_BOT_TOKEN_KEY = 'system.discordNews.botToken';
 const DISCORD_NEWS_SYNC_MINUTES_KEY = 'system.discordNews.syncMinutes';
 const DISCORD_NEWS_LAST_SYNC_KEY = 'system.discordNews.lastSyncAt';
+const SYSTEM_MENU_ORDER_KEY = 'system.menuOrder';
+const SYSTEM_MENU_ORDER_DEFAULT = [
+  'news',
+  'finance',
+  'warehouse',
+  'showcase',
+  'requests',
+  'users',
+  'directories',
+  'uex',
+  'tools',
+  'settings',
+];
 const DEFAULT_TELEGRAM_NEWS_CHANNEL = 'JamTVStarCitizen';
 const DEFAULT_TELEGRAM_NEWS_SYNC_MINUTES = 15;
 const DEFAULT_DISCORD_NEWS_CHANNEL = '';
@@ -131,6 +144,15 @@ function normalizeDiscordChannel(input) {
   const raw = String(input || '').trim();
   if (!raw) return DEFAULT_DISCORD_NEWS_CHANNEL;
   return raw;
+}
+
+function normalizeMenuOrder(input) {
+  const incoming = Array.isArray(input) ? input : [];
+  const filtered = incoming.filter((k) => SYSTEM_MENU_ORDER_DEFAULT.includes(k));
+  return [
+    ...filtered,
+    ...SYSTEM_MENU_ORDER_DEFAULT.filter((k) => !filtered.includes(k)),
+  ];
 }
 
 async function readTelegramNewsSettings() {
@@ -349,6 +371,25 @@ app.put('/api/system/branding', authenticateToken, requirePermission('settings',
     res.json({ success: true, appTitle });
   } catch (e) {
     res.status(500).json({ error: 'Ошибка сохранения названия приложения' });
+  }
+});
+
+app.get('/api/system/menu-order', authenticateToken, requirePermission('settings', 'read'), async (req, res) => {
+  try {
+    const raw = await readSettingValue(SYSTEM_MENU_ORDER_KEY, SYSTEM_MENU_ORDER_DEFAULT);
+    return res.json({ menuOrder: normalizeMenuOrder(raw) });
+  } catch (e) {
+    return res.status(500).json({ error: 'Ошибка чтения порядка меню' });
+  }
+});
+
+app.put('/api/system/menu-order', authenticateToken, requirePermission('settings', 'write'), async (req, res) => {
+  try {
+    const menuOrder = normalizeMenuOrder(req.body?.menuOrder);
+    await writeSettingValue(SYSTEM_MENU_ORDER_KEY, menuOrder);
+    return res.json({ success: true, menuOrder });
+  } catch (e) {
+    return res.status(500).json({ error: 'Ошибка сохранения порядка меню' });
   }
 });
 
