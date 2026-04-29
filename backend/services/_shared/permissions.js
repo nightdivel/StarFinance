@@ -20,6 +20,7 @@ async function getPermissionsForTypeDb(typeName) {
     settings: 'none',
     requests: 'read',
     news: 'read',
+    tools: 'read',
   };
 }
 

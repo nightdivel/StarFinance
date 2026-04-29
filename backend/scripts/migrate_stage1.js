@@ -36,6 +36,7 @@ async function upsertAccountTypesAndPermissions(app) {
         directories: 'write',
         settings: 'write',
         requests: 'write',
+        tools: 'write',
       },
     },
     {
@@ -47,6 +48,7 @@ async function upsertAccountTypesAndPermissions(app) {
         directories: 'none',
         settings: 'none',
         requests: 'read',
+        tools: 'read',
       },
     },
     {
@@ -58,6 +60,7 @@ async function upsertAccountTypesAndPermissions(app) {
         directories: 'none',
         settings: 'none',
         requests: 'read',
+        tools: 'none',
       },
     },
   ];

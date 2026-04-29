@@ -17,6 +17,7 @@ import {
   SunOutlined,
   MenuOutlined,
   NotificationOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import { apiService } from '../services/apiService';
 import { authService } from '../services/authService';
@@ -36,6 +37,7 @@ const Requests = lazy(() => import('./Requests/Requests'));
 const UEX = lazy(() => import('./UEX/UEX'));
 const News = lazy(() => import('./News/News'));
 const NewsDetail = lazy(() => import('./News/NewsDetail'));
+const Tools = lazy(() => import('./Tools/Tools'));
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Title } = Typography;
@@ -179,6 +181,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
     { key: 'users', icon: <TeamOutlined />, label: 'Пользователи', section: 'users' },          
     { key: 'directories', icon: <FolderOutlined />, label: 'Справочники', section: 'directories' },  
     { key: 'uex', icon: <BulbOutlined />, label: 'UEX API', section: 'uex' },
+    { key: 'tools', icon: <ToolOutlined />, label: 'Инструменты', section: 'tools' },
     { key: 'settings', icon: <SettingOutlined />, label: 'Настройки', section: 'settings' },
   ];
 
@@ -284,6 +287,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
           <Route path="/showcase" element={<Showcase data={data} onRefresh={refreshData} userData={userData} />} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/uex" element={<UEX />} />
+          <Route path="/tools" element={<Tools data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
           <Route path="/settings" element={<Settings data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
           <Route path="/profile" element={<Profile userData={userData} onUpdateUser={onUpdateUser} data={data} onDataUpdate={onDataUpdate} />} />
           <Route path="/cart" element={<Cart />} />
