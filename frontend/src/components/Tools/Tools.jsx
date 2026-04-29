@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -37,6 +37,7 @@ import {
   ToolOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
+import Draggable from 'react-draggable';
 import { apiService } from '../../services/apiService';
 import { authService } from '../../services/authService';
 
@@ -355,6 +356,126 @@ function TableViewer({ data }) {
       <Table size="small" dataSource={tableData} columns={columns}
         pagination={false} scroll={{ y: 420 }} />
     </Space>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// DraggableResizableModal
+// ──────────────────────────────────────────────────────────────────
+const DEFAULT_W = Math.min(1200, Math.round(window.innerWidth * 0.88));
+const DEFAULT_H = Math.min(800, Math.round(window.innerHeight * 0.82));
+
+function DraggableResizableModal({ title, open, onClose, children }) {
+  const dragRef = useRef(null);
+  const [bounds, setBounds] = useState({ left: 0, top: 0, right: 0, bottom: 0 });
+  const [disabled, setDisabled] = useState(true);
+  const [size, setSize] = useState({ w: DEFAULT_W, h: DEFAULT_H });
+  const resizing = useRef(false);
+  const resizeStart = useRef({});
+
+  // Reset size when modal opens
+  useEffect(() => {
+    if (open) setSize({ w: DEFAULT_W, h: DEFAULT_H });
+  }, [open]);
+
+  const onMouseMoveBound = useCallback((e) => {
+    if (!open) return;
+    const modal = dragRef.current?.querySelector('.ant-modal');
+    if (!modal) return;
+    const rect = modal.getBoundingClientRect();
+    setBounds({
+      left: -rect.left,
+      top: -rect.top,
+      right: window.innerWidth - rect.right,
+      bottom: window.innerHeight - rect.bottom,
+    });
+  }, [open]);
+
+  // Resize via bottom-right handle
+  const onResizeMouseDown = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizing.current = true;
+    resizeStart.current = { x: e.clientX, y: e.clientY, w: size.w, h: size.h };
+
+    const onMove = (ev) => {
+      if (!resizing.current) return;
+      const dw = ev.clientX - resizeStart.current.x;
+      const dh = ev.clientY - resizeStart.current.y;
+      setSize({
+        w: Math.max(400, resizeStart.current.w + dw),
+        h: Math.max(300, resizeStart.current.h + dh),
+      });
+    };
+    const onUp = () => {
+      resizing.current = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [size]);
+
+  const modalRender = useCallback((modal) => (
+    <Draggable
+      disabled={disabled}
+      bounds={bounds}
+      nodeRef={dragRef}
+      handle=".draggable-modal-handle"
+    >
+      <div ref={dragRef} style={{ position: 'relative' }}>
+        {modal}
+        {/* Resize handle — bottom-right corner */}
+        <div
+          onMouseDown={onResizeMouseDown}
+          style={{
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            width: 18,
+            height: 18,
+            cursor: 'nwse-resize',
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'flex-end',
+            padding: 3,
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M1 9L9 1M5 9L9 5M9 9L9 9" stroke="#aaa" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        </div>
+      </div>
+    </Draggable>
+  ), [disabled, bounds, onResizeMouseDown]);
+
+  return (
+    <Modal
+      title={
+        <div
+          className="draggable-modal-handle"
+          onMouseOver={() => setDisabled(false)}
+          onMouseOut={() => setDisabled(true)}
+          onFocus={() => setDisabled(false)}
+          onBlur={() => setDisabled(true)}
+          style={{ cursor: 'move', userSelect: 'none', paddingRight: 40 }}
+        >
+          {title}
+        </div>
+      }
+      open={open}
+      onCancel={onClose}
+      footer={[
+        <Button key="close" type="primary" onClick={onClose}>Закрыть</Button>,
+      ]}
+      width={size.w}
+      styles={{ body: { height: size.h - 110, overflow: 'auto', padding: '12px 16px' } }}
+      modalRender={modalRender}
+      onMouseMove={onMouseMoveBound}
+    >
+      {children}
+    </Modal>
   );
 }
 
@@ -1100,17 +1221,10 @@ function Tools({ userData, onRefresh }) {
         </Form>
       </Modal>
 
-      <Modal
+      <DraggableResizableModal
         title={lastRunTitle ? `Результат API: ${lastRunTitle}` : 'Результат API'}
         open={resultModalOpen}
-        onCancel={() => setResultModalOpen(false)}
-        footer={[
-          <Button key="close" type="primary" onClick={() => setResultModalOpen(false)}>
-            Закрыть
-          </Button>,
-        ]}
-        width="90vw"
-        style={{ maxWidth: 1200 }}
+        onClose={() => setResultModalOpen(false)}
       >
         <Tabs
           size="small"
@@ -1128,7 +1242,7 @@ function Tools({ userData, onRefresh }) {
             },
           ]}
         />
-      </Modal>
+      </DraggableResizableModal>
 
     </div>
   );
