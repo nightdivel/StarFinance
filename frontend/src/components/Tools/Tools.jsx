@@ -71,9 +71,11 @@ function SmartValue({ value, depth = 0 }) {
     const columns = keys.map((k) => ({
       key: k,
       dataIndex: k,
-      title: k,
-      ellipsis: true,
-      render: (cell) => isLeaf(cell) ? renderLeaf(cell) : <SmartValue value={cell} depth={depth + 1} />,
+      title: <span style={{ whiteSpace: 'nowrap' }}>{k}</span>,
+      width: 160,
+      render: (cell) => isLeaf(cell)
+        ? <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap', fontSize: 12 }}>{renderLeaf(cell)}</div>
+        : <SmartValue value={cell} depth={depth + 1} />,
     }));
     return (
       <Table
@@ -81,8 +83,8 @@ function SmartValue({ value, depth = 0 }) {
         columns={columns}
         dataSource={value.map((row, i) => ({ ...row, _key: i }))}
         rowKey="_key"
-        pagination={value.length > 10 ? { pageSize: 10, size: 'small' } : false}
-        scroll={{ x: 'max-content' }}
+        pagination={value.length > 20 ? { pageSize: 20, size: 'small' } : false}
+        scroll={{ x: keys.length * 160, y: 340 }}
         style={{ marginTop: 4 }}
       />
     );
@@ -922,7 +924,8 @@ function Tools({ userData, onRefresh }) {
             Закрыть
           </Button>,
         ]}
-        width={760}
+        width="90vw"
+        style={{ maxWidth: 1200 }}
       >
         <SmartJsonViewer data={lastRunResult} />
       </Modal>
