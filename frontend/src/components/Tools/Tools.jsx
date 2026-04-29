@@ -226,7 +226,7 @@ function ToolActionBadge({ actionType }) {
   );
 }
 
-function ToolCard({ tool, canWrite, onEdit, onDelete, onRun }) {
+function ToolCard({ tool, onRun, running }) {
   const meta = ACTION_META[tool.actionType] || ACTION_META.open_url;
   const tooltipBody = (
     <div>
@@ -239,31 +239,15 @@ function ToolCard({ tool, canWrite, onEdit, onDelete, onRun }) {
 
   return (
     <Tooltip title={tooltipBody} placement="topLeft">
-      <Card
-        hoverable
-        size="small"
-        style={{ height: '100%' }}
-        actions={[
-          <Tooltip key="run" title="Запустить инструмент и при необходимости передать параметры JSON.">
-            <Button type="text" icon={<PlayCircleOutlined />} onClick={() => onRun(tool)}>
-              Запустить
-            </Button>
-          </Tooltip>,
-          canWrite ? (
-            <Tooltip key="edit" title="Изменить настройки кнопки, описание, иконку и конфигурацию действия.">
-              <Button type="text" icon={<EditOutlined />} onClick={() => onEdit(tool)}>
-                Изменить
-              </Button>
-            </Tooltip>
-          ) : null,
-          canWrite ? (
-            <Tooltip key="delete" title="Мягко удалить инструмент. История запусков при этом сохранится.">
-              <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(tool)}>
-                Удалить
-              </Button>
-            </Tooltip>
-          ) : null,
-        ].filter(Boolean)}
+      <Button
+        type="default"
+        block
+        size="large"
+        icon={<PlayCircleOutlined />}
+        loading={running}
+        disabled={!tool.isActive || running}
+        onClick={() => onRun(tool)}
+        style={{ height: '100%', minHeight: 120, textAlign: 'left', padding: 12 }}
       >
         <Space align="start" size={12} style={{ width: '100%' }}>
           <Avatar shape="square" size={52} src={tool.iconUrl || tool.iconFilePath || undefined} icon={<ToolOutlined />} />
@@ -287,7 +271,7 @@ function ToolCard({ tool, canWrite, onEdit, onDelete, onRun }) {
             </Space>
           </div>
         </Space>
-      </Card>
+      </Button>
     </Tooltip>
   );
 }
@@ -298,16 +282,13 @@ function Tools({ userData, onRefresh }) {
   const [loading, setLoading] = useState(false);
   const [runsLoading, setRunsLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [runModalOpen, setRunModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [editingTool, setEditingTool] = useState(null);
   const [activeTab, setActiveTab] = useState('catalog');
-  const [runTool, setRunTool] = useState(null);
-  const [lastRunResult, setLastRunResult] = useState(null);
+  const [runningToolId, setRunningToolId] = useState('');
   const [iconFileList, setIconFileList] = useState([]);
   const [toolForm] = Form.useForm();
-  const [runForm] = Form.useForm();
 
   const canWrite = authService.hasPermission('tools', 'write') || userData?.accountType === 'Администратор';
 
@@ -406,33 +387,20 @@ function Tools({ userData, onRefresh }) {
     }
   };
 
-  const openRunModal = (tool) => {
-    setRunTool(tool);
-    setLastRunResult(null);
-    runForm.setFieldsValue({ inputJson: '{}' });
-    setRunModalOpen(true);
-  };
-
-  const handleRun = async () => {
+  const handleRun = async (tool) => {
     try {
-      const values = await runForm.validateFields();
       setRunning(true);
-      const parsedInput = safeParseJson(values.inputJson || '{}', null);
-      if (parsedInput === null) {
-        message.error('Параметры запуска должны быть валидным JSON объектом');
-        return;
-      }
-      const response = await apiService.runTool(runTool.id, parsedInput);
-      setLastRunResult(response);
+      setRunningToolId(tool.id);
+      const response = await apiService.runTool(tool.id, {});
       message.success('Инструмент выполнен');
       if (response?.output?.openUrl) {
         window.open(response.output.openUrl, response.output.openMode === 'same_tab' ? '_self' : '_blank', 'noopener,noreferrer');
       }
       await loadRuns();
     } catch (error) {
-      setLastRunResult({ status: 'failed', error: error.message || 'Ошибка выполнения' });
       message.error(error.message || 'Не удалось выполнить инструмент');
     } finally {
+      setRunningToolId('');
       setRunning(false);
     }
   };
@@ -494,10 +462,8 @@ function Tools({ userData, onRefresh }) {
             <Col xs={24} md={12} xl={8} key={tool.id}>
               <ToolCard
                 tool={tool}
-                canWrite={canWrite}
-                onEdit={openEditModal}
-                onDelete={handleDelete}
-                onRun={openRunModal}
+                onRun={handleRun}
+                running={running && runningToolId === tool.id}
               />
             </Col>
           ))}
@@ -802,45 +768,6 @@ function Tools({ userData, onRefresh }) {
         </Form>
       </Modal>
 
-      <Modal
-        title={runTool ? `Запуск: ${runTool.title}` : 'Запуск инструмента'}
-        open={runModalOpen}
-        onCancel={() => setRunModalOpen(false)}
-        onOk={handleRun}
-        okText="Запустить"
-        cancelText="Закрыть"
-        confirmLoading={running}
-        width={720}
-      >
-        {runTool ? (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Alert
-              type="info"
-              showIcon
-              message="Параметры запуска"
-              description="Можно передать JSON-объект с дополнительными параметрами. Для простых ссылок допускается пустой объект. Подсказка по назначению кнопки доступна ниже."
-            />
-            <Tooltip title={`Что это: ${runTool.title}. Для чего: ${runTool.description || 'Описание отсутствует'}`}>
-              <Space wrap>
-                <ToolActionBadge actionType={runTool.actionType} />
-                <Text>{runTool.description || 'Описание не заполнено'}</Text>
-              </Space>
-            </Tooltip>
-            <Form form={runForm} layout="vertical" initialValues={{ inputJson: '{}' }}>
-              <Form.Item name="inputJson" label={renderInfoLabel('JSON параметры', 'Дополнительные параметры запуска. Сервер принимает только JSON-объект.') }>
-                <TextArea rows={8} />
-              </Form.Item>
-            </Form>
-            {lastRunResult ? (
-              <Card size="small" title="Результат выполнения">
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                  {JSON.stringify(lastRunResult, null, 2)}
-                </pre>
-              </Card>
-            ) : null}
-          </Space>
-        ) : null}
-      </Modal>
     </div>
   );
 }
