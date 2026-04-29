@@ -227,13 +227,10 @@ function ToolActionBadge({ actionType }) {
 }
 
 function ToolCard({ tool, onRun, running }) {
-  const meta = ACTION_META[tool.actionType] || ACTION_META.open_url;
   const tooltipBody = (
     <div>
       <div><strong>Что это:</strong> {tool.title}</div>
       <div><strong>Для чего:</strong> {tool.description || 'Описание не указано'}</div>
-      <div><strong>Тип:</strong> {meta.label}</div>
-      <div><strong>Риск:</strong> {meta.risk}</div>
     </div>
   );
 
@@ -247,29 +244,13 @@ function ToolCard({ tool, onRun, running }) {
         loading={running}
         disabled={!tool.isActive || running}
         onClick={() => onRun(tool)}
-        style={{ height: '100%', minHeight: 120, textAlign: 'left', padding: 12 }}
+        style={{ height: '100%', minHeight: 140, padding: 12 }}
       >
-        <Space align="start" size={12} style={{ width: '100%' }}>
-          <Avatar shape="square" size={52} src={tool.iconUrl || tool.iconFilePath || undefined} icon={<ToolOutlined />} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Space wrap>
-              <Text strong>{tool.title}</Text>
-              <ToolActionBadge actionType={tool.actionType} />
-              <Tooltip title="Оценка риска выполнения действия. REST-вызовы требуют отдельной внимательности.">
-                <Tag>{meta.risk}</Tag>
-              </Tooltip>
-              {tool.isActive ? <Tag color="green">Активен</Tag> : <Tag>Выключен</Tag>}
-            </Space>
-            <Paragraph ellipsis={{ rows: 2 }} style={{ marginBottom: 8, marginTop: 8 }}>
-              {tool.description || 'Описание не заполнено'}
-            </Paragraph>
-            <Space wrap size={[8, 8]}>
-              {tool.category ? <Tag>{tool.category}</Tag> : null}
-              <Tooltip title={meta.tooltip}>
-                <Text type="secondary">{meta.label}</Text>
-              </Tooltip>
-            </Space>
-          </div>
+        <Space direction="vertical" align="center" size={10} style={{ width: '100%', justifyContent: 'center' }}>
+          <Avatar shape="square" size={56} src={tool.iconUrl || tool.iconFilePath || undefined} icon={<ToolOutlined />} />
+          <Text strong style={{ maxWidth: '100%', textAlign: 'center' }} ellipsis>
+            {tool.title}
+          </Text>
         </Space>
       </Button>
     </Tooltip>
@@ -287,6 +268,9 @@ function Tools({ userData, onRefresh }) {
   const [editingTool, setEditingTool] = useState(null);
   const [activeTab, setActiveTab] = useState('catalog');
   const [runningToolId, setRunningToolId] = useState('');
+  const [resultModalOpen, setResultModalOpen] = useState(false);
+  const [lastRunResult, setLastRunResult] = useState(null);
+  const [lastRunTitle, setLastRunTitle] = useState('');
   const [iconFileList, setIconFileList] = useState([]);
   const [toolForm] = Form.useForm();
 
@@ -324,6 +308,11 @@ function Tools({ userData, onRefresh }) {
   const sortedTools = useMemo(
     () => [...tools].sort((left, right) => (left.sortOrder || 100) - (right.sortOrder || 100)),
     [tools]
+  );
+
+  const activeCatalogTools = useMemo(
+    () => sortedTools.filter((tool) => tool.isActive),
+    [sortedTools]
   );
 
   const openCreateModal = () => {
@@ -393,11 +382,24 @@ function Tools({ userData, onRefresh }) {
       setRunningToolId(tool.id);
       const response = await apiService.runTool(tool.id, {});
       message.success('Инструмент выполнен');
+      if (tool.actionType === 'rest_call') {
+        setLastRunTitle(tool.title);
+        setLastRunResult(response);
+        setResultModalOpen(true);
+      }
       if (response?.output?.openUrl) {
         window.open(response.output.openUrl, response.output.openMode === 'same_tab' ? '_self' : '_blank', 'noopener,noreferrer');
       }
       await loadRuns();
     } catch (error) {
+      if (tool.actionType === 'rest_call') {
+        setLastRunTitle(tool.title);
+        setLastRunResult({
+          status: 'failed',
+          error: error.message || 'Не удалось выполнить инструмент',
+        });
+        setResultModalOpen(true);
+      }
       message.error(error.message || 'Не удалось выполнить инструмент');
     } finally {
       setRunningToolId('');
@@ -456,9 +458,9 @@ function Tools({ userData, onRefresh }) {
     {
       key: 'catalog',
       label: 'Каталог',
-      children: sortedTools.length ? (
+      children: activeCatalogTools.length ? (
         <Row gutter={[16, 16]}>
-          {sortedTools.map((tool) => (
+          {activeCatalogTools.map((tool) => (
             <Col xs={24} md={12} xl={8} key={tool.id}>
               <ToolCard
                 tool={tool}
@@ -629,8 +631,9 @@ function Tools({ userData, onRefresh }) {
               <Input placeholder="https://example.com/icon.png" />
             </Form.Item>
           ) : (
-            <Form.Item label={renderInfoLabel('Файл иконки', 'Загрузите PNG, JPG, GIF или WebP до 3MB. Иконка поможет быстро различать инструменты визуально.') }>
+              <Form.Item label={renderInfoLabel('Файл иконки', 'Загрузите PNG, JPG, GIF, WebP или SVG до 3MB. Иконка поможет быстро различать инструменты визуально.') }>
               <Upload
+                accept=".jpg,.jpeg,.png,.gif,.webp,.svg"
                 beforeUpload={(file) => {
                   setIconFileList([file]);
                   return false;
@@ -766,6 +769,22 @@ function Tools({ userData, onRefresh }) {
             ) : null}
           </Card>
         </Form>
+      </Modal>
+
+      <Modal
+        title={lastRunTitle ? `Результат API: ${lastRunTitle}` : 'Результат API'}
+        open={resultModalOpen}
+        onCancel={() => setResultModalOpen(false)}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setResultModalOpen(false)}>
+            Закрыть
+          </Button>,
+        ]}
+        width={760}
+      >
+        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 420, overflow: 'auto' }}>
+          {JSON.stringify(lastRunResult || {}, null, 2)}
+        </pre>
       </Modal>
 
     </div>
