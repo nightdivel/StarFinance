@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Avatar,
   Button,
   Card,
   Col,
@@ -204,6 +203,83 @@ function buildPayload(values, uploadedIcon) {
   return payload;
 }
 
+function getToolIconCandidates(tool) {
+  const externalUrl = String(tool?.iconUrl || '').trim();
+  const localPath = String(tool?.iconFilePath || '').trim();
+  const candidates = [];
+
+  if (externalUrl && /^https?:\/\//i.test(externalUrl)) {
+    const proxiedPath = `/api/tools/icon-proxy?url=${encodeURIComponent(externalUrl)}`;
+    candidates.push(apiService.buildUrl(proxiedPath));
+    candidates.push(externalUrl);
+  }
+
+  if (localPath) candidates.push(localPath);
+  return candidates.filter(Boolean);
+}
+
+function ToolIcon({ tool, size = 64, block = false }) {
+  const candidates = getToolIconCandidates(tool);
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    setIdx(0);
+  }, [tool?.id, tool?.iconUrl, tool?.iconFilePath]);
+
+  const src = candidates[idx];
+  const hasImage = Boolean(src);
+  const isBlock = Boolean(block);
+
+  return (
+    <div
+      style={
+        isBlock
+          ? {
+              width: '100%',
+              height: 92,
+              borderRadius: 10,
+              overflow: 'hidden',
+              background: '#0d1628',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }
+          : {
+              width: size,
+              height: size,
+              borderRadius: 8,
+              overflow: 'hidden',
+              background: '#0d1628',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }
+      }
+    >
+      {hasImage ? (
+        <img
+          src={src}
+          alt={tool?.title || 'tool-icon'}
+          loading="eager"
+          decoding="async"
+          onError={() => {
+            if (idx < candidates.length - 1) setIdx((prev) => prev + 1);
+          }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center',
+            display: 'block',
+          }}
+        />
+      ) : (
+        <ToolOutlined style={{ fontSize: isBlock ? 28 : 20, color: 'rgba(255, 255, 255, 0.75)' }} />
+      )}
+    </div>
+  );
+}
+
 function renderInfoLabel(label, tooltip) {
   return (
     <Space size={4}>
@@ -244,10 +320,10 @@ function ToolCard({ tool, onRun, running }) {
         loading={running}
         disabled={!tool.isActive || running}
         onClick={() => onRun(tool)}
-        style={{ height: '100%', minHeight: 140, padding: 12 }}
+        style={{ height: '100%', minHeight: 160, padding: 10 }}
       >
-        <Space direction="vertical" align="center" size={10} style={{ width: '100%', justifyContent: 'center' }}>
-          <Avatar shape="square" size={56} src={tool.iconUrl || tool.iconFilePath || undefined} icon={<ToolOutlined />} />
+        <Space direction="vertical" align="center" size={8} style={{ width: '100%', justifyContent: 'center' }}>
+          <ToolIcon tool={tool} block />
           <Text strong style={{ maxWidth: '100%', textAlign: 'center' }} ellipsis>
             {tool.title}
           </Text>
@@ -511,7 +587,7 @@ function Tools({ userData, onRefresh }) {
                       ]}
                     >
                       <List.Item.Meta
-                        avatar={<Avatar shape="square" src={tool.iconUrl || tool.iconFilePath || undefined} icon={<ToolOutlined />} />}
+                        avatar={<ToolIcon tool={tool} size={40} />}
                         title={<Space wrap><span>{tool.title}</span><ToolActionBadge actionType={tool.actionType} /></Space>}
                         description={tool.description || 'Описание не заполнено'}
                       />
@@ -547,9 +623,6 @@ function Tools({ userData, onRefresh }) {
                 <InfoCircleOutlined />
               </Tooltip>
             </Space>
-            <Text type="secondary">
-              Каталог операционных действий с описанием, иконкой, безопасным запуском и историей.
-            </Text>
           </div>
           {canWrite ? (
             <Tooltip title="Создать новую кнопку-инструмент с описанием, иконкой и сценарием запуска.">

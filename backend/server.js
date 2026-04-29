@@ -189,6 +189,27 @@ function sanitizeHttpUrl(rawUrl) {
   }
 }
 
+function isPrivateOrLocalHostname(hostname) {
+  const host = String(hostname || '').trim().toLowerCase();
+  if (!host) return true;
+  if (host === 'localhost' || host.endsWith('.localhost') || host === '::1') return true;
+
+  const ipv4Match = host.match(/^(\d{1,3})(?:\.(\d{1,3})){3}$/);
+  if (ipv4Match) {
+    const parts = host.split('.').map((p) => Number(p));
+    if (parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) return true;
+    if (parts[0] === 10) return true;
+    if (parts[0] === 127) return true;
+    if (parts[0] === 0) return true;
+    if (parts[0] === 169 && parts[1] === 254) return true;
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    if (parts[0] === 192 && parts[1] === 168) return true;
+  }
+
+  if (host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) return true;
+  return false;
+}
+
 function escapeTelegramMarkdown(text) {
   const specialChars = new Set(['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']);
   return Array.from(String(text || ''), (char) => (specialChars.has(char) ? `\\${char}` : char)).join('');
@@ -4108,6 +4129,77 @@ app.post(
     }
   }
 );
+
+app.get('/api/tools/icon-proxy', async (req, res) => {
+  const rawUrl = typeof req.query.url === 'string' ? req.query.url : '';
+  const safeUrl = sanitizeHttpUrl(rawUrl);
+  if (!safeUrl) {
+    return res.status(400).json({ error: 'Некорректный URL иконки' });
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(safeUrl);
+  } catch {
+    return res.status(400).json({ error: 'Некорректный URL иконки' });
+  }
+
+  if (isPrivateOrLocalHostname(parsed.hostname)) {
+    return res.status(400).json({ error: 'Недопустимый хост URL иконки' });
+  }
+
+  try {
+    const response = await axios.get(safeUrl, {
+      responseType: 'stream',
+      timeout: 10000,
+      maxRedirects: 3,
+      validateStatus: (status) => status >= 200 && status < 300,
+    });
+
+    const contentType = String(response.headers['content-type'] || '').toLowerCase();
+    const allowedMimePrefixes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!allowedMimePrefixes.some((mime) => contentType.startsWith(mime))) {
+      response.data.destroy();
+      return res.status(415).json({ error: 'Недопустимый MIME-тип иконки' });
+    }
+
+    const contentLength = Number(response.headers['content-length']);
+    const maxBytes = 3 * 1024 * 1024;
+    if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+      response.data.destroy();
+      return res.status(413).json({ error: 'Размер иконки превышает 3MB' });
+    }
+
+    res.setHeader('Content-Type', contentType || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+
+    let bytesRead = 0;
+    response.data.on('data', (chunk) => {
+      bytesRead += chunk.length;
+      if (bytesRead > maxBytes) {
+        response.data.destroy(new Error('Icon too large'));
+      }
+    });
+    response.data.on('error', (streamError) => {
+      if (!res.headersSent) {
+        res.status(502).json({ error: 'Ошибка чтения иконки' });
+      } else {
+        res.end();
+      }
+      if (streamError && streamError.message !== 'Icon too large') {
+        console.error('GET /api/tools/icon-proxy stream error:', streamError.message);
+      }
+    });
+
+    response.data.pipe(res);
+  } catch (error) {
+    console.error('GET /api/tools/icon-proxy error:', error.message || error);
+    if (error.message === 'Icon too large') {
+      return res.status(413).json({ error: 'Размер иконки превышает 3MB' });
+    }
+    return res.status(502).json({ error: 'Не удалось загрузить внешнюю иконку' });
+  }
+});
 
 app.get('/api/tools', authenticateToken, requirePermission('tools', 'read'), async (req, res) => {
   try {
