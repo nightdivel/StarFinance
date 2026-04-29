@@ -24,7 +24,7 @@ import {
 import { compareDropdownStrings } from '../../utils/helpers';
 import { PERMISSIONS } from '../../config/appConfig';
 
-import { SettingOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { SettingOutlined, EditOutlined, DeleteOutlined, HolderOutlined } from '@ant-design/icons';
 
 // Services
 import { apiService } from '../../services/apiService';
@@ -102,6 +102,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
   const [discordBotTokenConfigured, setDiscordBotTokenConfigured] = useState(false);
   const [menuOrder, setMenuOrder] = useState(MENU_ORDER_DEFAULT);
   const [draggedMenuKey, setDraggedMenuKey] = useState(null);
+  const [dropTargetMenuKey, setDropTargetMenuKey] = useState(null);
 
   const formatSyncTime = (value) => {
     if (!value) return 'еще не выполнялась';
@@ -764,6 +765,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
     });
     setChangedSettings((prev) => ({ ...prev, menuOrder: true }));
     setDraggedMenuKey(null);
+    setDropTargetMenuKey(null);
   };
 
   const resetMenuOrder = () => {
@@ -1691,37 +1693,74 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                 </Text>
                 <div className="mt-3 d-flex gap-2 flex-wrap align-items-center">
                   <Button onClick={resetMenuOrder} disabled={!canWrite}>Сбросить порядок</Button>
-                  <Text type="secondary">Перетаскивайте элементы за саму строку</Text>
+                  <Text type="secondary">Перетаскивайте элементы за иконку слева или за всю строку</Text>
                 </div>
                 <div className="mt-3">
-                  {menuOrder.map((key, idx) => (
-                    <div
-                      key={key}
-                      draggable={canWrite}
-                      onDragStart={() => onMenuDragStart(key)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={() => onMenuDrop(key)}
-                      onDragEnd={() => setDraggedMenuKey(null)}
-                      style={{
-                        border: '1px solid #d9d9d9',
-                        borderRadius: 8,
-                        padding: '8px 12px',
-                        marginBottom: 8,
-                        background: draggedMenuKey === key ? '#f0f5ff' : '#fff',
-                        cursor: canWrite ? 'grab' : 'default',
-                        userSelect: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <span>
-                        <Text type="secondary" style={{ marginRight: 8 }}>{idx + 1}.</Text>
-                        <Text>{MENU_ORDER_META[key] || key}</Text>
-                      </span>
-                      <Text type="secondary">⇅</Text>
-                    </div>
-                  ))}
+                  {menuOrder.map((key, idx) => {
+                    const isDark = typeof document !== 'undefined' && document.body.classList.contains('dark-theme');
+                    const isDragging = draggedMenuKey === key;
+                    const isDropTarget = dropTargetMenuKey === key && draggedMenuKey !== key;
+
+                    const palette = isDark
+                      ? {
+                          baseBg: '#0f172a',
+                          baseBorder: '#334155',
+                          activeBg: '#1e293b',
+                          activeBorder: '#3b82f6',
+                          text: '#e2e8f0',
+                          muted: '#94a3b8',
+                        }
+                      : {
+                          baseBg: '#ffffff',
+                          baseBorder: '#d9d9d9',
+                          activeBg: '#f0f5ff',
+                          activeBorder: '#1677ff',
+                          text: '#1f2937',
+                          muted: '#64748b',
+                        };
+
+                    return (
+                      <div
+                        key={key}
+                        draggable={canWrite}
+                        onDragStart={() => onMenuDragStart(key)}
+                        onDragEnter={() => setDropTargetMenuKey(key)}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDropTargetMenuKey(key);
+                        }}
+                        onDragLeave={() => {
+                          if (dropTargetMenuKey === key) setDropTargetMenuKey(null);
+                        }}
+                        onDrop={() => onMenuDrop(key)}
+                        onDragEnd={() => {
+                          setDraggedMenuKey(null);
+                          setDropTargetMenuKey(null);
+                        }}
+                        style={{
+                          border: isDropTarget ? `2px dashed ${palette.activeBorder}` : `1px solid ${palette.baseBorder}`,
+                          borderRadius: 10,
+                          padding: '10px 12px',
+                          marginBottom: 10,
+                          background: (isDragging || isDropTarget) ? palette.activeBg : palette.baseBg,
+                          cursor: canWrite ? 'grab' : 'default',
+                          userSelect: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          boxShadow: isDropTarget ? `0 0 0 2px ${palette.activeBorder}22` : 'none',
+                          transition: 'all 120ms ease',
+                        }}
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          <HolderOutlined style={{ color: palette.muted, fontSize: 14 }} />
+                          <Text style={{ color: palette.muted, marginRight: 2 }}>{idx + 1}.</Text>
+                          <Text style={{ color: palette.text }}>{MENU_ORDER_META[key] || key}</Text>
+                        </span>
+                        <Text style={{ color: palette.muted }}>{isDropTarget ? 'Отпустите для вставки' : '⇅'}</Text>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
