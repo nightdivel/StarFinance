@@ -9,6 +9,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const multer = require('multer');
 const { query } = require('./db');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const { authenticateToken, generateToken, requirePermission } = require('./middleware/auth');
 const { createBuildAggregatedData } = require('./buildAggregatedData');
 const { createDataHelpers } = require('./dataHelpers');
@@ -4261,42 +4262,23 @@ app.get('/api/tools', authenticateToken, requirePermission('tools', 'read'), asy
   }
 });
 
-app.get('/api/tools/runs', authenticateToken, requirePermission('tools', 'read'), async (req, res) => {
-  try {
-    const filters = [];
-    const params = [];
-    if (req.query.toolId) {
-      params.push(String(req.query.toolId));
-      filters.push(`tr.tool_id = $${params.length}`);
+
+// Прокси для истории и настроек инструментов
+const toolsProxy = createProxyMiddleware({
+  target: 'http://tools_service:3010',
+  changeOrigin: true,
+  pathRewrite: {
+    '^/api/tools/runs': '/api/tools/runs',
+    '^/api/tools/settings': '/api/tools/settings',
+  },
+  onProxyReq: (proxyReq, req) => {
+    // Прокидываем заголовок авторизации
+    if (req.headers['authorization']) {
+      proxyReq.setHeader('authorization', req.headers['authorization']);
     }
-    if (req.query.status) {
-      params.push(String(req.query.status));
-      filters.push(`tr.status = $${params.length}`);
-    }
-    const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
-    const rows = (
-      await query(
-        `SELECT tr.id, tr.tool_id, tr.initiated_by, tr.input_json, tr.output_json, tr.status, tr.error_message,
-                tr.started_at, tr.finished_at, t.title AS tool_title, u.username AS initiated_username
-           FROM tool_runs tr
-           JOIN tools t ON t.id = tr.tool_id
-           LEFT JOIN users u ON u.id = tr.initiated_by
-           ${whereClause}
-          ORDER BY tr.started_at DESC
-          LIMIT 100`,
-        params
-      )
-    ).rows.map((row) => ({
-      ...safeToolRunRow(row),
-      toolTitle: row.tool_title || '',
-      initiatedUsername: row.initiated_username || '',
-    }));
-    res.json({ items: rows });
-  } catch (error) {
-    console.error('GET /api/tools/runs error:', error);
-    res.status(500).json({ error: 'Ошибка чтения истории запусков' });
-  }
+  },
 });
+app.use(['/api/tools/runs', '/api/tools/settings'], toolsProxy);
 
 app.post('/api/tools', authenticateToken, requirePermission('tools', 'write'), async (req, res) => {
   try {

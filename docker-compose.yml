@@ -189,6 +189,29 @@ services:
       postgres:
         condition: service_healthy
 
+  tools:
+    build:
+      context: ./
+      dockerfile: backend/services/tools/Dockerfile
+    image: starfinance_v2-tools
+    container_name: tools_service
+    restart: unless-stopped
+    volumes:
+      - backend_data:/app/backend/data
+    environment:
+      NODE_ENV: production
+      PORT: 3010
+      ECONOMY_BASE_URL: http://economy:3000
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: starfinance
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+    command: ["sh", "-c", "cd backend && node services/tools/server.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   caddy:
     image: caddy:2.8-alpine
     container_name: economy_caddy
