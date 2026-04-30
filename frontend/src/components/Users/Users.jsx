@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import debounce from 'lodash.debounce';
 import {
   Table,
   Card,
@@ -105,17 +106,24 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
   // Флаг для блокировки повторных запросов
   const [isSavingLayout, setIsSavingLayout] = useState(false);
 
-  const handleLayoutChange = async (current, allLayouts) => {
+  // Debounced save
+  const saveLayoutsDebounced = useRef(
+    debounce(async (layouts) => {
+      setIsSavingLayout(true);
+      try {
+        await apiService.saveUserLayouts('users', layouts);
+      } catch (_) {}
+      setIsSavingLayout(false);
+    }, 700)
+  ).current;
+
+  const handleLayoutChange = (current, allLayouts) => {
     setLayouts(allLayouts);
     try {
       localStorage.setItem(layoutStorageKey, JSON.stringify(allLayouts));
     } catch (_) {}
     if (isSavingLayout) return;
-    setIsSavingLayout(true);
-    try {
-      await apiService.saveUserLayouts('users', allLayouts);
-    } catch (_) {}
-    setIsSavingLayout(false);
+    saveLayoutsDebounced(allLayouts);
   };
 
   const handleResetLayout = () => {
