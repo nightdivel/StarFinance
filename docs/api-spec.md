@@ -91,6 +91,17 @@
   - Auth: да, Права: `users:write`
   - 200: `{ ok: true }`
 
+## Инструменты (Tools)
+
+### История и настройки инструментов (tools_service)
+
+- `GET /api/tools/runs` — получить историю запусков инструментов
+- `DELETE /api/tools/runs` — очистить историю запусков
+- `GET /api/tools/settings` — получить настройки инструментов
+- `PUT /api/tools/settings` — обновить настройки инструментов
+
+Все эти ручки теперь обслуживаются отдельным сервисом (tools_service) и требуют JWT.
+
 ## Склад (Warehouse)
 - GET /api/warehouse
   - Auth: да, Права: `warehouse:read`

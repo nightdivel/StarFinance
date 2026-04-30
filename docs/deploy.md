@@ -44,6 +44,10 @@
   - ports: `80:80`, `443:443`
   - volume: `./Caddyfile:/etc/caddy/Caddyfile:ro`
 
+**tools_service** теперь отдельный контейнер. Для работы истории и настроек инструментов убедитесь, что контейнер tools_service запущен.
+
+  - `tools_service`: История запусков и настройки инструментов (порт 3010, отдельный контейнер)
+
 Запуск:
 ```bash
 docker-compose up -d --build

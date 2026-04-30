@@ -58,6 +58,11 @@ chmod +x scripts/smart-deploy.sh
 - `backend/services/uex/*` → `uex`
 - `backend/services/settings/*` → `settings`
 
+### Сервис инструментов:
+- `backend/services/tools/*` → `tools_service`
+
+	- `tools_service`: История запусков и настройки инструментов (порт 3010, отдельный контейнер)
+
 ### Общие файлы бэкенда:
 - `backend/middleware/*`, `backend/config/*`, `backend/db.js`, `backend/package.json`
 - Обновляются все бэкенд сервисы: `economy`, `users`, `directories`, `warehouse`, `showcase`, `requests`, `finance`, `uex`, `settings`

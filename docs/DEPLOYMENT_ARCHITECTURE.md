@@ -23,6 +23,7 @@ Internet (80/443) → nginx (TLS termination, wildcard SSL)
 | **finance** | Микросервис: финансы | — | 3006 |
 | **uex** | Микросервис: UEX API | — | 3007 |
 | **settings** | Микросервис: настройки, public assets | — | 3008 |
+| **tools_service** | История запусков и настройки инструментов | — | 3010 |
 | **postgres** | База данных | — | 5432 |
 | **blackhole_bot** | Discord-бот (отдельный проект) | 127.0.0.1:3001 (только внутри) | 3001 |
 

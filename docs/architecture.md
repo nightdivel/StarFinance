@@ -21,6 +21,15 @@
 ┌─────────────────────────────────────────────────────────────┐
 │  Docker-сеть (internal)                                     │
 │  ┌───────────────────────────────────────────────────────┐ │
+│  │  tools_service (порт 3010)                            │ │
+│  │  - /economy/api/tools/runs                            │ │
+│  │  - /economy/api/tools/settings                        │ │
+│  └───────────────────────────────────────────────────────┘ │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  tools_service (порт 3010)                            │ │
+│  │  - /economy/api/tools/runs                            │ │
+│  │  - /economy/api/tools/settings                        │ │
+│  └───────────────────────────────────────────────────────┘ │
 │  │  economy (порт 3000)                                   │ │
 │  │  - Отдаёт фронтенд (Vite React)                        │ │
 │  │  - /socket.io* (websocket/polling)                     │ │
@@ -78,6 +87,8 @@
 | `/economy/api/showcase/*`               | `showcase:3004`        | `/api/showcase/*`                      |
 | `/economy/api/requests/*`               | `requests:3005`        | `/api/requests/*`                     |
 | `/economy/api/finance/*`                | `finance:3006`         | `/api/finance/*`                      |
+| `/economy/api/tools/runs`               | `tools_service:3010`   | `/api/tools/runs`                     |
+| `/economy/api/tools/settings`           | `tools_service:3010`   | `/api/tools/settings`                 |
 | `/economy/api/uex*`                     | `uex:3007`             | `/api/uex*`                            |
 | `/economy/api/system/*`                 | `settings:3008`        | `/api/system/*`                       |
 | `/economy/public/*`                      | `settings:3008`        | `/public/*`                            |

@@ -1,5 +1,16 @@
 # Star Finance — микросервисы + Caddy
 
+## Важное обновление (2026):
+**История запусков и настройки инструментов вынесены в отдельный сервис** (`backend/services/tools`).
+Теперь все запросы к `/api/tools/runs` и `/api/tools/settings` проксируются через основной backend на сервис инструментов (tools_service, порт 3010). Все остальные ручки инструментов остались в монолите.
+
+**Docker Compose** теперь запускает сервис инструментов отдельно. Для работы истории и настроек убедитесь, что контейнер tools_service запущен.
+
+**Пути для фронтенда:**
+- `/economy/api/tools/runs` — история запусков инструментов
+- `/economy/api/tools/settings` — настройки инструментов
+Оба маршрута требуют JWT и проксируются на отдельный сервис.
+
 Веб-приложение управления финансами и складом (React + Ant Design + Node.js/Express). Поддерживает локальную авторизацию и OAuth2 через Discord с маппингом ролей гильдии.
 
 **Схема развёртывания:**
@@ -41,11 +52,12 @@
 │     ├─ requests/server.js        # Заявки
 │     ├─ finance/server.js         # Финансы (transactions, finance-requests)
 │     ├─ uex/server.js             # UEX API
-│     └─ settings/server.js       # Настройки + public assets
+│     ├─ tools/server.js         # История и настройки инструментов (tools_service)
+│     └─ settings/server.js      # Настройки + public assets
 ├─ frontend/                   # Vite + React (Ant Design)
 │  ├─ .env                     # VITE_* переменные (без секретов)
 │  └─ src/
-├─ docker-compose.yml         # Caddy, PostgreSQL, 8 сервисов
+├─ docker-compose.yml         # Caddy, PostgreSQL, 8 сервисов + tools_service
 ├─ Caddyfile                  # Роутинг API и TLS
 ├─ Dockerfile                 # Образ монолита (legacy)
 └─ README.md                  # Этот файл
@@ -202,20 +214,23 @@ docker-compose exec -T postgres psql -U postgres starfinance < backup.sql
 
 ## Архитектура микросервисов
 
+
 ### Роутинг API через Caddy
 
 ```
-/economy/api/users/*      → users:3001
-/economy/api/directories/* → directories:3002
-/economy/api/warehouse/*   → warehouse:3003
-/economy/api/showcase/*   → showcase:3004
-/economy/api/requests/*   → requests:3005
-/economy/api/transactions/* → finance:3006
+/economy/api/users/*         → users:3001
+/economy/api/directories/*   → directories:3002
+/economy/api/warehouse/*     → warehouse:3003
+/economy/api/showcase/*      → showcase:3004
+/economy/api/requests/*      → requests:3005
+/economy/api/transactions/*  → finance:3006
 /economy/api/finance-requests/* → finance:3006
-/economy/api/uex/*        → uex:3007
-/economy/api/system/*     → settings:3008
-/economy/socket.io/*      → economy:3000 (монолит, realtime)
-/economy/*                 → economy:3000 (монолит, фронтенд)
+/economy/api/uex/*           → uex:3007
+/economy/api/system/*        → settings:3008
+/economy/api/tools/runs      → tools_service:3010
+/economy/api/tools/settings  → tools_service:3010
+/economy/socket.io/*         → economy:3000 (монолит, realtime)
+/economy/*                   → economy:3000 (монолит, фронтенд)
 ```
 
 ### Общие зависимости
@@ -235,10 +250,12 @@ docker-compose exec -T postgres psql -U postgres starfinance < backup.sql
 - **Витрина** (`/api/showcase/*`)
 - **Заявки** (`/api/requests/*`, `/api/my/requests`)
 - **Финансы** (`/api/transactions`, `/api/finance-requests/*`)
+- **История и настройки инструментов** (`/api/tools/runs`, `/api/tools/settings`) — отдельный сервис
 
 Осталось в монолите:
 - Фронтенд (статика)
 - Socket.io realtime
+- CRUD инструментов (создание, редактирование, запуск)
 - Некоторые legacy эндпойнты (если есть)
 
 ---
@@ -260,4 +277,17 @@ docker-compose exec -T postgres psql -U postgres starfinance
 
 ---
 
-Если возникнут вопросы по настройке домена/SSL или расширению функциональности — напишите.
+---
+
+## Кратко о новых эндпоинтах инструментов
+
+- `GET /api/tools/runs` — получить историю запусков инструментов
+- `DELETE /api/tools/runs` — очистить историю запусков
+- `GET /api/tools/settings` — получить настройки инструментов
+- `PUT /api/tools/settings` — обновить настройки инструментов
+
+Все эти ручки теперь обслуживаются отдельным сервисом (tools_service) и требуют JWT.
+
+---
+
+Если возникнут вопросы по настройке домена/SSL, Docker или интеграции инструментов — напишите.
