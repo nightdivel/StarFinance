@@ -127,13 +127,20 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData?.id]);
 
-  const handleLayoutChange = (current, allLayouts) => {
+  // Флаг для блокировки повторных запросов
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
+
+  const handleLayoutChange = async (current, allLayouts) => {
     setLayouts(allLayouts);
     try {
       localStorage.setItem(layoutStorageKey, JSON.stringify(allLayouts));
     } catch (_) {}
-    // Persist to server (best-effort)
-    try { apiService.saveUserLayouts('finance', allLayouts); } catch (_) {}
+    if (isSavingLayout) return;
+    setIsSavingLayout(true);
+    try {
+      await apiService.saveUserLayouts('finance', allLayouts);
+    } catch (_) {}
+    setIsSavingLayout(false);
   };
 
   const handleResetLayout = () => {

@@ -40,17 +40,30 @@ async function ensurePurchaseRequestsTable() {
 // User-related requests (buyer or seller)
 app.get('/api/requests/related', authenticateToken, async (req, res) => {
   try {
-    const ures = await query('SELECT id, username FROM users WHERE id = $1', [req.user.id]);
-    if (ures.rowCount === 0) return res.status(401).json({ error: 'Нет пользователя' });
+    const ures = await query('SELECT id, username, account_type FROM users WHERE id = $1', [req.user.id]);
+    if (ures.rowCount === 0) {
+      // If guest, return empty array instead of error
+      if (req.user && req.user.id && req.user.id.toLowerCase().includes('guest')) {
+        return res.json([]);
+      }
+      return res.status(401).json({ error: 'Нет пользователя' });
+    }
     const me = ures.rows[0];
+    // If guest by account_type, return empty array
+    if (me.account_type === 'Гость') {
+      return res.json([]);
+    }
     const rows = (
       await query(
         `SELECT r.id, r.warehouse_item_id, r.quantity, r.status, r.created_at,
-                r.buyer_user_id, r.buyer_username, w.name, w.cost, w.currency, w.owner_login
-         FROM purchase_requests r JOIN warehouse_items w ON w.id = r.warehouse_item_id
-         WHERE r.buyer_user_id = $1 OR w.owner_login = $2
+                r.buyer_user_id, r.buyer_username, w.name, w.cost, w.currency, w.owner_id,
+                u.username as owner_username
+         FROM purchase_requests r
+         JOIN warehouse_items w ON w.id = r.warehouse_item_id
+         LEFT JOIN users u ON w.owner_id = u.id
+         WHERE r.buyer_user_id = $1 OR w.owner_id = $1
          ORDER BY r.created_at DESC`,
-        [me.id, me.username]
+        [me.id]
       )
     ).rows;
     res.json(rows);
@@ -69,12 +82,12 @@ app.post('/api/requests', authenticateToken, async (req, res) => {
     const buyer = (await query('SELECT id, username FROM users WHERE id = $1', [buyerId])).rows[0];
     if (!buyer) return res.status(401).json({ error: 'Нет пользователя' });
     const wres = await query(
-      'SELECT id, name, owner_login, quantity, cost, currency FROM warehouse_items WHERE id = $1',
+      'SELECT id, name, owner_id, quantity, cost, currency FROM warehouse_items WHERE id = $1',
       [warehouseItemId]
     );
     if (wres.rowCount === 0) return res.status(404).json({ error: 'Товар не найден' });
     const item = wres.rows[0];
-    if (item.owner_login && item.owner_login === buyer.username)
+    if (item.owner_id && item.owner_id === buyer.id)
       return res.status(400).json({ error: 'Нельзя покупать свой товар' });
     const available = Number(item.quantity) || 0;
     if (qty > available) return res.status(400).json({ error: 'Недостаточное количество на складе' });
@@ -112,8 +125,10 @@ app.get('/api/my/requests', authenticateToken, async (req, res) => {
     const me = req.user?.id;
     const rows = (
       await query(
-        `SELECT r.id, r.warehouse_item_id, r.quantity, r.status, r.created_at, w.name, w.cost, w.currency, w.owner_login
-         FROM purchase_requests r JOIN warehouse_items w ON w.id = r.warehouse_item_id
+        `SELECT r.id, r.warehouse_item_id, r.quantity, r.status, r.created_at, w.name, w.cost, w.currency, w.owner_id, u.username as owner_username
+         FROM purchase_requests r
+         JOIN warehouse_items w ON w.id = r.warehouse_item_id
+         LEFT JOIN users u ON w.owner_id = u.id
          WHERE r.buyer_user_id = $1 ORDER BY r.created_at DESC`,
         [me]
       )
@@ -130,8 +145,10 @@ app.get('/api/requests', authenticateToken, requirePermission('requests', 'read'
     const rows = (
       await query(
         `SELECT r.id, r.warehouse_item_id, r.quantity, r.status, r.created_at,
-                r.buyer_user_id, r.buyer_username, w.name, w.cost, w.currency, w.owner_login
-         FROM purchase_requests r JOIN warehouse_items w ON w.id = r.warehouse_item_id
+                r.buyer_user_id, r.buyer_username, w.name, w.cost, w.currency, w.owner_id, u.username as owner_username
+         FROM purchase_requests r
+         JOIN warehouse_items w ON w.id = r.warehouse_item_id
+         LEFT JOIN users u ON w.owner_id = u.id
          ORDER BY r.created_at DESC`
       )
     ).rows;
@@ -154,7 +171,7 @@ app.put('/api/requests/:id/confirm', authenticateToken, async (req, res) => {
     const r = rres.rows[0];
     if (r.status === 'Выполнено') return res.json({ success: true });
     const w = (
-      await query('SELECT id, owner_login, cost, currency, name FROM warehouse_items WHERE id = $1', [r.warehouse_item_id])
+      await query('SELECT id, owner_id, cost, currency, name FROM warehouse_items WHERE id = $1', [r.warehouse_item_id])
     ).rows[0];
     if (!w) return res.status(404).json({ error: 'Товар не найден' });
 
@@ -163,26 +180,19 @@ app.put('/api/requests/:id/confirm', authenticateToken, async (req, res) => {
     const me = ures.rows[0];
     const perms = await getPermissionsForTypeDb(me.account_type).catch(() => ({}));
     const isAdmin = me.account_type === 'Администратор' || perms?.requests === 'write';
-    const isOwner = w.owner_login && w.owner_login === me.username;
+    const isOwner = w.owner_id && w.owner_id === me.id;
     if (!isAdmin && !isOwner)
       return res.status(403).json({ error: 'Недостаточно прав для подтверждения заявки' });
 
     const buyerId = r.buyer_user_id;
-    const ownerUsername = w.owner_login;
+    const ownerId = w.owner_id;
     const amount = Math.ceil((Number(w.cost) || 0) * (Number(r.quantity) || 0));
     const currency = w.currency;
-    const resolveId = async (val) => {
-      if (!val) return null;
-      const q = await query('SELECT id FROM users WHERE id = $1 OR username = $1 LIMIT 1', [val]);
-      return q.rowCount > 0 ? q.rows[0].id : null;
-    };
-    const fromId = await resolveId(buyerId);
-    const toId = await resolveId(ownerUsername);
     const tid = `t_${Date.now()}`;
     await query(
       `INSERT INTO transactions(id, type, amount, currency, from_user, to_user, item_id, meta, created_at)
        VALUES ($1,'income',$2,$3,$4,$5,$6,$7, now())`,
-      [tid, amount, currency, fromId, toId, r.warehouse_item_id, JSON.stringify({ reqId: id, itemName: w.name })]
+      [tid, amount, currency, buyerId, ownerId, r.warehouse_item_id, JSON.stringify({ reqId: id, itemName: w.name })]
     );
     await query('UPDATE purchase_requests SET status = $2, updated_at = now() WHERE id = $1', [id, 'Выполнено']);
     res.json({ success: true });

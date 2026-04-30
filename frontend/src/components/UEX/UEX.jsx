@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { authService } from '../../services/authService';
 import { Card, Space, Form, Input, Button, Select, Typography, Alert, Divider, message, Switch } from 'antd';
 import { uexApi } from '../../services/uexApiService';
 import TableWithFullscreen from '../common/TableWithFullscreen';
@@ -46,6 +47,18 @@ function guessColumns(data) {
 }
 
 const UEX = () => {
+  // Проверка прав доступа
+  const hasUexRead = authService.hasPermission('uex', 'read');
+  if (!hasUexRead) {
+    return (
+      <div className="fade-in">
+        <Card size="small">
+          <Typography.Title level={4} className="m-0">UEX API</Typography.Title>
+          <Typography.Text type="danger">У вас нет доступа к UEX API. Обратитесь к администратору для выдачи прав.</Typography.Text>
+        </Card>
+      </div>
+    );
+  }
   const queryClient = useQueryClient();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);

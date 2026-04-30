@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Card, Table, Tag, Button, Space, Popconfirm, message, Input, Tooltip, Tabs } from 'antd';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import { apiService } from '../../services/apiService';
@@ -13,9 +13,12 @@ const Requests = () => {
   const [reqSearch, setReqSearch] = useState('');
   const [frSearch, setFrSearch] = useState('');
   const [users, setUsers] = useState([]);
-  const me = authService.getCurrentUser();
+  const [me, setMe] = useState(authService.getCurrentUser());
   const currentUsername = me?.username;
   const isAdmin = authService.hasPermission('users', 'write') || (me?.accountType === 'Администратор');
+  const [authReady, setAuthReady] = useState(!!localStorage.getItem('authToken'));
+  const [authToken, setAuthToken] = useState(localStorage.getItem('authToken'));
+  const firstLoad = useRef(true);
 
   const formatServerDateTime = (isoLike) => {
     if (!isoLike) return '-';
@@ -56,13 +59,17 @@ const Requests = () => {
   const load = async () => {
     setLoading(true);
     try {
-      try {
-        const us = await apiService.getUsers();
-        setUsers(Array.isArray(us) ? us : []);
-      } catch (_) { setUsers([]); }
+      // Не грузим пользователей для гостя, чтобы не ловить 403
+      if (me?.accountType !== 'Гость') {
+        try {
+          const us = await apiService.getUsers();
+          setUsers(Array.isArray(us) ? us : []);
+        } catch (_) { setUsers([]); }
+      } else {
+        setUsers([]);
+      }
       const r = await apiService.getRelatedRequests();
       const arr = Array.isArray(r) ? r : [];
-      // Backend: id, warehouse_item_id, quantity, status, created_at, buyer_user_id, buyer_username, name, cost, currency, owner_login
       setRows(arr.map((x) => ({
         id: x.id,
         itemName: x.name,
@@ -86,8 +93,32 @@ const Requests = () => {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  // Следим за появлением токена и пользователя
   useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('authToken');
+      setAuthToken(token);
+      setAuthReady(!!token);
+      setMe(authService.getCurrentUser());
+    };
+    checkAuth();
+    window.addEventListener('storage', checkAuth);
+    window.addEventListener('auth:login', checkAuth);
+    return () => {
+      window.removeEventListener('storage', checkAuth);
+      window.removeEventListener('auth:login', checkAuth);
+    };
+  }, []);
+
+  // Загружаем данные каждый раз, когда появляется токен
+  useEffect(() => {
+    if (authReady && authToken) {
+      load();
+      firstLoad.current = false;
+    }
+  }, [authReady, authToken]);
+  useEffect(() => {
+    if (!authReady) return;
     const s = getSocket();
     const onChange = () => load();
     s.on('requests:changed', onChange);
@@ -96,7 +127,7 @@ const Requests = () => {
       s.off('requests:changed', onChange);
       s.off('finance_requests:changed', onChange);
     };
-  }, []);
+  }, [authReady]);
 
   const canWrite = authService.hasPermission('requests', 'write');
   const isPending = (s) => ['В обработке','Заявка отправлена'].includes(String(s || '').trim());

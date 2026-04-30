@@ -101,12 +101,21 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData?.id]);
 
-  const handleLayoutChange = (current, allLayouts) => {
+
+  // Флаг для блокировки повторных запросов
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
+
+  const handleLayoutChange = async (current, allLayouts) => {
     setLayouts(allLayouts);
     try {
       localStorage.setItem(layoutStorageKey, JSON.stringify(allLayouts));
     } catch (_) {}
-    try { apiService.saveUserLayouts('warehouse', allLayouts); } catch (_) {}
+    if (isSavingLayout) return;
+    setIsSavingLayout(true);
+    try {
+      await apiService.saveUserLayouts('warehouse', allLayouts);
+    } catch (_) {}
+    setIsSavingLayout(false);
   };
 
   const handleResetLayout = () => {
