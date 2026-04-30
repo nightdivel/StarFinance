@@ -8,6 +8,7 @@ import 'react-resizable/css/styles.css';
 
 // Config
 import { CURRENCY_FORMAT } from '../../config/appConfig';
+import { getDisplayName } from '../../utils/helpers';
 import { apiService } from '../../services/apiService';
 import { useQueryClient } from '@tanstack/react-query';
 import { APP_DATA_QUERY_KEY } from '../../lib/queries/appData';
@@ -118,7 +119,7 @@ const Showcase = ({ data, userData }) => {
       dataIndex: 'ownerLogin',
       key: 'ownerLogin',
       width: 140,
-      render: (v) => v || '-',
+      render: (v) => getDisplayName(v, data.users || []) || '-',
     },
     {
       title: 'Количество',

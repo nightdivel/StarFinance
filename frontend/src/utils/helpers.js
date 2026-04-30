@@ -1,3 +1,18 @@
+// Returns display name: nickname if present, else username
+export const getDisplayName = (userOrUsername, usersList = []) => {
+  if (!userOrUsername) return '';
+  // If passed a user object
+  if (typeof userOrUsername === 'object' && userOrUsername !== null) {
+    return userOrUsername.nickname?.trim() || userOrUsername.username?.trim() || '';
+  }
+  // If passed a username or id, try to find user in usersList
+  const val = String(userOrUsername).trim();
+  if (!val) return '';
+  const user = usersList.find(
+    (u) => u.username?.toLowerCase() === val.toLowerCase() || String(u.id) === val
+  );
+  return user ? (user.nickname?.trim() || user.username?.trim() || val) : val;
+};
 import { CURRENCY_FORMAT } from '../config/appConfig';
 
 // Currency formatting

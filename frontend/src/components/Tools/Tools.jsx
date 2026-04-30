@@ -71,7 +71,7 @@ function JValue({ value, isLast, depth }) {
     return <span><span style={{ color: JC.num }}>{value}</span>{comma}</span>;
   if (typeof value === 'string') {
     const display = value.length > MAX_STR_LEN ? value.slice(0, MAX_STR_LEN) + '…' : value;
-    return <span><span style={{ color: JC.str }}>"{display}"</span>{comma}</span>;
+    return <span><span style={{ color: JC.str }}>{'"'}{display}{'"'}</span>{comma}</span>;
   }
 
   if (Array.isArray(value)) {
@@ -110,7 +110,7 @@ function JValue({ value, isLast, depth }) {
         <div style={{ paddingLeft: 16 }}>
           {entries.map(([k, v], i) => (
             <div key={k} style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 0 }}>
-              <span style={{ color: JC.key, flexShrink: 0 }}>"{k}"</span>
+              <span style={{ color: JC.key, flexShrink: 0 }}>{'"'}{k}{'"'}</span>
               <span style={{ color: JC.meta, flexShrink: 0, margin: '0 4px 0 0' }}>:</span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <JValue value={v} isLast={i === entries.length - 1} depth={depth + 1} />
@@ -772,11 +772,14 @@ function Tools({ userData, onRefresh }) {
         const msLimit = settings.toolsHistoryAutoClearMonths * 30 * 24 * 60 * 60 * 1000;
         const oldest = Math.min(...runsArr.map(r => new Date(r.createdAt || r.timestamp || r.date || 0).getTime()));
         if (now - oldest > msLimit) {
-          try {
-            await apiService.deleteToolRuns();
-            message.info('История запусков инструментов автоматически очищена по истечении срока.');
-            await loadRuns();
-          } catch (_) {}
+          // Only attempt auto-clear if user has write permission for tools
+          if (canWrite) {
+            try {
+              await apiService.deleteToolRuns();
+              message.info('История запусков инструментов автоматически очищена по истечении срока.');
+              await loadRuns();
+            } catch (_) {}
+          }
         }
       }
     };
@@ -1009,15 +1012,17 @@ function Tools({ userData, onRefresh }) {
           <Space direction="vertical" style={{ width: '100%' }}>
             <Space style={{ justifyContent: 'space-between', width: '100%' }}>
               <span>История запусков инструментов</span>
-              <Button danger icon={<DeleteOutlined />} onClick={async () => {
-                try {
-                  await apiService.deleteToolRuns();
-                  message.success('История запусков очищена');
-                  await loadRuns();
-                } catch (e) {
-                  message.error('Ошибка при очистке истории');
-                }
-              }}>Очистить историю</Button>
+              <Tooltip title={canWrite ? 'Очистить историю' : 'Недостаточно прав'}>
+                <Button danger icon={<DeleteOutlined />} onClick={async () => {
+                  try {
+                    await apiService.deleteToolRuns();
+                    message.success('История запусков очищена');
+                    await loadRuns();
+                  } catch (e) {
+                    message.error('Ошибка при очистке истории');
+                  }
+                }} disabled={!canWrite}>Очистить историю</Button>
+              </Tooltip>
             </Space>
             <Table rowKey="id" loading={runsLoading} columns={runColumns} dataSource={runs} pagination={{ pageSize: 8 }} />
           </Space>

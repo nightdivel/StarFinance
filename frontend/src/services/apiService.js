@@ -7,10 +7,10 @@ class ApiService {
 
   // Настройки инструментов (auto-clear)
   getToolsSettings() {
-    return this.request('/api/system/tools-settings', { method: 'GET' });
+    return this.request('/api/tools/settings', { method: 'GET' });
   }
   updateToolsSettings(settings) {
-    return this.request('/api/system/tools-settings', {
+    return this.request('/api/tools/settings', {
       method: 'PUT',
       body: JSON.stringify(settings),
     });

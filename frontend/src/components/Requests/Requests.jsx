@@ -4,6 +4,7 @@ import TableWithFullscreen from '../common/TableWithFullscreen';
 import { apiService } from '../../services/apiService';
 import { authService } from '../../services/authService';
 import { getSocket } from '../../lib/realtime/socket';
+import { getDisplayName } from '../../utils/helpers';
 
 const Requests = () => {
   const [loading, setLoading] = useState(false);
@@ -11,6 +12,7 @@ const Requests = () => {
   const [financeRows, setFinanceRows] = useState([]);
   const [reqSearch, setReqSearch] = useState('');
   const [frSearch, setFrSearch] = useState('');
+  const [users, setUsers] = useState([]);
   const me = authService.getCurrentUser();
   const currentUsername = me?.username;
   const isAdmin = authService.hasPermission('users', 'write') || (me?.accountType === 'Администратор');
@@ -54,6 +56,10 @@ const Requests = () => {
   const load = async () => {
     setLoading(true);
     try {
+      try {
+        const us = await apiService.getUsers();
+        setUsers(Array.isArray(us) ? us : []);
+      } catch (_) { setUsers([]); }
       const r = await apiService.getRelatedRequests();
       const arr = Array.isArray(r) ? r : [];
       // Backend: id, warehouse_item_id, quantity, status, created_at, buyer_user_id, buyer_username, name, cost, currency, owner_login
@@ -156,8 +162,8 @@ const Requests = () => {
       ),
     },
     { title: 'Кол-во', dataIndex: 'quantity', key: 'quantity', width: 100, align: 'right' },
-    { title: 'Покупатель', dataIndex: 'buyerUsername', key: 'buyerUsername', width: 160 },
-    { title: 'Продавец', dataIndex: 'ownerLogin', key: 'ownerLogin', width: 160 },
+    { title: 'Покупатель', dataIndex: 'buyerUsername', key: 'buyerUsername', width: 160, render: (v) => getDisplayName(v, users) || '-' },
+    { title: 'Продавец', dataIndex: 'ownerLogin', key: 'ownerLogin', width: 160, render: (v) => getDisplayName(v, users) || '-' },
     {
       title: 'Время (сервер)', key: 'createdAt', width: 180, align: 'center',
       render: (_, rec) => formatServerDateTime(rec.createdAt),
@@ -194,8 +200,8 @@ const Requests = () => {
       render: (_, __, index) => index + 1,
     },
     { title: 'Дата', key: 'created_at', width: 180, align: 'center', render: (_, r) => formatServerDateTime(r.created_at) },
-    { title: 'Отправитель', key: 'from_username', width: 160, render: (_, r) => r?.from_username || '-' },
-    { title: 'Получатель', key: 'to_username', width: 160, render: (_, r) => r?.to_username || '-' },
+    { title: 'Отправитель', key: 'from_username', width: 160, render: (_, r) => getDisplayName(r?.from_username, users) || '-' },
+    { title: 'Получатель', key: 'to_username', width: 160, render: (_, r) => getDisplayName(r?.to_username, users) || '-' },
     { title: 'Сумма', key: 'amount', width: 140, align: 'right', render: (_, r) => `${Number(r.amount || 0).toFixed(2)} ${r.currency || ''}` },
     { title: 'Статус', dataIndex: 'status', key: 'status', width: 140, render: statusTag },
     {
@@ -242,17 +248,17 @@ const Requests = () => {
                     dataSource: rows.filter((r) => {
                       const q = String(reqSearch || '').toLowerCase();
                       if (!q) return true;
-                      const vals = [
-                        r.id,
-                        r.itemName,
-                        r.buyerUsername,
-                        r.ownerLogin,
-                        r.quantity != null ? String(r.quantity) : '',
-                        r.pricePerUnit != null ? String(r.pricePerUnit) : '',
-                        r.currency,
-                        r.status,
-                        r.createdAt,
-                      ];
+                        const vals = [
+                          r.id,
+                          r.itemName,
+                          getDisplayName(r.buyerUsername, users),
+                          getDisplayName(r.ownerLogin, users),
+                          r.quantity != null ? String(r.quantity) : '',
+                          r.pricePerUnit != null ? String(r.pricePerUnit) : '',
+                          r.currency,
+                          r.status,
+                          r.createdAt,
+                        ];
                       return vals.some((v) => String(v || '').toLowerCase().includes(q));
                     }),
                     rowKey: 'id',

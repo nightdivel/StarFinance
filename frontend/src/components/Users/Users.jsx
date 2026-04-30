@@ -33,7 +33,7 @@ import { authService } from '../../services/authService';
 
 // Config
 import { USER_ROLES } from '../../config/appConfig';
-import { compareDropdownStrings } from '../../utils/helpers';
+import { compareDropdownStrings, getDisplayName } from '../../utils/helpers';
 
 const { Option } = Select;
 
@@ -231,21 +231,21 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
       render: (id) => <Tag>{id}</Tag>,
     },
     {
-      title: 'Логин',
+      title: 'Имя',
       dataIndex: 'username',
       key: 'username',
-      width: 150,
-      sorter: (a, b) => compareDropdownStrings(a.username, b.username),
+      width: 180,
+      sorter: (a, b) => compareDropdownStrings(getDisplayName(a, data.users || []), getDisplayName(b, data.users || [])),
       ellipsis: true,
-      render: (text) => (
-        <Tooltip title={text}>
-          <span>{text}</span>
+      render: (_, record) => (
+        <Tooltip title={getDisplayName(record, data.users || [])}>
+          <span>{getDisplayName(record, data.users || [])}</span>
         </Tooltip>
       ),
       filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
         <div className="p-2" onKeyDown={(e) => e.stopPropagation()}>
           <Input
-            placeholder="Поиск по логину"
+            placeholder="Поиск по имени или логину"
             value={selectedKeys[0]}
             onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
             onPressEnter={() => confirm()}
@@ -259,7 +259,10 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
           </Space>
         </div>
       ),
-      onFilter: (value, record) => (record.username || '').toLowerCase().includes(String(value).toLowerCase()),
+      onFilter: (value, record) => {
+        const display = getDisplayName(record, data.users || []).toLowerCase();
+        return display.includes(String(value).toLowerCase());
+      },
     },
     {
       title: 'Баланс',
@@ -384,8 +387,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
       title: 'Аватарка', key: 'avatar', width: 56, fixed: 'left',
       render: (_, r) => <Avatar size={32} src={r.avatarUrl} icon={<UserOutlined />} />,
     },
-    { title: 'Псевдоним', dataIndex: 'nickname', key: 'nickname', width: 180, ellipsis: true, render: (v) => v || '-' },
-    { title: 'Логин', dataIndex: 'username', key: 'username', width: 160, ellipsis: true },
+    { title: 'Имя', key: 'displayName', width: 200, ellipsis: true, render: (_, r) => getDisplayName(r, data.users || []) || '-' },
     {
       title: 'Баланс', key: 'balance', width: 260, ellipsis: true,
       render: (_, r) => {

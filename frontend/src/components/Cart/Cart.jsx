@@ -2,14 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { Card, Tag, message } from 'antd';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import { apiService } from '../../services/apiService';
+import { getDisplayName } from '../../utils/helpers';
 
 const Cart = () => {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState([]);
+  const [users, setUsers] = useState([]);
 
   const load = async () => {
     setLoading(true);
     try {
+      try {
+        const us = await apiService.getUsers();
+        setUsers(Array.isArray(us) ? us : []);
+      } catch (_) { setUsers([]); }
       const r = await apiService.getRelatedRequests();
       // Backend returns: id, warehouse_item_id, quantity, status, created_at,
       // buyer_user_id, buyer_username, name, cost, currency, owner_login
@@ -45,8 +51,8 @@ const Cart = () => {
   const columns = [
     { title: 'Товар', dataIndex: 'itemName', key: 'itemName', width: 240, ellipsis: true },
     { title: 'Кол-во', dataIndex: 'quantity', key: 'quantity', width: 100, align: 'right' },
-    { title: 'Покупатель', dataIndex: 'buyerUsername', key: 'buyerUsername', width: 160, ellipsis: true },
-    { title: 'Продавец', dataIndex: 'ownerLogin', key: 'ownerLogin', width: 160, ellipsis: true },
+    { title: 'Покупатель', dataIndex: 'buyerUsername', key: 'buyerUsername', width: 160, ellipsis: true, render: (v) => getDisplayName(v, users) || '-' },
+    { title: 'Продавец', dataIndex: 'ownerLogin', key: 'ownerLogin', width: 160, ellipsis: true, render: (v) => getDisplayName(v, users) || '-' },
     {
       title: 'Цена за ед.', key: 'price', width: 160, align: 'right',
       render: (_, r) => r.pricePerUnit != null ? `${r.pricePerUnit.toFixed(2)} ${r.currency || ''}` : '-'

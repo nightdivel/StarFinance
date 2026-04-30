@@ -22,6 +22,7 @@ import {
 } from '@ant-design/icons';
 import { apiService } from '../services/apiService';
 import { authService } from '../services/authService';
+import { getDisplayName } from '../utils/helpers';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppDataQuery, APP_DATA_QUERY_KEY } from '../lib/queries/appData';
 import { getSocket } from '../lib/realtime/socket';
@@ -441,7 +442,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
               >
                 <Space>
                   <Avatar src={userData?.avatarUrl} icon={<UserOutlined />} />
-                  <span>{userData?.username}</span>
+                  <span>{getDisplayName(userData)}</span>
                 </Space>
               </Button>
             </Dropdown>

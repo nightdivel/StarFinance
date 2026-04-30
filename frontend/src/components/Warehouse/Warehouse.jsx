@@ -35,7 +35,7 @@ import { authService } from '../../services/authService';
 
 // Config
 import { SHOWCASE_STATUSES } from '../../config/appConfig';
-import { compareDropdownStrings } from '../../utils/helpers';
+import { compareDropdownStrings, getDisplayName } from '../../utils/helpers';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -407,7 +407,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
           </Space>
         </div>
       ),
-      onFilter: (value, record) => (record.ownerLogin || '').toLowerCase().includes(String(value).toLowerCase()),
+      onFilter: (value, record) => getDisplayName(record.ownerLogin, data.users || []).toLowerCase().includes(String(value).toLowerCase()),
     },
     {
       title: 'Количество',
@@ -634,7 +634,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                   r.name,
                   r.productType,
                   r.warehouseType,
-                  r.ownerLogin,
+                  getDisplayName(r.ownerLogin, data.users || []),
                   r.quantity != null ? String(r.quantity) : '',
                   r.cost != null ? String(r.cost) : '',
                   r.currency,
@@ -789,13 +789,13 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
               <Select showSearch allowClear placeholder="Выберите владельца">
                 {(data.users || [])
                   .slice()
-                  .sort((a, b) => compareDropdownStrings(a.username, b.username))
+                  .sort((a, b) => compareDropdownStrings(getDisplayName(a, data.users || []), getDisplayName(b, data.users || [])))
                   .map((u) => (
-                    <Option key={u.username} value={u.username}>{u.username}</Option>
+                    <Option key={u.username} value={u.username}>{getDisplayName(u, data.users || [])}</Option>
                   ))}
               </Select>
             ) : (
-              <Input placeholder={userData?.username} value={userData?.username} readOnly />
+              <Input placeholder={getDisplayName(userData, data.users || [])} value={getDisplayName(userData, data.users || [])} readOnly />
             )}
           </Form.Item>
 

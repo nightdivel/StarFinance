@@ -33,9 +33,9 @@ import {
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import dayjs from 'dayjs';
-import { newsService } from '../../services/newsService';
 import { authService } from '../../services/authService';
-import { formatServerDate } from '../../utils/helpers';
+import { newsService } from '../../services/newsService';
+import { formatServerDate, getDisplayName } from '../../utils/helpers';
 import { APP_CONFIG } from '../../config/appConfig.js';
 
 // Стили для полноразмерных карточек новостей и темной темы
@@ -148,7 +148,6 @@ const News = ({ userData, darkMode }) => {
       [{ 'color': [] }, { 'background': [] }],
       [{ 'font': [] }],
       [{ 'align': [] }],
-      ['link', 'image', 'video'],
       ['clean']
     ],
   };
@@ -651,7 +650,7 @@ const News = ({ userData, darkMode }) => {
                     <Tooltip key={user.id} title={`Ознакомился: ${formatServerDate(user.readAt)}`}>
                       <div className="d-flex align-items-center gap-1">
                         <Avatar size="small" icon={<UserOutlined />} src={user.avatar} />
-                        <span className={darkMode ? 'text-white' : 'text-dark'}>{user.username}</span>
+                        <span className={darkMode ? 'text-white' : 'text-dark'}>{getDisplayName(user)}</span>
                       </div>
                     </Tooltip>
                   ))}

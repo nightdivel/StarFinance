@@ -28,7 +28,7 @@ import { authService } from '../../services/authService';
 
 // Config
 import { CURRENCY_FORMAT } from '../../config/appConfig';
-import { compareDropdownStrings } from '../../utils/helpers';
+import { compareDropdownStrings, getDisplayName } from '../../utils/helpers';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -288,7 +288,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       key: 'from_user',
       width: 160,
       align: 'center',
-      render: (v) => toUsername(v) || '-',
+      render: (v) => toDisplayName(v) || '-',
     },
     {
       title: 'Получатель',
@@ -296,7 +296,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       key: 'to_user',
       width: 160,
       align: 'center',
-      render: (v) => toUsername(v) || '-',
+      render: (v) => toDisplayName(v) || '-',
     },
     {
       title: 'Сумма',
@@ -336,26 +336,10 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
     () => (data.users || []).map((u) => String(u.username || '').trim()).filter(Boolean),
     [data.users]
   );
-  const idToUsername = useMemo(() => {
-    const map = new Map();
-    (data.users || []).forEach((u) => {
-      const id = String(u.id || '').trim();
-      const username = String(u.username || '').trim();
-      if (id && username) map.set(id, username);
-    });
-    return map;
-  }, [data.users]);
-  const toUsername = (val) => {
-    if (val === null || val === undefined) return '';
-    const raw = String(val).trim();
-    if (!raw) return '';
-    // if value is already a username, return it; otherwise try map by id
-    const direct = usernames.find((u) => u.toLowerCase() === raw.toLowerCase());
-    if (direct) return direct;
-    return idToUsername.get(raw) || raw;
-  };
+  // Helper to get display name (nickname || username)
+  const toDisplayName = (val) => getDisplayName(val, data.users || []);
   const meId = String(userData?.id || '').trim();
-  const isRecipient = (r) => !!meId && (r?.to_user === meId || toUsername(r?.to_user || '') === (userData?.username || ''));
+  const isRecipient = (r) => !!meId && (r?.to_user === meId || toDisplayName(r?.to_user || '') === (userData?.username || ''));
 
   const loadFinanceRequests = async () => {
     try {
@@ -386,17 +370,17 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       .map((t) => {
         const fromVal = String(t.from_user || '').trim();
         const toVal = String(t.to_user || '').trim();
-        const fromU = (toUsername(fromVal) || '').toLowerCase();
-        const toU = (toUsername(toVal) || '').toLowerCase();
+        const fromValLower = fromVal.toLowerCase();
+        const toValLower = toVal.toLowerCase();
         const involvesMe =
           (myId && (fromVal === myId || toVal === myId)) ||
-          (myUsernameL && (fromU === myUsernameL || toU === myUsernameL));
+          (myUsernameL && (fromValLower === myUsernameL || toValLower === myUsernameL));
         if (!involvesMe) return null;
-        const _typeForMe = (myId && toVal === myId) || toU === myUsernameL ? 'income' : 'outcome';
+        const _typeForMe = (myId && toVal === myId) || toValLower === myUsernameL ? 'income' : 'outcome';
         return { ...t, _typeForMe };
       })
       .filter(Boolean);
-  }, [data.transactions, myUsernameL, myId, toUsername]);
+  }, [data.transactions, myUsernameL, myId, toDisplayName]);
 
   // Персонализированный расчёт балансов на основе уже отфильтрованных транзакций пользователя.
   const balances = useMemo(() => {
@@ -483,9 +467,9 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       dataIndex: 'from_user',
       width: 160,
       align: 'center',
-      filters: usernames.map((u) => ({ text: u, value: u })),
-      onFilter: (value, record) => toUsername(record.from_user || '') === value,
-      render: (v) => toUsername(v) || '-',
+      filters: usernames.map((u) => ({ text: getDisplayName(u, data.users || []), value: u })),
+      onFilter: (value, record) => toDisplayName(record.from_user || '') === getDisplayName(value, data.users || []),
+      render: (v) => toDisplayName(v) || '-',
     },
     {
       title: 'Получатель',
@@ -493,9 +477,9 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       dataIndex: 'to_user',
       width: 160,
       align: 'center',
-      filters: usernames.map((u) => ({ text: u, value: u })),
-      onFilter: (value, record) => toUsername(record.to_user || '') === value,
-      render: (v) => toUsername(v) || '-',
+      filters: usernames.map((u) => ({ text: getDisplayName(u, data.users || []), value: u })),
+      onFilter: (value, record) => toDisplayName(record.to_user || '') === getDisplayName(value, data.users || []),
+      render: (v) => toDisplayName(v) || '-',
     },
     {
       title: 'Назначение',
@@ -530,12 +514,14 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
                 const effectiveType = record._typeForMe || record.type;
                 const cp = effectiveType === 'income' ? (record.from_user || null) : (record.to_user || null);
                 isPrefillingTxFormRef.current = true;
+                // Resolve counterparty to username when possible (store should keep username)
+                const cpUser = (data.users || []).find((u) => String(u.id) === String(cp) || String(u.username) === String(cp));
+                const cpUsername = cpUser ? cpUser.username : (cp || null);
                 transactionForm.setFieldsValue({
                   type: effectiveType,
                   amount: record.amount,
                   currency: record.currency,
-                  // prefill counterparty by type; map ID to username if needed
-                  counterparty: toUsername(cp) || null,
+                  counterparty: cpUsername,
                   desc: record.desc || '',
                 });
               }}
@@ -646,8 +632,8 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
                   t.type,
                   t.amount != null ? String(t.amount) : '',
                   t.currency,
-                  toUsername(t.from_user || ''),
-                  toUsername(t.to_user || ''),
+                  toDisplayName(t.from_user || ''),
+                  toDisplayName(t.to_user || ''),
                   t?.meta?.desc,
                   t?.meta?.itemName,
                   t.createdAt || t.date,
@@ -763,11 +749,14 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
               options={(data.users || [])
                 .slice()
                 .sort((a, b) => compareDropdownStrings(a.username, b.username))
-                .map((u) => ({ value: u.username }))}
+                .map((u) => ({ value: u.username, label: getDisplayName(u, data.users || []) }))}
               placeholder={txType === 'income' ? 'Логин отправителя' : 'Логин получателя'}
-              filterOption={(inputValue, option) =>
-                String(option?.value || '').toLowerCase().includes(String(inputValue).toLowerCase())
-              }
+              filterOption={(inputValue, option) => {
+                const v = String(option?.value || '').toLowerCase();
+                const lbl = String(option?.label || '').toLowerCase();
+                const q = String(inputValue || '').toLowerCase();
+                return v.includes(q) || lbl.includes(q);
+              }}
             />
           </Form.Item>
 
