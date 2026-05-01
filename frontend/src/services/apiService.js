@@ -53,14 +53,40 @@ class ApiService {
   async request(endpoint, options = {}) {
     try {
       // Use relative path to go through nginx and keep same-origin
-      const url = this.buildUrl(endpoint);
+      let url = this.buildUrl(endpoint);
       const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+      let headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      };
+
+      // --- Custom auth for rest_call tools ---
+      if (options._toolAuthConfig) {
+        const auth = options._toolAuthConfig;
+        // Bearer из env (handled on backend, nothing to do here)
+        // Basic Auth
+        if (auth.type?.includes('basic')) {
+          const basic = btoa(`${auth.basicUser || ''}:${auth.basicPass || ''}`);
+          headers['Authorization'] = `Basic ${basic}`;
+        }
+        // API Key
+        if (auth.type?.includes('apiKey')) {
+          if (auth.apiKey && auth.apiKeyValue) {
+            if (auth.apiKeyIn === 'header') {
+              headers[auth.apiKey] = auth.apiKeyValue;
+            } else if (auth.apiKeyIn === 'query') {
+              // append to url
+              const u = new URL(url, window.location.origin);
+              u.searchParams.set(auth.apiKey, auth.apiKeyValue);
+              url = u.pathname + u.search;
+            }
+          }
+        }
+      }
+
       const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...options.headers,
-        },
+        headers,
         ...options,
       });
 

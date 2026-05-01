@@ -575,8 +575,13 @@ function buildFormValues(tool) {
     restUrl: config.url || '',
     restTimeoutMs: config.timeoutMs || 10000,
     restHeadersJson: formatJson(config.headers || { 'Content-Type': 'application/json' }),
-    restAuthType: config.auth?.type === 'bearer_env' ? 'bearer_env' : 'none',
+    restAuthType: config.auth?.type || 'none',
     restTokenEnv: config.auth?.tokenEnv || 'TOOLS_API_TOKEN',
+    restBasicUser: config.auth?.basicUser || '',
+    restBasicPass: config.auth?.basicPass || '',
+    restApiKey: config.auth?.apiKey || '',
+    restApiKeyValue: config.auth?.apiKeyValue || '',
+    restApiKeyIn: config.auth?.apiKeyIn || 'header',
     restBodyTemplateJson: formatJson(config.bodyTemplate || { source: 'starfinance', user: '{{currentUser.username}}' }),
     telegramBotTokenEnv: config.botTokenEnv || 'TELEGRAM_BOT_TOKEN',
     telegramChatId: config.chatId || '',
@@ -610,15 +615,28 @@ function buildPayload(values, uploadedIcon) {
   }
 
   if (values.actionType === 'rest_call') {
+    const auth = {};
+    if (values.restAuthType === 'bearer_env') {
+      auth.type = 'bearer_env';
+      auth.tokenEnv = values.restTokenEnv;
+    }
+    if (values.restAuthType === 'basic' || values.restAuthType === 'basic+apiKey') {
+      auth.type = auth.type ? auth.type + '+basic' : 'basic';
+      auth.basicUser = values.restBasicUser;
+      auth.basicPass = values.restBasicPass;
+    }
+    if (values.restAuthType === 'apiKey' || values.restAuthType === 'basic+apiKey') {
+      auth.type = auth.type ? auth.type + '+apiKey' : 'apiKey';
+      auth.apiKey = values.restApiKey;
+      auth.apiKeyValue = values.restApiKeyValue;
+      auth.apiKeyIn = values.restApiKeyIn;
+    }
     payload.config = {
       method: values.restMethod,
       url: values.restUrl,
       timeoutMs: values.restTimeoutMs,
       headers: safeParseJson(values.restHeadersJson, {}),
-      auth:
-        values.restAuthType === 'bearer_env'
-          ? { type: 'bearer_env', tokenEnv: values.restTokenEnv }
-          : {},
+      auth,
       bodyTemplate: safeParseJson(values.restBodyTemplateJson, {}),
     };
   }
@@ -1199,15 +1217,59 @@ function Tools({ userData, onRefresh }) {
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={8}>
-                    <Form.Item name="restAuthType" label={renderInfoLabel('Авторизация', 'Если endpoint требует bearer token, токен берется из переменной окружения backend-сервера.') }>
-                      <Select options={[{ value: 'none', label: 'Без авторизации' }, { value: 'bearer_env', label: 'Bearer из env' }]} />
+                    <Form.Item name="restAuthType" label={renderInfoLabel('Авторизация', 'Выберите способ авторизации для запроса. Можно сочетать Basic + API Key.') }>
+                      <Select options={[
+                        { value: 'none', label: 'Без авторизации' },
+                        { value: 'bearer_env', label: 'Bearer из env' },
+                        { value: 'basic', label: 'Basic Auth (логин/пароль)' },
+                        { value: 'apiKey', label: 'API Key' },
+                        { value: 'basic+apiKey', label: 'Basic + API Key' },
+                      ]} />
                     </Form.Item>
                   </Col>
-                  <Col xs={24} md={8}>
-                    <Form.Item name="restTokenEnv" label={renderInfoLabel('Имя env токена', 'Например TOOLS_API_TOKEN. Сам токен в UI не хранится.') }>
-                      <Input placeholder="TOOLS_API_TOKEN" />
-                    </Form.Item>
-                  </Col>
+                  {['bearer_env'].includes(toolForm.getFieldValue('restAuthType')) && (
+                    <Col xs={24} md={8}>
+                      <Form.Item name="restTokenEnv" label={renderInfoLabel('Имя env токена', 'Например TOOLS_API_TOKEN. Сам токен в UI не хранится.') }>
+                        <Input placeholder="TOOLS_API_TOKEN" />
+                      </Form.Item>
+                    </Col>
+                  )}
+                  {['basic', 'basic+apiKey'].includes(toolForm.getFieldValue('restAuthType')) && (
+                    <>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="restBasicUser" label={renderInfoLabel('Basic user', 'Имя пользователя для Basic Auth.') }>
+                          <Input placeholder="username" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="restBasicPass" label={renderInfoLabel('Basic password', 'Пароль для Basic Auth.') }>
+                          <Input.Password placeholder="password" />
+                        </Form.Item>
+                      </Col>
+                    </>
+                  )}
+                  {['apiKey', 'basic+apiKey'].includes(toolForm.getFieldValue('restAuthType')) && (
+                    <>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="restApiKey" label={renderInfoLabel('API Key (имя)', 'Имя ключа для передачи в header или query.') }>
+                          <Input placeholder="X-API-Key" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="restApiKeyValue" label={renderInfoLabel('API Key (значение)', 'Значение ключа.') }>
+                          <Input placeholder="секретный_ключ" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="restApiKeyIn" label={renderInfoLabel('API Key в', 'Где передавать ключ: header или query.') }>
+                          <Select options={[
+                            { value: 'header', label: 'Заголовок' },
+                            { value: 'query', label: 'Query-параметр' },
+                          ]} />
+                        </Form.Item>
+                      </Col>
+                    </>
+                  )}
                 </Row>
                 <Form.Item name="restHeadersJson" label={renderInfoLabel('Headers JSON', 'Дополнительные HTTP заголовки в формате JSON объекта.') }>
                   <TextArea rows={4} />
