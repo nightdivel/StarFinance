@@ -75,7 +75,8 @@ const Requests = () => {
         itemName: x.name,
         quantity: Number(x.quantity) || 0,
         buyerUsername: x.buyer_username || '',
-        ownerLogin: x.raw_owner_id || '',
+        ownerLogin: x.owner_username || String(x.raw_owner_id || ''),
+        ownerNickname: x.owner_nickname || null,
         status: x.status,
         createdAt: x.created_at,
         currency: x.currency || '',
@@ -194,7 +195,7 @@ const Requests = () => {
     },
     { title: 'Кол-во', dataIndex: 'quantity', key: 'quantity', width: 100, align: 'right' },
     { title: 'Покупатель', dataIndex: 'buyerUsername', key: 'buyerUsername', width: 160, render: (v) => getDisplayName(v, users) || '-' },
-    { title: 'Продавец', dataIndex: 'ownerLogin', key: 'ownerLogin', width: 160, render: (v) => getDisplayName(v, users) || '-' },
+    { title: 'Продавец', dataIndex: 'ownerLogin', key: 'ownerLogin', width: 160, render: (v, rec) => rec.ownerNickname?.trim() || getDisplayName(v, users) || '-' },
     {
       title: 'Время (сервер)', key: 'createdAt', width: 180, align: 'center',
       render: (_, rec) => formatServerDateTime(rec.createdAt),
