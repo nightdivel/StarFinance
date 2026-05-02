@@ -920,15 +920,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                 </Row>
               </div>
 
-              <Divider />
-              <Form.Item
-                name="toolsHistoryAutoClearMonths"
-                label="Автоочистка истории инструментов (месяцев)"
-                extra="История запусков инструментов будет автоматически очищаться по истечении заданного срока. По умолчанию — 3 месяца."
-                rules={[{ required: true, message: 'Укажите интервал автоочистки' }]}
-              >
-                <InputNumber min={1} max={24} defaultValue={3} className="w-100" disabled={!canWrite} />
-              </Form.Item>
+
 
               <Form.Item name="currencies" label="Доступные валюты">
                 <Select
@@ -1787,6 +1779,17 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
             {activeSettingsTab === 'security' && (
               <>
                 <Card title="Права доступа" className="mb-6">
+                                  {/* Автоочистка истории инструментов */}
+                                  <Card className="mb-6" style={{ marginTop: 32 }}>
+                                    <Form.Item
+                                      name="toolsHistoryAutoClearMonths"
+                                      label="Автоочистка истории инструментов (месяцев)"
+                                      extra="История запусков инструментов будет автоматически очищаться по истечении заданного срока. По умолчанию — 3 месяца."
+                                      rules={[{ required: true, message: 'Укажите интервал автоочистки' }]}
+                                    >
+                                      <InputNumber min={1} max={24} defaultValue={3} className="w-100" disabled={!canWrite} />
+                                    </Form.Item>
+                                  </Card>
                   <Text type="secondary">
                     Управление типами учетных записей и правами доступа по разделам системы.
                   </Text>

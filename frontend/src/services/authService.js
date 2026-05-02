@@ -31,7 +31,9 @@ class AuthService {
         this._saveAuthData({
           token: response.authToken,
           userData: {
+            id: response.id || null,
             username: response.username,
+            nickname: response.nickname || null,
             accountType: response.accountType,
             offline: response.offline || false,
             permissions: response.permissions || {},

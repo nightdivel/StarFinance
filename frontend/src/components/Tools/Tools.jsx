@@ -365,39 +365,24 @@ function TableViewer({ data }) {
 const DEFAULT_W = Math.min(1200, Math.round(window.innerWidth * 0.88));
 const DEFAULT_H = Math.min(800, Math.round(window.innerHeight * 0.82));
 
+// Исправленный DraggableResizableModal
 function DraggableResizableModal({ title, open, onClose, children }) {
   const dragRef = useRef(null);
-  const [bounds, setBounds] = useState({ left: 0, top: 0, right: 0, bottom: 0 });
-  const [disabled, setDisabled] = useState(true);
   const [size, setSize] = useState({ w: DEFAULT_W, h: DEFAULT_H });
   const resizing = useRef(false);
   const resizeStart = useRef({});
+  const [disabled, setDisabled] = useState(true);
 
-  // Reset size when modal opens
   useEffect(() => {
     if (open) setSize({ w: DEFAULT_W, h: DEFAULT_H });
   }, [open]);
 
-  const onMouseMoveBound = useCallback((e) => {
-    if (!open) return;
-    const modal = dragRef.current?.querySelector('.ant-modal');
-    if (!modal) return;
-    const rect = modal.getBoundingClientRect();
-    setBounds({
-      left: -rect.left,
-      top: -rect.top,
-      right: window.innerWidth - rect.right,
-      bottom: window.innerHeight - rect.bottom,
-    });
-  }, [open]);
-
-  // Resize via bottom-right handle
+  // Drag and resize logic
   const onResizeMouseDown = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
     resizing.current = true;
     resizeStart.current = { x: e.clientX, y: e.clientY, w: size.w, h: size.h };
-
     const onMove = (ev) => {
       if (!resizing.current) return;
       const dw = ev.clientX - resizeStart.current.x;
@@ -416,39 +401,55 @@ function DraggableResizableModal({ title, open, onClose, children }) {
     window.addEventListener('mouseup', onUp);
   }, [size]);
 
-  const modalRender = useCallback((modal) => (
-    <Draggable
-      disabled={disabled}
-      bounds={bounds}
-      nodeRef={dragRef}
-      handle=".draggable-modal-handle"
-    >
-      <div ref={dragRef} style={{ position: 'relative' }}>
-        {modal}
-        {/* Resize handle — bottom-right corner */}
-        <div
-          onMouseDown={onResizeMouseDown}
-          style={{
-            position: 'absolute',
-            right: 0,
-            bottom: 0,
-            width: 18,
-            height: 18,
-            cursor: 'nwse-resize',
-            zIndex: 10,
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'flex-end',
-            padding: 3,
-          }}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path d="M1 9L9 1M5 9L9 5M9 9L9 9" stroke="#aaa" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
+  const modalRender = useCallback((modal) => {
+    // Переносим dragRef на .ant-modal-root, чтобы перетаскивать всё окно
+    return (
+      <Draggable
+        disabled={disabled}
+        handle=".draggable-modal-handle"
+        nodeRef={dragRef}
+      >
+        <div ref={dragRef} style={{ position: 'relative', width: size.w, height: size.h }}>
+          {React.cloneElement(modal, {
+            style: {
+              ...modal.props.style,
+              width: size.w,
+              height: size.h,
+              maxWidth: '100vw',
+              maxHeight: '100vh',
+            },
+            bodyStyle: {
+              ...modal.props.bodyStyle,
+              height: size.h - 110,
+              overflow: 'auto',
+              padding: '12px 16px',
+            },
+          })}
+          {/* Resize handle — bottom-right corner */}
+          <div
+            onMouseDown={onResizeMouseDown}
+            style={{
+              position: 'absolute',
+              right: 0,
+              bottom: 0,
+              width: 18,
+              height: 18,
+              cursor: 'nwse-resize',
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'flex-end',
+              padding: 3,
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M1 9L9 1M5 9L9 5M9 9L9 9" stroke="#aaa" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </div>
         </div>
-      </div>
-    </Draggable>
-  ), [disabled, bounds, onResizeMouseDown]);
+      </Draggable>
+    );
+  }, [disabled, size, onResizeMouseDown]);
 
   return (
     <Modal
@@ -470,9 +471,9 @@ function DraggableResizableModal({ title, open, onClose, children }) {
         <Button key="close" type="primary" onClick={onClose}>Закрыть</Button>,
       ]}
       width={size.w}
-      styles={{ body: { height: size.h - 110, overflow: 'auto', padding: '12px 16px' } }}
+      bodyStyle={{ height: size.h - 110, overflow: 'auto', padding: '12px 16px' }}
       modalRender={modalRender}
-      onMouseMove={onMouseMoveBound}
+      maskClosable={true}
     >
       {children}
     </Modal>
@@ -908,6 +909,7 @@ function Tools({ userData, onRefresh }) {
 
   const currentActionType = Form.useWatch('actionType', toolForm) || 'open_url';
   const currentIconSource = Form.useWatch('iconSource', toolForm) || 'external_url';
+  const currentAuthType = Form.useWatch('restAuthType', toolForm) || 'none';
 
   const runColumns = [
     {
@@ -1220,21 +1222,13 @@ function Tools({ userData, onRefresh }) {
                     <Form.Item name="restAuthType" label={renderInfoLabel('Авторизация', 'Выберите способ авторизации для запроса. Можно сочетать Basic + API Key.') }>
                       <Select options={[
                         { value: 'none', label: 'Без авторизации' },
-                        { value: 'bearer_env', label: 'Bearer из env' },
                         { value: 'basic', label: 'Basic Auth (логин/пароль)' },
                         { value: 'apiKey', label: 'API Key' },
                         { value: 'basic+apiKey', label: 'Basic + API Key' },
                       ]} />
                     </Form.Item>
                   </Col>
-                  {['bearer_env'].includes(toolForm.getFieldValue('restAuthType')) && (
-                    <Col xs={24} md={8}>
-                      <Form.Item name="restTokenEnv" label={renderInfoLabel('Имя env токена', 'Например TOOLS_API_TOKEN. Сам токен в UI не хранится.') }>
-                        <Input placeholder="TOOLS_API_TOKEN" />
-                      </Form.Item>
-                    </Col>
-                  )}
-                  {['basic', 'basic+apiKey'].includes(toolForm.getFieldValue('restAuthType')) && (
+                  {['basic', 'basic+apiKey'].includes(currentAuthType) && (
                     <>
                       <Col xs={24} md={8}>
                         <Form.Item name="restBasicUser" label={renderInfoLabel('Basic user', 'Имя пользователя для Basic Auth.') }>
@@ -1248,7 +1242,7 @@ function Tools({ userData, onRefresh }) {
                       </Col>
                     </>
                   )}
-                  {['apiKey', 'basic+apiKey'].includes(toolForm.getFieldValue('restAuthType')) && (
+                  {['apiKey', 'basic+apiKey'].includes(currentAuthType) && (
                     <>
                       <Col xs={24} md={8}>
                         <Form.Item name="restApiKey" label={renderInfoLabel('API Key (имя)', 'Имя ключа для передачи в header или query.') }>

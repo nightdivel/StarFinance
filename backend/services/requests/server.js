@@ -21,12 +21,14 @@ async function ensurePurchaseRequestsTable() {
       warehouse_item_id text NOT NULL,
       buyer_user_id text NOT NULL,
       buyer_username text,
+      buyer_nickname text,
       quantity numeric NOT NULL,
       status text NOT NULL,
       created_at timestamp without time zone DEFAULT now(),
       updated_at timestamp without time zone
     )`);
     await query("ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS buyer_username text").catch(() => {});
+    await query("ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS buyer_nickname text").catch(() => {});
   } catch (e) {
     console.warn('[requests-service] Failed to ensure purchase_requests table:', e?.message || e);
   }
@@ -40,7 +42,7 @@ async function ensurePurchaseRequestsTable() {
 // User-related requests (buyer or seller)
 app.get('/api/requests/related', authenticateToken, async (req, res) => {
   try {
-    const ures = await query('SELECT id, username, account_type FROM users WHERE id = $1', [req.user.id]);
+    const ures = await query('SELECT id, username, nickname, account_type FROM users WHERE id = $1', [req.user.id]);
     if (ures.rowCount === 0) {
       // If guest, return empty array instead of error
       if (req.user && req.user.id && req.user.id.toLowerCase().includes('guest')) {
@@ -56,8 +58,9 @@ app.get('/api/requests/related', authenticateToken, async (req, res) => {
     const rows = (
       await query(
         `SELECT r.id, r.warehouse_item_id, r.quantity, r.status, r.created_at,
-                r.buyer_user_id, r.buyer_username, w.name, w.cost, w.currency, w.owner_id,
-                u.username as owner_username
+                r.buyer_user_id, r.buyer_username, r.buyer_nickname, w.name, w.cost, w.currency, w.owner_id,
+                u.username as owner_username, u.nickname as owner_nickname, u.id as owner_id,
+                w.owner_id as raw_owner_id
          FROM purchase_requests r
          JOIN warehouse_items w ON w.id = r.warehouse_item_id
          LEFT JOIN users u ON w.owner_id = u.id
@@ -79,7 +82,7 @@ app.post('/api/requests', authenticateToken, async (req, res) => {
     const qty = Number(quantity);
     if (!warehouseItemId || !(qty > 0)) return res.status(400).json({ error: 'Некорректные данные' });
     const buyerId = req.user?.id;
-    const buyer = (await query('SELECT id, username FROM users WHERE id = $1', [buyerId])).rows[0];
+    const buyer = (await query('SELECT id, username, nickname FROM users WHERE id = $1', [buyerId])).rows[0];
     if (!buyer) return res.status(401).json({ error: 'Нет пользователя' });
     const wres = await query(
       'SELECT id, name, owner_id, quantity, cost, currency FROM warehouse_items WHERE id = $1',
@@ -98,9 +101,9 @@ app.post('/api/requests', authenticateToken, async (req, res) => {
     ]);
     const id = `r_${Date.now()}`;
     await query(
-      `INSERT INTO purchase_requests(id, warehouse_item_id, buyer_user_id, buyer_username, quantity, status)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [id, warehouseItemId, buyer.id, buyer.username, qty, 'В обработке']
+      `INSERT INTO purchase_requests(id, warehouse_item_id, buyer_user_id, buyer_username, buyer_nickname, quantity, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [id, warehouseItemId, buyer.id, buyer.username, buyer.nickname || null, qty, 'В обработке']
     );
     res.json({
       success: true,
@@ -109,6 +112,7 @@ app.post('/api/requests', authenticateToken, async (req, res) => {
         warehouseItemId,
         buyerUserId: buyer.id,
         buyerUsername: buyer.username,
+        buyerNickname: buyer.nickname || null,
         quantity: qty,
         status: 'В обработке',
       },
@@ -125,7 +129,9 @@ app.get('/api/my/requests', authenticateToken, async (req, res) => {
     const me = req.user?.id;
     const rows = (
       await query(
-        `SELECT r.id, r.warehouse_item_id, r.quantity, r.status, r.created_at, w.name, w.cost, w.currency, w.owner_id, u.username as owner_username
+        `SELECT r.id, r.warehouse_item_id, r.quantity, r.status, r.created_at, r.buyer_nickname, w.name, w.cost, w.currency, w.owner_id,
+                u.username as owner_username, u.nickname as owner_nickname, u.id as owner_id,
+                w.owner_id as raw_owner_id
          FROM purchase_requests r
          JOIN warehouse_items w ON w.id = r.warehouse_item_id
          LEFT JOIN users u ON w.owner_id = u.id
@@ -145,7 +151,9 @@ app.get('/api/requests', authenticateToken, requirePermission('requests', 'read'
     const rows = (
       await query(
         `SELECT r.id, r.warehouse_item_id, r.quantity, r.status, r.created_at,
-                r.buyer_user_id, r.buyer_username, w.name, w.cost, w.currency, w.owner_id, u.username as owner_username
+          r.buyer_user_id, r.buyer_username, r.buyer_nickname, w.name, w.cost, w.currency, w.owner_id,
+          u.username as owner_username, u.nickname as owner_nickname, u.id as owner_id,
+          w.owner_id as raw_owner_id
          FROM purchase_requests r
          JOIN warehouse_items w ON w.id = r.warehouse_item_id
          LEFT JOIN users u ON w.owner_id = u.id

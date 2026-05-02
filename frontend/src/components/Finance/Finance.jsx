@@ -378,7 +378,16 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
 
   // Build user-specific transactions: only where current user is sender or recipient
   const myUsernameL = (userData?.username || '').trim().toLowerCase();
-  const myId = String(userData?.id || '').trim();
+  // Try userData.id first; fall back to looking up by username in data.users
+  // (covers old browser sessions that didn't save id, and old transactions stored by id)
+  const myId = useMemo(() => {
+    const direct = String(userData?.id || '').trim();
+    if (direct) return direct;
+    const found = (data.users || []).find(
+      (u) => (u.username || '').toLowerCase() === myUsernameL
+    );
+    return found ? String(found.id || '').trim() : '';
+  }, [userData?.id, data.users, myUsernameL]);
   const userTransactions = useMemo(() => {
     if (!Array.isArray(data.transactions)) return [];
     return data.transactions
@@ -391,11 +400,12 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
           (myId && (fromVal === myId || toVal === myId)) ||
           (myUsernameL && (fromValLower === myUsernameL || toValLower === myUsernameL));
         if (!involvesMe) return null;
+        // Determine direction: income if current user is the recipient
         const _typeForMe = (myId && toVal === myId) || toValLower === myUsernameL ? 'income' : 'outcome';
         return { ...t, _typeForMe };
       })
       .filter(Boolean);
-  }, [data.transactions, myUsernameL, myId, toDisplayName]);
+  }, [data.transactions, myUsernameL, myId]);
 
   // Персонализированный расчёт балансов на основе уже отфильтрованных транзакций пользователя.
   const balances = useMemo(() => {

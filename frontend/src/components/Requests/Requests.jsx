@@ -75,7 +75,7 @@ const Requests = () => {
         itemName: x.name,
         quantity: Number(x.quantity) || 0,
         buyerUsername: x.buyer_username || '',
-        ownerLogin: x.owner_login || '',
+        ownerLogin: x.raw_owner_id || '',
         status: x.status,
         createdAt: x.created_at,
         currency: x.currency || '',
