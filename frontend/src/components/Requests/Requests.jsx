@@ -75,7 +75,7 @@ const Requests = () => {
         itemName: x.name,
         quantity: Number(x.quantity) || 0,
         buyerUsername: x.buyer_username || '',
-        ownerLogin: x.owner_username || String(x.raw_owner_id || ''),
+        ownerLogin: x.owner_username || x.raw_owner_login || String(x.raw_owner_id || ''),
         ownerNickname: x.owner_nickname || null,
         status: x.status,
         createdAt: x.created_at,

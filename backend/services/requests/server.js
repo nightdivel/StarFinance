@@ -58,13 +58,15 @@ app.get('/api/requests/related', authenticateToken, async (req, res) => {
     const rows = (
       await query(
         `SELECT r.id, r.warehouse_item_id, r.quantity, r.status, r.created_at,
-                r.buyer_user_id, r.buyer_username, r.buyer_nickname, w.name, w.cost, w.currency, w.owner_id,
-                u.username as owner_username, u.nickname as owner_nickname, u.id as owner_id,
-                w.owner_id as raw_owner_id
+                r.buyer_user_id, r.buyer_username, r.buyer_nickname, w.name, w.cost, w.currency,
+                w.owner_id as raw_owner_id, w.owner_login as raw_owner_login,
+                u.username as owner_username, u.nickname as owner_nickname
          FROM purchase_requests r
          JOIN warehouse_items w ON w.id = r.warehouse_item_id
-         LEFT JOIN users u ON w.owner_id = u.id
+         LEFT JOIN users u ON (w.owner_id IS NOT NULL AND u.id = w.owner_id)
+                           OR (w.owner_id IS NULL AND u.username = w.owner_login)
          WHERE r.buyer_user_id = $1 OR w.owner_id = $1
+            OR (w.owner_id IS NULL AND w.owner_login = (SELECT username FROM users WHERE id = $1))
          ORDER BY r.created_at DESC`,
         [me.id]
       )
@@ -129,12 +131,13 @@ app.get('/api/my/requests', authenticateToken, async (req, res) => {
     const me = req.user?.id;
     const rows = (
       await query(
-        `SELECT r.id, r.warehouse_item_id, r.quantity, r.status, r.created_at, r.buyer_nickname, w.name, w.cost, w.currency, w.owner_id,
-                u.username as owner_username, u.nickname as owner_nickname, u.id as owner_id,
-                w.owner_id as raw_owner_id
+        `SELECT r.id, r.warehouse_item_id, r.quantity, r.status, r.created_at, r.buyer_nickname, w.name, w.cost, w.currency,
+                w.owner_id as raw_owner_id, w.owner_login as raw_owner_login,
+                u.username as owner_username, u.nickname as owner_nickname
          FROM purchase_requests r
          JOIN warehouse_items w ON w.id = r.warehouse_item_id
-         LEFT JOIN users u ON w.owner_id = u.id
+         LEFT JOIN users u ON (w.owner_id IS NOT NULL AND u.id = w.owner_id)
+                           OR (w.owner_id IS NULL AND u.username = w.owner_login)
          WHERE r.buyer_user_id = $1 ORDER BY r.created_at DESC`,
         [me]
       )
@@ -151,12 +154,13 @@ app.get('/api/requests', authenticateToken, requirePermission('requests', 'read'
     const rows = (
       await query(
         `SELECT r.id, r.warehouse_item_id, r.quantity, r.status, r.created_at,
-          r.buyer_user_id, r.buyer_username, r.buyer_nickname, w.name, w.cost, w.currency, w.owner_id,
-          u.username as owner_username, u.nickname as owner_nickname, u.id as owner_id,
-          w.owner_id as raw_owner_id
+          r.buyer_user_id, r.buyer_username, r.buyer_nickname, w.name, w.cost, w.currency,
+          w.owner_id as raw_owner_id, w.owner_login as raw_owner_login,
+          u.username as owner_username, u.nickname as owner_nickname
          FROM purchase_requests r
          JOIN warehouse_items w ON w.id = r.warehouse_item_id
-         LEFT JOIN users u ON w.owner_id = u.id
+         LEFT JOIN users u ON (w.owner_id IS NOT NULL AND u.id = w.owner_id)
+                           OR (w.owner_id IS NULL AND u.username = w.owner_login)
          ORDER BY r.created_at DESC`
       )
     ).rows;
