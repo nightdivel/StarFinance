@@ -1032,8 +1032,22 @@
 .ant-btn:disabled,
 .ant-btn.ant-btn-disabled {
   box-shadow: none !important;
-  background-size: auto !important;
   transform: none !important;
+  opacity: 0.42 !important;
+  cursor: not-allowed !important;
+  pointer-events: auto !important;
+  filter: saturate(0.3) !important;
+  background: linear-gradient(140deg, rgba(203, 213, 225, 0.55) 0%, rgba(226, 232, 240, 0.55) 100%) !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  color: rgba(100, 116, 139, 0.7) !important;
+}
+
+.dark-theme .ant-btn[disabled],
+.dark-theme .ant-btn:disabled,
+.dark-theme .ant-btn.ant-btn-disabled {
+  background: linear-gradient(140deg, rgba(30, 41, 59, 0.55) 0%, rgba(15, 23, 42, 0.55) 100%) !important;
+  border-color: rgba(71, 85, 105, 0.35) !important;
+  color: rgba(148, 163, 184, 0.5) !important;
 }
 
 .ant-btn:focus-visible,
