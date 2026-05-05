@@ -553,6 +553,7 @@ function App() {
           borderRadius: 10,
           colorBgLayout: darkMode ? '#0b1220' : '#f3f6f8',
           colorBorder: darkMode ? '#233042' : '#d7e1e8',
+          zIndexPopupBase: 9000,
         },
         components: {
           Layout: {

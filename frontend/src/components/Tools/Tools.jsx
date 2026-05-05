@@ -695,28 +695,31 @@ function ToolActionBadge({ actionType }) {
 
 function ToolCard({ tool, onRun, running }) {
   return (
-    <Button
-      type="default"
-      block
-      size="large"
-      icon={<PlayCircleOutlined />}
-      loading={running}
-      disabled={!tool.isActive || running}
-      onClick={() => onRun(tool)}
-      style={{ height: '100%', minHeight: 140, padding: 12, overflow: 'hidden' }}
-    >
-      <Space direction="vertical" align="center" size={10} style={{ width: '100%', justifyContent: 'center', overflow: 'hidden' }}>
-        <Avatar shape="square" size={56} src={resolveToolIconSrc(tool)} icon={<ToolOutlined />} />
-        <Text strong style={{ width: '100%', textAlign: 'center', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {tool.title}
-        </Text>
-        {tool.description ? (
-          <Text type="secondary" style={{ fontSize: 12, textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%' }}>
-            {tool.description}
+    <Tooltip title={tool.description || null} placement="top" mouseEnterDelay={0.4}>
+      <Button
+        type="default"
+        block
+        size="large"
+        icon={<PlayCircleOutlined />}
+        loading={running}
+        disabled={!tool.isActive || running}
+        onClick={() => onRun(tool)}
+        className="sf-tool-card-btn"
+        style={{ height: '100%', minHeight: 140, padding: 12, overflow: 'hidden' }}
+      >
+        <Space direction="vertical" align="center" size={10} style={{ width: '100%', justifyContent: 'center', overflow: 'hidden' }}>
+          <Avatar shape="square" size={56} src={resolveToolIconSrc(tool)} icon={<ToolOutlined />} />
+          <Text strong style={{ width: '100%', textAlign: 'center', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {tool.title}
           </Text>
-        ) : null}
-      </Space>
-    </Button>
+          {tool.description ? (
+            <Text type="secondary" style={{ fontSize: 12, textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%' }}>
+              {tool.description}
+            </Text>
+          ) : null}
+        </Space>
+      </Button>
+    </Tooltip>
   );
 }
 

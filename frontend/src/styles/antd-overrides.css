@@ -1106,3 +1106,13 @@
     transform: none !important;
   }
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Tool card: allow multi-line description inside AntD Button
+   ────────────────────────────────────────────────────────────── */
+.sf-tool-card-btn > span {
+  white-space: normal !important;
+  overflow: hidden;
+  display: block;
+  width: 100%;
+}
