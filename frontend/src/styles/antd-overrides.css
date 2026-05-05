@@ -975,20 +975,20 @@
 .ant-btn {
   border-radius: 10px !important;
   font-weight: 600;
-  border-color: rgba(15, 118, 110, 0.26) !important;
+  border-color: rgba(100, 116, 139, 0.24) !important;
   background:
-    linear-gradient(140deg, rgba(255, 255, 255, 0.96) 0%, rgba(239, 252, 249, 0.96) 100%) !important;
+    linear-gradient(140deg, rgba(255, 255, 255, 0.96) 0%, rgba(247, 251, 252, 0.98) 100%) !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-position 0.3s ease;
   background-size: 180% 180%;
-  box-shadow: 0 8px 20px rgba(15, 118, 110, 0.12);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
 }
 
 .ant-btn-primary {
-  color: #effdfb !important;
-  border-color: rgba(15, 118, 110, 0.8) !important;
-  background: linear-gradient(130deg, #0f766e 0%, #0891b2 54%, #14b8a6 100%) !important;
+  color: #f8feff !important;
+  border-color: rgba(15, 118, 110, 0.58) !important;
+  background: linear-gradient(130deg, #15756c 0%, #1d8f9d 56%, #2ba99a 100%) !important;
   background-size: 160% 160%;
-  box-shadow: 0 10px 24px rgba(15, 118, 110, 0.32);
+  box-shadow: 0 8px 18px rgba(21, 117, 108, 0.22);
 }
 
 .dark-theme .ant-btn {
@@ -1001,13 +1001,13 @@
 .ant-btn:hover {
   transform: translateY(-1px);
   background-position: 100% 50% !important;
-  border-color: rgba(20, 184, 166, 0.52) !important;
-  box-shadow: 0 12px 26px rgba(15, 118, 110, 0.2);
+  border-color: rgba(45, 126, 123, 0.46) !important;
+  box-shadow: 0 9px 18px rgba(15, 23, 42, 0.14);
 }
 
 .ant-btn-primary:hover {
-  border-color: rgba(20, 184, 166, 0.9) !important;
-  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.38) !important;
+  border-color: rgba(20, 152, 146, 0.82) !important;
+  box-shadow: 0 11px 22px rgba(21, 117, 108, 0.28) !important;
 }
 
 .ant-btn-text,
