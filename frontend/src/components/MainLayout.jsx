@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Card, Tooltip, Tag, Skeleton, Drawer, Grid } from 'antd';
+import { Layout, Menu, Button, Avatar, Space, Typography, Card, Tag, Skeleton, Drawer, Grid, List } from 'antd';
 import {
   UserOutlined,
   SettingOutlined,
@@ -67,6 +67,7 @@ function normalizeMenuOrder(order) {
 const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme, appTitle }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const screens = useBreakpoint();
@@ -410,45 +411,59 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
             ))}
           </div>
           <Space>
-            <Tooltip title={darkMode ? 'Темная тема' : 'Светлая тема'}>
-              <Button
-                type="text"
-                aria-label={darkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}
-                icon={darkMode ? <MoonOutlined /> : <SunOutlined />}
-                onClick={() => onToggleTheme(!darkMode)}
-                className={`h-auto px-2 py-1 sf-theme-toggle ${darkMode ? 'text-primary' : 'text-warning'}`}
-              />
-            </Tooltip>
-            <Dropdown
-              menu={{
-                items: userMenuItems,
-                onClick: ({ key }) => {
-                  if (key === 'logout') {
-                    onLogout();
-                    return;
-                  }
-                  if (key === 'profile') {
-                    navigate('/profile');
-                  }
-                  if (key === 'cart') {
-                    navigate('/cart');
-                  }
-                },
-              }}
-              placement="bottomRight"
+            <Button
+              type="text"
+              aria-label={darkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}
+              icon={darkMode ? <MoonOutlined /> : <SunOutlined />}
+              onClick={() => onToggleTheme(!darkMode)}
+              className={`h-auto px-2 py-1 sf-theme-toggle ${darkMode ? 'text-primary' : 'text-warning'}`}
+            />
+            <Button
+              type="text"
+              className="h-auto py-1 px-2 sf-user-trigger"
+              onClick={() => setUserMenuOpen(true)}
             >
-              <Button
-                type="text"
-                className="h-auto py-1 px-2 sf-user-trigger"
-              >
-                <Space>
-                  <Avatar src={userData?.avatarUrl} icon={<UserOutlined />} />
-                  <span>{getDisplayName(userData)}</span>
-                </Space>
-              </Button>
-            </Dropdown>
+              <Space>
+                <Avatar src={userData?.avatarUrl} icon={<UserOutlined />} />
+                <span>{getDisplayName(userData)}</span>
+              </Space>
+            </Button>
           </Space>
         </Header>
+        <Drawer
+          title={
+            <Space>
+              <Avatar src={userData?.avatarUrl} icon={<UserOutlined />} size="large" />
+              <span>{getDisplayName(userData)}</span>
+            </Space>
+          }
+          placement="right"
+          open={userMenuOpen}
+          onClose={() => setUserMenuOpen(false)}
+          width={240}
+          styles={{ body: { padding: 0 } }}
+        >
+          <List
+            dataSource={[
+              { key: 'profile', icon: <UserOutlined />, label: 'Профиль' },
+              { key: 'cart', icon: <ShopOutlined />, label: 'Корзина' },
+              { key: 'logout', icon: <LogoutOutlined />, label: 'Выход', danger: true },
+            ]}
+            renderItem={(item) => (
+              <List.Item
+                className={`px-4 cursor-pointer sf-user-menu-item${item.danger ? ' sf-user-menu-item-danger' : ''}`}
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  if (item.key === 'logout') { onLogout(); return; }
+                  if (item.key === 'profile') navigate('/profile');
+                  if (item.key === 'cart') navigate('/cart');
+                }}
+              >
+                <Space>{item.icon}<span>{item.label}</span></Space>
+              </List.Item>
+            )}
+          />
+        </Drawer>
         <Drawer
           title="Меню"
           placement="left"
