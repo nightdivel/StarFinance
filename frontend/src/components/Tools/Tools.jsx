@@ -695,31 +695,55 @@ function ToolActionBadge({ actionType }) {
 
 function ToolCard({ tool, onRun, running }) {
   return (
-    <Tooltip title={tool.description || null} placement="top" mouseEnterDelay={0.4}>
-      <Button
-        type="default"
-        block
-        size="large"
-        icon={<PlayCircleOutlined />}
-        loading={running}
-        disabled={!tool.isActive || running}
-        onClick={() => onRun(tool)}
-        className="sf-tool-card-btn"
-        style={{ height: '100%', minHeight: 140, padding: 12, overflow: 'hidden' }}
-      >
-        <Space direction="vertical" align="center" size={10} style={{ width: '100%', justifyContent: 'center', overflow: 'hidden' }}>
-          <Avatar shape="square" size={56} src={resolveToolIconSrc(tool)} icon={<ToolOutlined />} />
-          <Text strong style={{ width: '100%', textAlign: 'center', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+    <Button
+      type="default"
+      block
+      size="large"
+      loading={running}
+      disabled={!tool.isActive || running}
+      onClick={() => onRun(tool)}
+      className="sf-tool-card-btn"
+      style={{ height: '100%', minHeight: 108, padding: 12, overflow: 'hidden', textAlign: 'left' }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Avatar shape="square" size={54} src={resolveToolIconSrc(tool)} icon={<ToolOutlined />} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 0, width: '100%', gap: 6 }}>
+          <Space size={6} wrap={false} style={{ width: '100%' }}>
+            <ToolActionBadge actionType={tool.actionType} />
+            <Tag icon={<PlayCircleOutlined />} style={{ marginInlineEnd: 0 }}>
+              Запуск
+            </Tag>
+          </Space>
+          <Text
+            strong
+            style={{
+              width: '100%',
+              display: 'block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {tool.title}
           </Text>
-          {tool.description ? (
-            <Text type="secondary" style={{ fontSize: 12, textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%' }}>
-              {tool.description}
-            </Text>
-          ) : null}
-        </Space>
-      </Button>
-    </Tooltip>
+          <Text
+            type="secondary"
+            style={{
+              width: '100%',
+              display: 'block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontSize: 12,
+            }}
+          >
+            {tool.description || 'Описание не указано'}
+          </Text>
+        </div>
+      </div>
+    </Button>
   );
 }
 
@@ -873,7 +897,7 @@ function Tools({ userData, onRefresh }) {
     }
   };
 
-  const handleRun = async (tool) => {
+  const executeRun = async (tool) => {
     try {
       setRunning(true);
       setRunningToolId(tool.id);
@@ -902,6 +926,25 @@ function Tools({ userData, onRefresh }) {
       setRunningToolId('');
       setRunning(false);
     }
+  };
+
+  const handleRun = (tool) => {
+    const actionMeta = ACTION_META[tool.actionType] || ACTION_META.open_url;
+    Modal.confirm({
+      title: 'Подтвердите запуск инструмента',
+      okText: 'Запустить',
+      cancelText: 'Отмена',
+      content: (
+        <Space direction="vertical" size={10} style={{ width: '100%' }}>
+          <Text strong style={{ display: 'block' }}>{tool.title}</Text>
+          <ToolActionBadge actionType={tool.actionType} />
+          <Text type="secondary" style={{ display: 'block' }}>
+            {tool.description || actionMeta.tooltip}
+          </Text>
+        </Space>
+      ),
+      onOk: () => executeRun(tool),
+    });
   };
 
   const currentActionType = Form.useWatch('actionType', toolForm) || 'open_url';
