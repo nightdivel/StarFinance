@@ -6,7 +6,6 @@ import {
   Modal,
   Form,
   Input,
-  AutoComplete,
   Statistic,
   Tag,
   message,
@@ -784,19 +783,14 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
             rules={[{ required: txType === 'outcome' || (txType === 'income' && !isAdmin), message: txType === 'income' ? 'Укажите отправителя (username)' : 'Укажите получателя (username)' }]}
             extra={<Button size="small" onClick={() => transactionForm.setFieldsValue({ counterparty: null })}>Очистить</Button>}
           >
-            <AutoComplete
+            <ModalSelect
               allowClear
+              showSearch
               options={(data.users || [])
                 .slice()
                 .sort((a, b) => compareDropdownStrings(a.username, b.username))
                 .map((u) => ({ value: u.username, label: getDisplayName(u, data.users || []) }))}
               placeholder={txType === 'income' ? 'Логин отправителя' : 'Логин получателя'}
-              filterOption={(inputValue, option) => {
-                const v = String(option?.value || '').toLowerCase();
-                const lbl = String(option?.label || '').toLowerCase();
-                const q = String(inputValue || '').toLowerCase();
-                return v.includes(q) || lbl.includes(q);
-              }}
             />
           </Form.Item>
 
