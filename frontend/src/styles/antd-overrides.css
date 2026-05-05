@@ -363,7 +363,12 @@
 /* Таблицы не должны выходить за рамку обертки */
 .ant-table-wrapper {
   max-width: 100%;
-  overflow: hidden; /* рамка */
+  overflow: visible;
+}
+
+.ant-table-wrapper .ant-table-container {
+  overflow: hidden;
+  border-radius: inherit;
 }
 
 /* --- High-specificity overrides for any remaining white rows in dark theme --- */
@@ -970,15 +975,65 @@
 .ant-btn {
   border-radius: 10px !important;
   font-weight: 600;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-color: rgba(15, 118, 110, 0.26) !important;
+  background:
+    linear-gradient(140deg, rgba(255, 255, 255, 0.96) 0%, rgba(239, 252, 249, 0.96) 100%) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-position 0.3s ease;
+  background-size: 180% 180%;
+  box-shadow: 0 8px 20px rgba(15, 118, 110, 0.12);
 }
 
 .ant-btn-primary {
-  box-shadow: 0 8px 18px rgba(13, 148, 136, 0.26);
+  color: #effdfb !important;
+  border-color: rgba(15, 118, 110, 0.8) !important;
+  background: linear-gradient(130deg, #0f766e 0%, #0891b2 54%, #14b8a6 100%) !important;
+  background-size: 160% 160%;
+  box-shadow: 0 10px 24px rgba(15, 118, 110, 0.32);
+}
+
+.dark-theme .ant-btn {
+  color: #e7f7ff !important;
+  border-color: rgba(45, 212, 191, 0.3) !important;
+  background: linear-gradient(145deg, rgba(18, 31, 52, 0.96) 0%, rgba(11, 28, 46, 0.96) 100%) !important;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.42);
 }
 
 .ant-btn:hover {
   transform: translateY(-1px);
+  background-position: 100% 50% !important;
+  border-color: rgba(20, 184, 166, 0.52) !important;
+  box-shadow: 0 12px 26px rgba(15, 118, 110, 0.2);
+}
+
+.ant-btn-primary:hover {
+  border-color: rgba(20, 184, 166, 0.9) !important;
+  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.38) !important;
+}
+
+.ant-btn-text,
+.ant-btn-link {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.ant-btn-dangerous {
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  background: linear-gradient(135deg, rgba(255, 242, 242, 0.98) 0%, rgba(255, 234, 234, 0.98) 100%) !important;
+  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.16);
+}
+
+.dark-theme .ant-btn-dangerous {
+  border-color: rgba(248, 113, 113, 0.42) !important;
+  background: linear-gradient(140deg, rgba(69, 18, 18, 0.9) 0%, rgba(56, 20, 20, 0.9) 100%) !important;
+}
+
+.ant-btn[disabled],
+.ant-btn:disabled,
+.ant-btn.ant-btn-disabled {
+  box-shadow: none !important;
+  background-size: auto !important;
+  transform: none !important;
 }
 
 .ant-btn:focus-visible,
@@ -993,7 +1048,7 @@
 .ant-table-wrapper {
   border-radius: var(--sf-radius-lg) !important;
   border: 1px solid var(--sf-panel-border) !important;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .ant-table-thead > tr > th {

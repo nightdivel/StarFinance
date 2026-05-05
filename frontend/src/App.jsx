@@ -524,6 +524,7 @@ function App() {
 
   return (
     <ConfigProvider
+      getPopupContainer={(triggerNode) => triggerNode?.ownerDocument?.body || document.body}
       theme={{
         algorithm: [theme.compactAlgorithm, darkMode ? theme.darkAlgorithm : theme.defaultAlgorithm],
         token: {
