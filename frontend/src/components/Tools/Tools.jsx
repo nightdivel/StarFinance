@@ -15,7 +15,6 @@ import {
   Modal,
   Popover,
   Row,
-  Select,
   Space,
   Switch,
   Table,
@@ -34,6 +33,7 @@ import {
   PlusOutlined,
   PlayCircleOutlined,
   SendOutlined,
+  CheckOutlined,
   ToolOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
@@ -693,6 +693,89 @@ function ToolActionBadge({ actionType }) {
   );
 }
 
+function ModalValueSelect({
+  value,
+  onChange,
+  options = [],
+  placeholder = 'Выберите значение',
+  title = 'Выбор значения',
+  disabled = false,
+}) {
+  const [open, setOpen] = useState(false);
+
+  const normalizedOptions = useMemo(
+    () => options.map((option) => (typeof option === 'string' ? { value: option, label: option } : option)),
+    [options]
+  );
+
+  const selectedOption = useMemo(
+    () => normalizedOptions.find((option) => option.value === value),
+    [normalizedOptions, value]
+  );
+
+  return (
+    <>
+      <Button
+        block
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', minHeight: 38 }}
+      >
+        <span
+          style={{
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            textAlign: 'left',
+          }}
+        >
+          {selectedOption?.label || placeholder}
+        </span>
+        <Text type="secondary" style={{ marginLeft: 8, flexShrink: 0 }}>Выбрать</Text>
+      </Button>
+
+      <Modal
+        title={title}
+        open={open}
+        onCancel={() => setOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setOpen(false)}>
+            Закрыть
+          </Button>,
+        ]}
+        width={560}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={8}>
+          {normalizedOptions.map((option) => {
+            const isSelected = option.value === value;
+            return (
+              <Button
+                key={String(option.value)}
+                block
+                type={isSelected ? 'primary' : 'default'}
+                onClick={() => {
+                  onChange?.(option.value);
+                  setOpen(false);
+                }}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  minHeight: 42,
+                }}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{option.label}</span>
+                {isSelected ? <CheckOutlined /> : null}
+              </Button>
+            );
+          })}
+        </Space>
+      </Modal>
+    </>
+  );
+}
+
 function ToolCard({ tool, onRun, running }) {
   return (
     <Button
@@ -1166,14 +1249,16 @@ function Tools({ userData, onRefresh }) {
           <Row gutter={16}>
             <Col xs={24} md={12}>
               <Form.Item name="actionType" label={renderInfoLabel('Тип действия', 'Определяет, что именно произойдет при запуске инструмента.') }>
-                <Select
+                <ModalValueSelect
+                  title="Тип действия"
                   options={Object.entries(ACTION_META).map(([value, meta]) => ({ value, label: meta.label }))}
                 />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
               <Form.Item name="iconSource" label={renderInfoLabel('Источник иконки', 'Можно использовать внешний URL или загрузить собственную картинку.') }>
-                <Select
+                <ModalValueSelect
+                  title="Источник иконки"
                   options={[
                     { value: 'external_url', label: 'URL изображения' },
                     { value: 'upload', label: 'Загрузить файл' },
@@ -1232,7 +1317,10 @@ function Tools({ userData, onRefresh }) {
                 </Col>
                 <Col xs={24} md={8}>
                   <Form.Item name="openMode" label={renderInfoLabel('Режим открытия', 'Открыть ссылку в новой вкладке или в текущей.') }>
-                    <Select options={[{ value: 'new_tab', label: 'Новая вкладка' }, { value: 'same_tab', label: 'Текущая вкладка' }]} />
+                    <ModalValueSelect
+                      title="Режим открытия"
+                      options={[{ value: 'new_tab', label: 'Новая вкладка' }, { value: 'same_tab', label: 'Текущая вкладка' }]}
+                    />
                   </Form.Item>
                 </Col>
               </Row>
@@ -1243,7 +1331,10 @@ function Tools({ userData, onRefresh }) {
                 <Row gutter={16}>
                   <Col xs={24} md={8}>
                     <Form.Item name="restMethod" label={renderInfoLabel('Метод', 'HTTP метод вызова API. Для операций изменения используйте POST/PUT/PATCH осознанно.') }>
-                      <Select options={['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((value) => ({ value, label: value }))} />
+                      <ModalValueSelect
+                        title="HTTP метод"
+                        options={['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((methodValue) => ({ value: methodValue, label: methodValue }))}
+                      />
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={16}>
@@ -1260,12 +1351,15 @@ function Tools({ userData, onRefresh }) {
                   </Col>
                   <Col xs={24} md={8}>
                     <Form.Item name="restAuthType" label={renderInfoLabel('Авторизация', 'Выберите способ авторизации для запроса. Можно сочетать Basic + API Key.') }>
-                      <Select options={[
+                      <ModalValueSelect
+                        title="Тип авторизации"
+                        options={[
                         { value: 'none', label: 'Без авторизации' },
                         { value: 'basic', label: 'Basic Auth (логин/пароль)' },
                         { value: 'apiKey', label: 'API Key' },
                         { value: 'basic+apiKey', label: 'Basic + API Key' },
-                      ]} />
+                      ]}
+                      />
                     </Form.Item>
                   </Col>
                   {['basic', 'basic+apiKey'].includes(currentAuthType) && (
@@ -1296,10 +1390,13 @@ function Tools({ userData, onRefresh }) {
                       </Col>
                       <Col xs={24} md={8}>
                         <Form.Item name="restApiKeyIn" label={renderInfoLabel('API Key в', 'Где передавать ключ: header или query.') }>
-                          <Select options={[
+                          <ModalValueSelect
+                            title="Передача API Key"
+                            options={[
                             { value: 'header', label: 'Заголовок' },
                             { value: 'query', label: 'Query-параметр' },
-                          ]} />
+                          ]}
+                          />
                         </Form.Item>
                       </Col>
                     </>
@@ -1331,7 +1428,10 @@ function Tools({ userData, onRefresh }) {
                 <Row gutter={16}>
                   <Col xs={24} md={8}>
                     <Form.Item name="telegramParseMode" label={renderInfoLabel('Parse mode', 'Режим форматирования Telegram сообщения.') }>
-                      <Select options={[{ value: 'Markdown', label: 'Markdown' }, { value: 'HTML', label: 'HTML' }]} />
+                      <ModalValueSelect
+                        title="Telegram parse mode"
+                        options={[{ value: 'Markdown', label: 'Markdown' }, { value: 'HTML', label: 'HTML' }]}
+                      />
                     </Form.Item>
                   </Col>
                 </Row>
