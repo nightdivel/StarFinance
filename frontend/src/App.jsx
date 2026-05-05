@@ -1,15 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { HashRouter } from 'react-router-dom';
 import { ConfigProvider, theme, message } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
 import Auth from './components/Auth/Auth.jsx';
 import MainLayout from './components/MainLayout.jsx';
 import { API_BASE_URL } from './config';
 import { apiService } from './services/apiService';
+import { APP_DATA_QUERY_KEY } from './lib/queries/appData';
 
 function App() {
+  const queryClient = useQueryClient();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthInitializing, setIsAuthInitializing] = useState(true);
+  const [isAppBootstrapping, setIsAppBootstrapping] = useState(false);
   const [userData, setUserData] = useState(null);
+  const bootstrappedUserRef = useRef('');
   const [darkMode, setDarkMode] = useState(() => {
     try { return localStorage.getItem('theme.dark') === 'true'; } catch (_) { return false; }
   });
@@ -347,6 +352,7 @@ function App() {
 
   useEffect(() => {
     if (isAuthenticated) {
+      setIsThemeLoaded(false);
       loadUserTheme();
     } else {
       // Для неавторизованных пользователей загружаем тему из localStorage
@@ -355,6 +361,43 @@ function App() {
       setIsThemeLoaded(true);
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !userData?.username) {
+      bootstrappedUserRef.current = '';
+      setIsAppBootstrapping(false);
+      return;
+    }
+
+    const normalizedUser = String(userData.username).trim().toLowerCase();
+    if (!normalizedUser || bootstrappedUserRef.current === normalizedUser) {
+      return;
+    }
+
+    let cancelled = false;
+    const warmup = async () => {
+      setIsAppBootstrapping(true);
+      try {
+        const data = await apiService.request('/api/data', { method: 'GET' });
+        if (cancelled) return;
+        queryClient.setQueryData([...APP_DATA_QUERY_KEY, userData.username], data);
+        try {
+          localStorage.setItem('appData', JSON.stringify(data));
+        } catch (_) {}
+      } catch (error) {
+        console.warn('Preload app data failed, fallback to lazy loading:', error);
+      } finally {
+        if (cancelled) return;
+        bootstrappedUserRef.current = normalizedUser;
+        setIsAppBootstrapping(false);
+      }
+    };
+
+    warmup();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, userData?.username, queryClient]);
 
 
   const handleLogout = () => {
@@ -477,6 +520,8 @@ function App() {
     } catch (_) {}
   };
 
+  const showAppPreparing = isAuthInitializing || (isAuthenticated && (!isThemeLoaded || isAppBootstrapping));
+
   return (
     <ConfigProvider
       theme={{
@@ -532,17 +577,23 @@ function App() {
     >
       <HashRouter>
         <div className={`App ${darkMode ? 'dark-theme' : 'light-theme'}`}>
-          {isAuthInitializing ? (
+          {showAppPreparing ? (
             <div
+              className="fade-in"
               style={{
                 minHeight: '100vh',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: 0.85,
+                gap: '8px',
               }}
             >
-              Проверка сессии...
+              <div>{isAuthInitializing ? 'Проверка сессии...' : 'Подготовка интерфейса...'}</div>
+              {!isAuthInitializing ? (
+                <div style={{ fontSize: 12, opacity: 0.7 }}>Данные загружены в кэш, после этого интерфейс отрисуется плавно.</div>
+              ) : null}
             </div>
           ) : isAuthenticated ? (
             <MainLayout
