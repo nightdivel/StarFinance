@@ -521,6 +521,22 @@ function App() {
   };
 
   const showAppPreparing = isAuthInitializing || (isAuthenticated && (!isThemeLoaded || isAppBootstrapping));
+  const [isUiReady, setIsUiReady] = useState(false);
+
+  // Ждём фактической отрисовки браузером через двойной rAF
+  useEffect(() => {
+    if (showAppPreparing) {
+      setIsUiReady(false);
+      return;
+    }
+    let id1 = requestAnimationFrame(() => {
+      const id2 = requestAnimationFrame(() => setIsUiReady(true));
+      return () => cancelAnimationFrame(id2);
+    });
+    return () => cancelAnimationFrame(id1);
+  }, [showAppPreparing]);
+
+  const shouldShowPreloader = showAppPreparing || !isUiReady;
 
   return (
     <ConfigProvider
@@ -578,17 +594,22 @@ function App() {
     >
       <HashRouter>
         <div className={`App ${darkMode ? 'dark-theme' : 'light-theme'}`}>
-          {showAppPreparing ? (
+          {shouldShowPreloader ? (
             <div
               className="fade-in"
               style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 9999,
                 minHeight: '100vh',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                opacity: 0.85,
+                background: darkMode ? '#0b1220' : '#f3f6f8',
+                opacity: 0.95,
                 gap: '8px',
+                transition: 'opacity 0.3s ease',
               }}
             >
               <div>{isAuthInitializing ? 'Проверка сессии...' : 'Подготовка интерфейса...'}</div>
@@ -596,18 +617,21 @@ function App() {
                 <div style={{ fontSize: 12, opacity: 0.7 }}>Данные загружены в кэш, после этого интерфейс отрисуется плавно.</div>
               ) : null}
             </div>
-          ) : isAuthenticated ? (
-            <MainLayout
-              userData={userData}
-              onLogout={handleLogout}
-              onUpdateUser={handleUpdateUser}
-              darkMode={darkMode}
-              onToggleTheme={handleToggleTheme}
-              appTitle={appTitle}
-            />
-          ) : (
+          ) : null}
+          {isAuthenticated && !isAuthInitializing ? (
+            <div style={{ visibility: shouldShowPreloader ? 'hidden' : 'visible' }}>
+              <MainLayout
+                userData={userData}
+                onLogout={handleLogout}
+                onUpdateUser={handleUpdateUser}
+                darkMode={darkMode}
+                onToggleTheme={handleToggleTheme}
+                appTitle={appTitle}
+              />
+            </div>
+          ) : (!isAuthenticated && !isAuthInitializing ? (
             <Auth onLogin={handleLogin} appTitle={appTitle} />
-          )}
+          ) : null)}
         </div>
       </HashRouter>
     </ConfigProvider>
