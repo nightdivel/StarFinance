@@ -117,10 +117,6 @@ const Auth = ({ onLogin, appTitle }) => {
     <div className="auth-container" style={authBgUrl ? { backgroundImage: `url(${authBgUrl})` } : undefined}>
       {isAuthPreparing ? (
         <div className="auth-preloader" aria-live="polite">
-          <div className="auth-preloader-brand">
-            <span className="pit-brand-short">PIT</span>
-            <span className="pit-brand-full">Popov Information Technology</span>
-          </div>
           <div className="auth-preloader-caption">Подготовка формы авторизации...</div>
         </div>
       ) : null}
@@ -136,10 +132,6 @@ const Auth = ({ onLogin, appTitle }) => {
               />
             </div>
           )}
-          <div className="pit-brand mb-2" aria-hidden="true">
-            <span className="pit-brand-short">PIT</span>
-            <span className="pit-brand-full">Popov Information Technology</span>
-          </div>
           <Title level={2}>{effectiveAppTitle}</Title>
           <Text type="secondary">Система управления финансами и складом</Text>
         </div>
