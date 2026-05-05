@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Card, Table, Tag, Button, Space, Popconfirm, message, Input, Tooltip, Tabs } from 'antd';
+import { Card, Table, Tag, Button, Space, Modal, message, Input, Tooltip, Tabs } from 'antd';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import { apiService } from '../../services/apiService';
 import { authService } from '../../services/authService';
@@ -214,9 +214,20 @@ const Requests = () => {
           <Space>
             <Button type="primary" size="small" disabled={!canConfirm} onClick={() => confirmReq(rec)}>Подтвердить</Button>
             <Button size="small" danger disabled={!canCancel} onClick={() => cancelReq(rec)}>Отменить</Button>
-            <Popconfirm title="Удалить заявку?" okText="Удалить" cancelText="Отмена" onConfirm={() => deleteReq(rec)}>
-              <Button size="small" disabled={!canDelete}>Удалить</Button>
-            </Popconfirm>
+            <Button
+              size="small"
+              disabled={!canDelete}
+              onClick={() => {
+                Modal.confirm({
+                  title: 'Удалить заявку?',
+                  content: 'Это действие необратимо.',
+                  okText: 'Удалить',
+                  okType: 'danger',
+                  cancelText: 'Отмена',
+                  onOk: () => deleteReq(rec),
+                });
+              }}
+            >Удалить</Button>
           </Space>
         );
       }

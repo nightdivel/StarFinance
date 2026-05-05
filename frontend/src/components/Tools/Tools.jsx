@@ -687,42 +687,36 @@ function renderInfoLabel(label, tooltip) {
 function ToolActionBadge({ actionType }) {
   const meta = ACTION_META[actionType] || ACTION_META.open_url;
   return (
-    <Tooltip title={meta.tooltip}>
-      <Tag color={meta.color} icon={meta.icon}>
-        {meta.label}
-      </Tag>
-    </Tooltip>
+    <Tag color={meta.color} icon={meta.icon}>
+      {meta.label}
+    </Tag>
   );
 }
 
 function ToolCard({ tool, onRun, running }) {
-  const tooltipBody = (
-    <div>
-      <div><strong>Что это:</strong> {tool.title}</div>
-      <div><strong>Для чего:</strong> {tool.description || 'Описание не указано'}</div>
-    </div>
-  );
-
   return (
-    <Tooltip title={tooltipBody} placement="topLeft">
-      <Button
-        type="default"
-        block
-        size="large"
-        icon={<PlayCircleOutlined />}
-        loading={running}
-        disabled={!tool.isActive || running}
-        onClick={() => onRun(tool)}
-        style={{ height: '100%', minHeight: 140, padding: 12 }}
-      >
-        <Space direction="vertical" align="center" size={10} style={{ width: '100%', justifyContent: 'center' }}>
-          <Avatar shape="square" size={56} src={resolveToolIconSrc(tool)} icon={<ToolOutlined />} />
-          <Text strong style={{ maxWidth: '100%', textAlign: 'center' }} ellipsis>
-            {tool.title}
+    <Button
+      type="default"
+      block
+      size="large"
+      icon={<PlayCircleOutlined />}
+      loading={running}
+      disabled={!tool.isActive || running}
+      onClick={() => onRun(tool)}
+      style={{ height: '100%', minHeight: 140, padding: 12 }}
+    >
+      <Space direction="vertical" align="center" size={10} style={{ width: '100%', justifyContent: 'center' }}>
+        <Avatar shape="square" size={56} src={resolveToolIconSrc(tool)} icon={<ToolOutlined />} />
+        <Text strong style={{ maxWidth: '100%', textAlign: 'center' }} ellipsis>
+          {tool.title}
+        </Text>
+        {tool.description ? (
+          <Text type="secondary" style={{ fontSize: 12, textAlign: 'center', whiteSpace: 'normal', maxWidth: 180 }}>
+            {tool.description}
           </Text>
-        </Space>
-      </Button>
-    </Tooltip>
+        ) : null}
+      </Space>
+    </Button>
   );
 }
 
