@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import debounce from 'lodash.debounce';
-import { Table, Card, Input, Select, Tag, Row, Col, Statistic, Divider, Button, Space, Tooltip, InputNumber, message } from 'antd';
+import { Table, Card, Input, Tag, Row, Col, Statistic, Divider, Button, Space, Tooltip, InputNumber, message } from 'antd';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import { SearchOutlined, ShopOutlined } from '@ant-design/icons';
 import { Responsive, WidthProvider } from 'react-grid-layout';
@@ -13,8 +13,6 @@ import { getDisplayName } from '../../utils/helpers';
 import { apiService } from '../../services/apiService';
 import { useQueryClient } from '@tanstack/react-query';
 import { APP_DATA_QUERY_KEY } from '../../lib/queries/appData';
-
-const { Option } = Select;
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 

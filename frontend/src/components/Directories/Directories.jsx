@@ -6,7 +6,6 @@ import {
   Modal,
   Form,
   Input,
-  Select,
   Tag,
   Space,
   message,
@@ -21,9 +20,10 @@ import { apiService } from '../../services/apiService';
 import { authService } from '../../services/authService';
 import { PERMISSIONS } from '../../config/appConfig';
 import TableWithFullscreen from '../common/TableWithFullscreen';
+import ModalSelect from '../common/ModalSelect';
 import { compareDropdownStrings } from '../../utils/helpers';
 
-const { Option } = Select;
+const { Option } = ModalSelect;
 const { TextArea } = Input;
 
 const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
@@ -684,25 +684,25 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                               {['finance', 'warehouse', 'showcase', 'users', 'directories', 'settings', 'requests', 'news', 'uex', 'tools'].map((res) => (
                                 <Col xs={24} sm={12} key={res}>
                                   <Form.Item name={["permissions", res]} label={`Права: ${res === 'uex' ? 'UEX_API' : res === 'news' ? 'новости' : res === 'tools' ? 'Инструменты' : res}`}>
-                                    <Select placeholder="Выберите права">
+                                    <ModalSelect placeholder="Выберите права">
                                       <Option value={PERMISSIONS.NONE}>Нет доступа</Option>
                                       <Option value={PERMISSIONS.READ}>Только чтение</Option>
                                       <Option value={PERMISSIONS.WRITE}>Чтение и запись</Option>
-                                    </Select>
+                                    </ModalSelect>
                                   </Form.Item>
                                 </Col>
                               ))}
                             </Row>
 
                             <Form.Item name="allowedWarehouseTypes" label="Склад (разрешенные типы)">
-                              <Select mode="multiple" placeholder="Выберите типы склада">
+                              <ModalSelect mode="multiple" placeholder="Выберите типы склада">
                                 {(data.directories.warehouseTypes || [])
                                   .slice()
                                   .sort((a, b) => compareDropdownStrings(a, b))
                                   .map((t) => (
                                     <Option key={t} value={t}>{t}</Option>
                                   ))}
-                              </Select>
+                              </ModalSelect>
                             </Form.Item>
 
                             <Form.Item>
@@ -737,7 +737,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                                   label="Тип товара"
                                   rules={[{ required: true, message: 'Выберите тип товара' }]}
                                 >
-                                  <Select placeholder="Выберите тип">
+                                  <ModalSelect placeholder="Выберите тип">
                                     {(data.directories.productTypes || [])
                                       .slice()
                                       .sort((a, b) => compareDropdownStrings(a, b))
@@ -746,7 +746,7 @@ const Directories = ({ data, userData, onUpdateUser, onRefresh }) => {
                                           {t}
                                         </Option>
                                       ))}
-                                  </Select>
+                                  </ModalSelect>
                                 </Form.Item>
                               </Col>
                               <Col xs={24} sm={16}>

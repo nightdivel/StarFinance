@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { authService } from '../../services/authService';
-import { Card, Space, Form, Input, Button, Select, Typography, Alert, Divider, message, Switch } from 'antd';
+import { Card, Space, Form, Input, Button, Typography, Alert, Divider, message, Switch } from 'antd';
 import { uexApi } from '../../services/uexApiService';
 import TableWithFullscreen from '../common/TableWithFullscreen';
+import ModalSelect from '../common/ModalSelect';
 import { DownloadOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { APP_DATA_QUERY_KEY } from '../../lib/queries/appData';
@@ -380,7 +381,7 @@ const UEX = () => {
               <Switch />
             </Form.Item>
             <Form.Item label="Ресурс" name="resource" rules={[{ required: true, message: 'Выберите ресурс' }]}> 
-              <Select options={RESOURCES} className="sf-maxw-360" onChange={onResourceChange} />
+              <ModalSelect options={RESOURCES} className="sf-maxw-360" onChange={onResourceChange} />
             </Form.Item>
             <Form.Item label="Путь (опционально)" name="path">
               <Input placeholder="например: stanton" className="sf-maxw-480" />
@@ -392,7 +393,7 @@ const UEX = () => {
             <Divider>Параметры-подсказки</Divider>
             <Space wrap>
               <Form.Item label="id_category" name="id_category" tooltip="Категории (для items, items_attributes)" hidden={!visibleFor('id_category')}>
-                <Select
+                <ModalSelect
                   loading={listsLoading}
                   allowClear
                   showSearch
@@ -402,7 +403,7 @@ const UEX = () => {
                 />
               </Form.Item>
               <Form.Item label="id_terminal" name="id_terminal" tooltip="Терминал (для commodities_prices, *_history, fuel_prices)" hidden={!visibleFor('id_terminal')}>
-                <Select
+                <ModalSelect
                   loading={listsLoading}
                   allowClear
                   showSearch
@@ -412,7 +413,7 @@ const UEX = () => {
                 />
               </Form.Item>
               <Form.Item label="id_commodity" name="id_commodity" tooltip="Товар (для commodities_prices, *_history)" hidden={!visibleFor('id_commodity')}>
-                <Select
+                <ModalSelect
                   loading={listsLoading}
                   allowClear
                   showSearch
@@ -422,7 +423,7 @@ const UEX = () => {
                 />
               </Form.Item>
               <Form.Item label="id_terminal_origin" name="id_terminal_origin" tooltip="Терминал отправления (для terminals_distances)" hidden={!visibleFor('id_terminal_origin')}>
-                <Select
+                <ModalSelect
                   loading={listsLoading}
                   allowClear
                   showSearch
@@ -432,7 +433,7 @@ const UEX = () => {
                 />
               </Form.Item>
               <Form.Item label="id_terminal_destination" name="id_terminal_destination" tooltip="Терминал назначения (для terminals_distances)" hidden={!visibleFor('id_terminal_destination')}>
-                <Select
+                <ModalSelect
                   loading={listsLoading}
                   allowClear
                   showSearch
@@ -442,7 +443,7 @@ const UEX = () => {
                 />
               </Form.Item>
               <Form.Item label="id_company" name="id_company" tooltip="Компании (для items)" hidden={!visibleFor('id_company')}>
-                <Select
+                <ModalSelect
                   loading={listsLoading}
                   allowClear
                   showSearch
@@ -452,7 +453,7 @@ const UEX = () => {
                 />
               </Form.Item>
               <Form.Item label="id_vehicle" name="id_vehicle" tooltip="Техника (для items)" hidden={!visibleFor('id_vehicle')}>
-                <Select
+                <ModalSelect
                   loading={listsLoading}
                   allowClear
                   showSearch
@@ -468,7 +469,7 @@ const UEX = () => {
                 <Input className="sf-minw-180" placeholder="id_item" />
               </Form.Item>
               <Form.Item label="id_category_attribute" name="id_category_attribute" tooltip="Атрибут категории (для items_attributes)" hidden={!visibleFor('id_category_attribute')}>
-                <Select
+                <ModalSelect
                   loading={listsLoading}
                   allowClear
                   showSearch

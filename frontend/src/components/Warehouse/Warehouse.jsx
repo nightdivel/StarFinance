@@ -7,7 +7,6 @@ import {
   Modal,
   Form,
   Input,
-  Select,
   InputNumber,
   Tag,
   Space,
@@ -27,6 +26,7 @@ import {
   EyeInvisibleOutlined,
 } from '@ant-design/icons';
 import TableWithFullscreen from '../common/TableWithFullscreen';
+import ModalSelect from '../common/ModalSelect';
 import { useQueryClient } from '@tanstack/react-query';
 import { APP_DATA_QUERY_KEY } from '../../lib/queries/appData';
 
@@ -38,7 +38,7 @@ import { authService } from '../../services/authService';
 import { SHOWCASE_STATUSES } from '../../config/appConfig';
 import { compareDropdownStrings, getDisplayName } from '../../utils/helpers';
 
-const { Option } = Select;
+const { Option } = ModalSelect;
 const { TextArea } = Input;
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -682,7 +682,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       >
         <Form form={form} layout="vertical" onFinish={handleProductSubmit}>
           <Form.Item name="productType" label="Тип">
-            <Select placeholder="Выберите тип">
+            <ModalSelect placeholder="Выберите тип">
               {(data.directories.productTypes || [])
                 .slice()
                 .sort((a, b) => compareDropdownStrings(a, b))
@@ -691,7 +691,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                     {t}
                   </Option>
                 ))}
-            </Select>
+            </ModalSelect>
           </Form.Item>
 
           <Form.Item
@@ -699,7 +699,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
             label="Склад"
             rules={[{ required: true, message: 'Выберите склад' }]}
           >
-            <Select placeholder="Выберите склад">
+            <ModalSelect placeholder="Выберите склад">
               {(data.directories.warehouseTypes || [])
                 .slice()
                 .sort((a, b) => compareDropdownStrings(a, b))
@@ -708,7 +708,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                     {t}
                   </Option>
                 ))}
-            </Select>
+            </ModalSelect>
           </Form.Item>
 
           <Form.Item
@@ -718,7 +718,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
           >
             {Array.isArray(data?.directories?.productNames) &&
             data.directories.productNames.length > 0 ? (
-              <Select
+              <ModalSelect
                 showSearch
                 placeholder="Выберите товар"
                 optionFilterProp="children"
@@ -745,7 +745,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                       {obj.uexCategory ? `${obj.uexCategory} • ${obj.name}` : obj.name}
                     </Option>
                   ))}
-              </Select>
+              </ModalSelect>
             ) : (
               <Input placeholder="Название товара или услуги" />
             )}
@@ -788,7 +788,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
             tooltip="Выберите одну или несколько валют. Первая станет основной."
             rules={[{ validator: (_, v) => (Array.isArray(v) && v.length > 0 ? Promise.resolve() : Promise.reject(new Error('Выберите хотя бы одну валюту'))) }]}
           >
-            <Select mode="multiple" placeholder="Выберите валюты">
+            <ModalSelect mode="multiple" placeholder="Выберите валюты">
               {data.system.currencies
                 .slice()
                 .sort((a, b) => compareDropdownStrings(a, b))
@@ -797,20 +797,20 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                     {currency}
                   </Option>
                 ))}
-            </Select>
+            </ModalSelect>
           </Form.Item>
 
           {/* Owner field: editable only for admins */}
           <Form.Item name="ownerLogin" label="Владелец (логин)">
             {authService.hasPermission('users', 'write') ? (
-              <Select showSearch allowClear placeholder="Выберите владельца">
+              <ModalSelect showSearch allowClear placeholder="Выберите владельца">
                 {(data.users || [])
                   .slice()
                   .sort((a, b) => compareDropdownStrings(getDisplayName(a, data.users || []), getDisplayName(b, data.users || [])))
                   .map((u) => (
                     <Option key={u.username} value={u.username}>{getDisplayName(u, data.users || [])}</Option>
                   ))}
-              </Select>
+              </ModalSelect>
             ) : (
               <Input placeholder={getDisplayName(userData, data.users || [])} value={getDisplayName(userData, data.users || [])} readOnly />
             )}
@@ -820,7 +820,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
             name="showcaseDisplayCurrencies"
             label="Валюта отображения (витрина)"
             tooltip="Только для витрины. Можно выбрать несколько. Порядок определяет приоритет." >
-            <Select mode="multiple" placeholder="Выберите валюты для витрины">
+            <ModalSelect mode="multiple" placeholder="Выберите валюты для витрины">
               {data.system.currencies
                 .slice()
                 .sort((a, b) => compareDropdownStrings(a, b))
@@ -829,7 +829,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
                     {currency}
                   </Option>
                 ))}
-            </Select>
+            </ModalSelect>
           </Form.Item>
 
           <Form.Item
@@ -837,10 +837,10 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
             label="Статус витрины"
             rules={[{ required: true, message: 'Выберите статус' }]}
           >
-            <Select placeholder="Выберите статус">
+            <ModalSelect placeholder="Выберите статус">
               <Option value="На витрине">На витрине</Option>
               <Option value="Скрыт">Скрыт</Option>
-            </Select>
+            </ModalSelect>
           </Form.Item>
 
           {/* description moved above */}

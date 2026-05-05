@@ -3,7 +3,6 @@ import {
   Card,
   Form,
   Input,
-  Select,
   InputNumber,
   Button,
   Switch,
@@ -23,6 +22,7 @@ import {
 } from 'antd';
 import { compareDropdownStrings } from '../../utils/helpers';
 import { PERMISSIONS } from '../../config/appConfig';
+import ModalSelect from '../common/ModalSelect';
 
 import { SettingOutlined, EditOutlined, DeleteOutlined, HolderOutlined } from '@ant-design/icons';
 
@@ -32,7 +32,7 @@ import { authService } from '../../services/authService';
 
 // Config (нет прямого использования формата валют в этом компоненте)
 
-const { Option } = Select;
+const { Option } = ModalSelect;
 const { Title, Text } = Typography;
 
 const MENU_ORDER_DEFAULT = [
@@ -854,7 +854,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     label="Базовая валюта"
                     rules={[{ required: true, message: 'Выберите базовую валюту' }]}
                   >
-                    <Select placeholder="Выберите валюту" disabled={!canWrite}>
+                    <ModalSelect placeholder="Выберите валюту" disabled={!canWrite}>
                       {(form.getFieldValue('currencies') || data?.system.currencies || [])
                         .slice()
                         .sort((a, b) => compareDropdownStrings(a, b))
@@ -863,7 +863,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                             {currency}
                           </Option>
                         ))}
-                    </Select>
+                    </ModalSelect>
                   </Form.Item>
                 </Col>
               </Row>
@@ -923,7 +923,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
 
 
               <Form.Item name="currencies" label="Доступные валюты">
-                <Select
+                <ModalSelect
                   mode="multiple"
                   placeholder="Выберите валюты"
                   optionLabelProp="label"
@@ -1650,7 +1650,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                       accountTypeEdit: scopeMappings[scopeEditingIndex]?.account_type,
                     }}>
                       <Form.Item name="scopeEdit" label="Scope" rules={[{ required: true }]}> 
-                        <Select
+                        <ModalSelect
                           showSearch
                           placeholder="Выберите scope"
                           optionFilterProp="label"
@@ -1662,17 +1662,17 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                         <Input />
                       </Form.Item>
                       <Form.Item name="accountTypeEdit" label="Тип учетной записи" rules={[{ required: true }]}> 
-                        <Select>
+                        <ModalSelect>
                           {(Array.isArray(data?.directories?.accountTypes) ? data.directories.accountTypes : []).map((t) => (
                             <Option key={t.name} value={t.name}>{t.name}</Option>
                           ))}
-                        </Select>
+                        </ModalSelect>
                       </Form.Item>
                     </Form>
                   ) : (
                     <Form layout="vertical" form={form}>
                       <Form.Item name="scopeNew" label="Scope" rules={[{ required: true }]}> 
-                        <Select
+                        <ModalSelect
                           showSearch
                           placeholder="Выберите scope"
                           optionFilterProp="label"
@@ -1684,11 +1684,11 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                         <Input />
                       </Form.Item>
                       <Form.Item name="accountTypeNew" label="Тип учетной записи" rules={[{ required: true }]}> 
-                        <Select>
+                        <ModalSelect>
                           {(Array.isArray(data?.directories?.accountTypes) ? data.directories.accountTypes : []).map((t) => (
                             <Option key={t.name} value={t.name}>{t.name}</Option>
                           ))}
-                        </Select>
+                        </ModalSelect>
                       </Form.Item>
                     </Form>
                   )}
@@ -1898,17 +1898,17 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                       {['finance', 'warehouse', 'showcase', 'users', 'directories', 'settings', 'requests', 'news', 'uex', 'tools'].map((resource) => (
                         <Col xs={24} sm={12} key={resource}>
                           <Form.Item name={['permissions', resource]} label={`Права: ${resource === 'uex' ? 'UEX_API' : resource === 'news' ? 'новости' : resource === 'tools' ? 'Инструменты' : resource}`}>
-                            <Select placeholder="Выберите права">
+                            <ModalSelect placeholder="Выберите права">
                               <Option value={PERMISSIONS.NONE}>Нет доступа</Option>
                               <Option value={PERMISSIONS.READ}>Только чтение</Option>
                               <Option value={PERMISSIONS.WRITE}>Чтение и запись</Option>
-                            </Select>
+                            </ModalSelect>
                           </Form.Item>
                         </Col>
                       ))}
                     </Row>
                     <Form.Item name="allowedWarehouseTypes" label="Склад (разрешенные типы)">
-                      <Select mode="multiple" placeholder="Выберите типы склада">
+                      <ModalSelect mode="multiple" placeholder="Выберите типы склада">
                         {(data?.directories?.warehouseTypes || [])
                           .slice()
                           .sort((a, b) => compareDropdownStrings(a, b))
@@ -1917,7 +1917,7 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                               {item}
                             </Option>
                           ))}
-                      </Select>
+                      </ModalSelect>
                     </Form.Item>
                   </Form>
                 </Modal>

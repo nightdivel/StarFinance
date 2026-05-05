@@ -6,7 +6,6 @@ import {
   Modal,
   Form,
   Input,
-  Select,
   AutoComplete,
   Statistic,
   Tag,
@@ -22,6 +21,7 @@ import 'react-resizable/css/styles.css';
 import { useQueryClient } from '@tanstack/react-query';
 import { APP_DATA_QUERY_KEY } from '../../lib/queries/appData';
 import { getSocket } from '../../lib/realtime/socket';
+import ModalSelect from '../common/ModalSelect';
 
 // Services
 import { apiService } from '../../services/apiService';
@@ -31,7 +31,7 @@ import { authService } from '../../services/authService';
 import { CURRENCY_FORMAT } from '../../config/appConfig';
 import { compareDropdownStrings, getDisplayName } from '../../utils/helpers';
 
-const { Option } = Select;
+const { Option } = ModalSelect;
 const { TextArea } = Input;
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -723,10 +723,10 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
             label="Тип операции"
             rules={[{ required: true, message: 'Выберите тип операции' }]}
           >
-            <Select placeholder="Выберите тип">
+            <ModalSelect placeholder="Выберите тип">
               <Option value="income">Входящая</Option>
               <Option value="outcome">Исходящая</Option>
-            </Select>
+            </ModalSelect>
           </Form.Item>
 
           <Form.Item
@@ -745,7 +745,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
             label="Валюта"
             rules={[{ required: true, message: 'Выберите валюту' }]}
           >
-            <Select placeholder="Выберите валюту">
+            <ModalSelect placeholder="Выберите валюту">
               {data.system.currencies
                 .slice()
                 .sort((a, b) => compareDropdownStrings(a, b))
@@ -754,7 +754,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
                     {currency}
                   </Option>
                 ))}
-            </Select>
+            </ModalSelect>
           </Form.Item>
 
           {/* Counterparty by type: income -> sender, outcome -> recipient */}

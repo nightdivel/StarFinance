@@ -7,7 +7,6 @@ import {
   Modal,
   Form,
   Input,
-  Select,
   Switch,
   Tag,
   Space,
@@ -27,6 +26,7 @@ import {
   LockOutlined,
 } from '@ant-design/icons';
 import TableWithFullscreen from '../common/TableWithFullscreen';
+import ModalSelect from '../common/ModalSelect';
 
 // Services
 import { apiService } from '../../services/apiService';
@@ -36,7 +36,7 @@ import { authService } from '../../services/authService';
 import { USER_ROLES } from '../../config/appConfig';
 import { compareDropdownStrings, getDisplayName } from '../../utils/helpers';
 
-const { Option } = Select;
+const { Option } = ModalSelect;
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -595,7 +595,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
             label="Тип учетной записи"
             rules={[{ required: true, message: 'Выберите тип учетной записи' }]}
           >
-            <Select placeholder="Выберите тип">
+            <ModalSelect placeholder="Выберите тип">
               {Array.isArray(data?.directories?.accountTypes) &&
               data.directories.accountTypes.length > 0
                 ? data.directories.accountTypes
@@ -614,7 +614,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
                         {role}
                       </Option>
                     ))}
-            </Select>
+            </ModalSelect>
           </Form.Item>
 
           <Form.Item name="isActive" label="Статус" valuePropName="checked">
