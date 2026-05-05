@@ -703,15 +703,15 @@ function ToolCard({ tool, onRun, running }) {
       loading={running}
       disabled={!tool.isActive || running}
       onClick={() => onRun(tool)}
-      style={{ height: '100%', minHeight: 140, padding: 12 }}
+      style={{ height: '100%', minHeight: 140, padding: 12, overflow: 'hidden' }}
     >
-      <Space direction="vertical" align="center" size={10} style={{ width: '100%', justifyContent: 'center' }}>
+      <Space direction="vertical" align="center" size={10} style={{ width: '100%', justifyContent: 'center', overflow: 'hidden' }}>
         <Avatar shape="square" size={56} src={resolveToolIconSrc(tool)} icon={<ToolOutlined />} />
-        <Text strong style={{ maxWidth: '100%', textAlign: 'center' }} ellipsis>
+        <Text strong style={{ width: '100%', textAlign: 'center', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {tool.title}
         </Text>
         {tool.description ? (
-          <Text type="secondary" style={{ fontSize: 12, textAlign: 'center', whiteSpace: 'normal', maxWidth: 180 }}>
+          <Text type="secondary" style={{ fontSize: 12, textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%' }}>
             {tool.description}
           </Text>
         ) : null}
