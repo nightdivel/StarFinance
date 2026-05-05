@@ -332,12 +332,12 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
           collapsible
           collapsed={collapsed}
           theme={darkMode ? 'dark' : 'light'}
-          className="position-relative d-flex flex-column sf-main-sider"
+          className="position-relative d-flex flex-column sf-main-sider sf-sider-glass"
         >
           <div
-            className={`${collapsed ? 'px-2 py-3' : 'px-4 py-4'} text-center border-bottom`}
+            className={`${collapsed ? 'px-2 py-3' : 'px-4 py-4'} text-center border-bottom sf-sider-brand`}
           >
-            <Title level={4} className="m-0">
+            <Title level={4} className="m-0 sf-sider-title">
               {collapsed ? compactTitle : effectiveAppTitle}
             </Title>
             <div className="mt-2">
@@ -346,7 +346,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
                 icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                 onClick={() => setCollapsed(!collapsed)}
                 shape={collapsed ? 'circle' : undefined}
-                className={`mx-auto d-block ${collapsed ? 'sf-w-36' : 'sf-w-48'}`}
+                className={`mx-auto d-block sf-sider-toggle ${collapsed ? 'sf-w-36' : 'sf-w-48'}`}
               />
             </div>
           </div>
@@ -367,6 +367,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
                   style={{ marginBottom: 2 }}
                 >
                   <Menu
+                    className="sf-side-menu"
                     theme={darkMode ? 'dark' : 'light'}
                     mode="inline"
                     inlineIndent={16}
@@ -403,7 +404,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
           {/* Left side: per-currency balance for current user */}
           <div className="d-flex align-items-center gap-2 flex-wrap py-1 sf-header-balances">
             {(data?.system?.currencies || []).map((c) => (
-              <Tag key={`hdr-bal-${c}`} color={(userBalances[c] || 0) >= 0 ? 'green' : 'red'}>
+              <Tag key={`hdr-bal-${c}`} className="sf-balance-chip" color={(userBalances[c] || 0) >= 0 ? 'green' : 'red'}>
                 {Number(userBalances[c] || 0).toFixed(2)} {c}
               </Tag>
             ))}
@@ -415,7 +416,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
                 aria-label={darkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}
                 icon={darkMode ? <MoonOutlined /> : <SunOutlined />}
                 onClick={() => onToggleTheme(!darkMode)}
-                className={`h-auto px-2 py-1 ${darkMode ? 'text-primary' : 'text-warning'}`}
+                className={`h-auto px-2 py-1 sf-theme-toggle ${darkMode ? 'text-primary' : 'text-warning'}`}
               />
             </Tooltip>
             <Dropdown
@@ -438,7 +439,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
             >
               <Button
                 type="text"
-                className="h-auto py-1 px-2"
+                className="h-auto py-1 px-2 sf-user-trigger"
               >
                 <Space>
                   <Avatar src={userData?.avatarUrl} icon={<UserOutlined />} />
@@ -453,6 +454,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
           placement="left"
           open={isMobile && mobileMenuOpen}
           onClose={() => setMobileMenuOpen(false)}
+          className="sf-mobile-drawer"
           bodyStyle={{ padding: 0 }}
         >
           <Menu
@@ -467,8 +469,15 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
             }))}
           />
         </Drawer>
-        <Content className="p-2">
-          {renderContent()}
+        <Content className="p-2 sf-main-content">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+          >
+            {renderContent()}
+          </motion.div>
         </Content>
         <Footer className="text-center py-3 px-4 bg-transparent sf-site-footer">
           Разработано Попов Е.Ф. (@StAim) <a href="mailto:hitsnruns@gmail.com">hitsnruns@gmail.com</a>
