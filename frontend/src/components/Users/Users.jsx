@@ -37,6 +37,9 @@ import { USER_ROLES } from '../../config/appConfig';
 import { compareDropdownStrings, getDisplayName } from '../../utils/helpers';
 
 const { Option } = ModalSelect;
+const USERS_MANAGE_MODAL_Z = 1600;
+const USERS_EDIT_MODAL_Z = 2200;
+const USERS_PASSWORD_MODAL_Z = 2300;
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -524,6 +527,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
       <Modal
         title={isCreating ? 'Добавить пользователя' : 'Редактирование пользователя'}
         open={modalVisible}
+        zIndex={USERS_EDIT_MODAL_Z}
         onCancel={() => {
           setModalVisible(false);
           setEditingUser(null);
@@ -634,6 +638,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
       <Modal
         title="Управление пользователями"
         open={manageOpen}
+        zIndex={USERS_MANAGE_MODAL_Z}
         onCancel={() => setManageOpen(false)}
         footer={null}
         width={1000}
@@ -666,6 +671,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
       <Modal
         title={pwdTarget ? `Смена пароля: ${pwdTarget.username}` : 'Смена пароля'}
         open={pwdModalOpen}
+        zIndex={USERS_PASSWORD_MODAL_Z}
         onCancel={() => { setPwdModalOpen(false); setPwdTarget(null); pwdForm.resetFields(); }}
         footer={null}
         width={480}
