@@ -803,7 +803,6 @@
 
 .App {
   position: relative;
-  overflow-x: hidden;
   color: var(--sf-text-main);
 }
 
@@ -851,7 +850,6 @@
 .sf-main-sider,
 .sf-site-footer {
   position: relative;
-  z-index: 1;
 }
 
 .sf-main-sider.sf-sider-glass {
@@ -966,7 +964,6 @@
 }
 
 .ant-card:hover {
-  transform: translateY(-2px);
   box-shadow: var(--sf-shadow-strong) !important;
 }
 
@@ -1000,7 +997,6 @@
 }
 
 .ant-table-thead > tr > th {
-  backdrop-filter: blur(8px);
 }
 
 .sf-site-footer {
