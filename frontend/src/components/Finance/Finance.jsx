@@ -61,7 +61,11 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       return;
     }
     try {
-      transactionForm.setFieldsValue({ counterparty: null });
+      if (txType === 'income') {
+        transactionForm.setFieldsValue({ counterparty: null, recipient: userData?.username || null });
+      } else {
+        transactionForm.setFieldsValue({ counterparty: null, recipient: null });
+      }
     } catch (_) {}
   }, [txType]);
 
@@ -192,6 +196,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
     try {
       const me = (userData?.username || '').trim();
       const cp = (values.counterparty || '').trim();
+      const recipient = (values.recipient || '').trim();
       // Require counterparty depending on type, EXCEPT: admin + income => optional
       if (!cp) {
         if (values.type === 'income' && isAdmin) {
@@ -223,6 +228,13 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
         message.error('Получатель не может совпадать с текущим пользователем для исходящей операции');
         return;
       }
+
+      const incomeRecipient = recipient || me;
+      if (values.type === 'income' && !incomeRecipient) {
+        message.error('Укажите получателя (username) для входящей операции');
+        return;
+      }
+
       const payload = {
         ...(editingTx?.id ? { id: editingTx.id } : {}),
         type: values.type,
@@ -232,7 +244,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
         // income: current user is recipient (to_user = me), sender from_user = cp
         // outcome: current user is sender (from_user = me), recipient to_user = cp
         ...(values.type === 'income'
-          ? { from_user: cp || null, to_user: me || null }
+          ? { from_user: cp || null, to_user: incomeRecipient || null }
           : { to_user: cp || null, from_user: me || null }),
         meta: values.desc ? { desc: values.desc } : undefined,
       };
@@ -542,11 +554,14 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
                 // Resolve counterparty to username when possible (store should keep username)
                 const cpUser = (data.users || []).find((u) => String(u.id) === String(cp) || String(u.username) === String(cp));
                 const cpUsername = cpUser ? cpUser.username : (cp || null);
+                const recUser = (data.users || []).find((u) => String(u.id) === String(record.to_user || '') || String(u.username) === String(record.to_user || ''));
+                const recipientUsername = recUser ? recUser.username : (record.to_user || null);
                 transactionForm.setFieldsValue({
                   type: effectiveType,
                   amount: record.amount,
                   currency: record.currency,
                   counterparty: cpUsername,
+                  recipient: effectiveType === 'income' ? recipientUsername : null,
                   desc: record.desc || '',
                 });
               }}
@@ -784,6 +799,29 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
               }}
             />
           </Form.Item>
+
+          {txType === 'income' ? (
+            <Form.Item
+              name="recipient"
+              label="Получатель (username)"
+              tooltip="Если не указано, используется текущий пользователь"
+            >
+              <AutoComplete
+                allowClear
+                options={(data.users || [])
+                  .slice()
+                  .sort((a, b) => compareDropdownStrings(a.username, b.username))
+                  .map((u) => ({ value: u.username, label: getDisplayName(u, data.users || []) }))}
+                placeholder="Логин получателя"
+                filterOption={(inputValue, option) => {
+                  const v = String(option?.value || '').toLowerCase();
+                  const lbl = String(option?.label || '').toLowerCase();
+                  const q = String(inputValue || '').toLowerCase();
+                  return v.includes(q) || lbl.includes(q);
+                }}
+              />
+            </Form.Item>
+          ) : null}
 
           <Form.Item
             name="desc"
