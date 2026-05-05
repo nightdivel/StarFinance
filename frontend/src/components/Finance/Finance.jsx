@@ -806,19 +806,14 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
               label="Получатель (username)"
               tooltip="Если не указано, используется текущий пользователь"
             >
-              <AutoComplete
+              <ModalSelect
                 allowClear
+                showSearch
+                placeholder="Логин получателя"
                 options={(data.users || [])
                   .slice()
                   .sort((a, b) => compareDropdownStrings(a.username, b.username))
                   .map((u) => ({ value: u.username, label: getDisplayName(u, data.users || []) }))}
-                placeholder="Логин получателя"
-                filterOption={(inputValue, option) => {
-                  const v = String(option?.value || '').toLowerCase();
-                  const lbl = String(option?.label || '').toLowerCase();
-                  const q = String(inputValue || '').toLowerCase();
-                  return v.includes(q) || lbl.includes(q);
-                }}
               />
             </Form.Item>
           ) : null}
