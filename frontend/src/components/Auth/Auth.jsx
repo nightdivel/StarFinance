@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, Typography, message } from 'antd';
+import { Form, Input, Button, Card, Typography, Alert } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import AuthService from '../../services/authService';
 import { API_BASE_URL } from '../../config';
@@ -10,6 +10,7 @@ const { Title, Text } = Typography;
 
 const Auth = ({ onLogin, appTitle }) => {
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState(null);
   const [isAuthPreparing, setIsAuthPreparing] = useState(true);
   const [serverDiscordEnabled, setServerDiscordEnabled] = useState(false);
   const [discordLoginUrl, setDiscordLoginUrl] = useState('');
@@ -99,16 +100,17 @@ const Auth = ({ onLogin, appTitle }) => {
 
   const handleLocalLogin = async (values) => {
     setLoading(true);
+    setLoginError(null);
     try {
       const response = await authService.loginLocal(values.username, values.password);
       onLogin(response);
     } catch (error) {
       if (error?.status === 401) {
-        message.error('Неверный логин или пароль');
+        setLoginError('Неверный логин или пароль');
       } else if (error.message && error.message.includes('заблокирован')) {
-        message.error(error.message);
+        setLoginError(error.message);
       } else {
-        message.error(error.message || 'Ошибка входа');
+        setLoginError(error.message || 'Ошибка входа');
       }
     } finally {
       setLoading(false);
@@ -171,6 +173,12 @@ const Auth = ({ onLogin, appTitle }) => {
               disabled={loading}
             />
           </Form.Item>
+
+          {loginError && (
+            <Form.Item>
+              <Alert message={loginError} type="error" showIcon />
+            </Form.Item>
+          )}
 
           <Form.Item>
             <Button
