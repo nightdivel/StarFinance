@@ -103,7 +103,9 @@ const Auth = ({ onLogin, appTitle }) => {
       const response = await authService.loginLocal(values.username, values.password);
       onLogin(response);
     } catch (error) {
-      if (error.message && error.message.includes('заблокирован')) {
+      if (error?.status === 401) {
+        message.error('Неверный логин или пароль');
+      } else if (error.message && error.message.includes('заблокирован')) {
         message.error(error.message);
       } else {
         message.error(error.message || 'Ошибка входа');

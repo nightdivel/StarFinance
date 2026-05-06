@@ -49,9 +49,20 @@ class AuthService {
       return response;
     } catch (error) {
       console.error('Local login error:', error);
-      // Передаем ошибку от бэкенда как есть, если она есть
-      const errorMessage = error.error || error.message || 'Ошибка входа. Проверьте логин и пароль.';
-      throw new Error(errorMessage);
+      const status = error?.status;
+      let errorMessage = error?.message || 'Ошибка входа. Проверьте логин и пароль.';
+
+      if (status === 401) {
+        errorMessage = 'Неверный логин или пароль';
+      }
+
+      if (status === 403 && !String(errorMessage).includes('заблокирован')) {
+        errorMessage = 'Ваш аккаунт заблокирован. Обратитесь к администратору.';
+      }
+
+      const normalizedError = new Error(errorMessage);
+      normalizedError.status = status;
+      throw normalizedError;
     }
   }
 
