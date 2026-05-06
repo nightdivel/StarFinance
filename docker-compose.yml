@@ -268,3 +268,4 @@ volumes:
 networks:
   default:
     name: starfinance
+    external: true
