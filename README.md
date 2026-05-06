@@ -273,6 +273,7 @@ npm run build
 docker-compose up -d --build
 docker-compose logs -f caddy
 docker-compose exec -T postgres psql -U postgres starfinance
+cd /workspaces/StarFinance && docker compose ps
 ```
 
 ---
