@@ -264,3 +264,7 @@ volumes:
     name: starfinance_backend_public
   caddy_data:
   caddy_config:
+
+networks:
+  default:
+    name: starfinance
