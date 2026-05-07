@@ -267,7 +267,7 @@
 
 /* react-grid-layout container adjustments to avoid overlays */
 .react-grid-layout { position: relative; }
-.react-grid-item { z-index: 1; overflow: visible; }
+.react-grid-item { z-index: 1; overflow: visible !important; }
 .react-grid-item > div { height: 100%; }
 
 /* Make Ant Card fill grid item and never be smaller than its body */
@@ -275,7 +275,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden; /* предотвращаем выливание содержимого за рамку */
+  overflow: clip; /* визуальное обрезание без создания scroll-контейнера */
   border-radius: 14px;
   border: 1px solid #d8e2e8;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
@@ -373,9 +373,9 @@
 .dark-theme .ant-pagination-item-active { border-color: #58a6ff !important; }
 
 /* Ensure warehouse grid items show overflowing table content if taller */
-/* Сетка склада: контент должен оставаться в пределах карточки */
-.warehouse-grid .react-grid-item { overflow: hidden; }
-.warehouse-grid .ant-card { overflow: hidden; }
+/* Сетка: контент должен оставаться в пределах карточки */
+.warehouse-grid .react-grid-item { overflow: visible !important; }
+.warehouse-grid .ant-card { overflow: clip; }
 .warehouse-grid .ant-card-body { overflow: auto; }
 
 /* Таблицы не должны выходить за рамку обертки */
@@ -1043,9 +1043,23 @@
 .ant-btn[disabled],
 .ant-btn:disabled,
 .ant-btn.ant-btn-disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: auto !important;
+  color: rgba(0, 0, 0, 0.25) !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: #d9d9d9 !important;
   box-shadow: none !important;
-  background-size: auto !important;
   transform: none !important;
+}
+
+.dark-theme .ant-btn[disabled],
+.dark-theme .ant-btn:disabled,
+.dark-theme .ant-btn.ant-btn-disabled {
+  opacity: 0.38 !important;
+  color: rgba(255, 255, 255, 0.25) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 .ant-btn:focus-visible,

@@ -14,7 +14,7 @@ const TableWithFullscreen = ({
   const [open, setOpen] = useState(false);
   const [limit, setLimit] = useState(batchSize);
   const sentinelRef = useRef(null);
-  const cardRef = useRef(null);
+
 
   const {
     className: cardClassName,
@@ -92,13 +92,14 @@ const TableWithFullscreen = ({
 
   return (
     <>
-      <div ref={cardRef}>
       <Card
         title={title}
         extra={toolbar}
         className={mergedCardClassName}
         {...restCardProps}
       >
+        {/* stopPropagation предотвращает перехват mousedown от react-grid-layout */}
+        <div onMouseDown={(e) => e.stopPropagation()}>
         <Table
           {...{
             bordered: false,
@@ -116,8 +117,8 @@ const TableWithFullscreen = ({
         {infinite && (
           <div ref={sentinelRef} className="h-px" />
         )}
+        </div>
       </Card>
-      </div>
 
       <Modal
         open={open}
