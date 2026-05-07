@@ -1134,3 +1134,269 @@
   display: block;
   width: 100%;
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Tooltip / Popover / Dropdown overlay fixes
+   Гарантируем видимость всплывающих элементов в обоих темах
+   ────────────────────────────────────────────────────────────── */
+
+/* Ensure AntD overlays are always on top of layout content */
+.ant-tooltip,
+.ant-popover,
+.ant-dropdown,
+.ant-select-dropdown,
+.ant-picker-dropdown,
+.ant-color-picker-dropdown {
+  z-index: 9100 !important;
+}
+
+/* Table filter panel */
+.ant-table-filter-dropdown {
+  z-index: 9100 !important;
+}
+
+/* Dark theme — tooltip background */
+.dark-theme .ant-tooltip .ant-tooltip-inner {
+  background: rgba(20, 30, 50, 0.96);
+  color: #e2e8f0;
+  border: 1px solid rgba(100, 116, 139, 0.32);
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.52);
+}
+
+.dark-theme .ant-tooltip .ant-tooltip-arrow::before,
+.dark-theme .ant-tooltip .ant-tooltip-arrow-content {
+  background: rgba(20, 30, 50, 0.96);
+}
+
+/* Light theme — tooltip */
+.light-theme .ant-tooltip .ant-tooltip-inner {
+  background: rgba(15, 23, 42, 0.92);
+  color: #f1f5f9;
+  border: none;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.22);
+}
+
+/* Dark theme — dropdown menu */
+.dark-theme .ant-dropdown-menu {
+  background: rgba(14, 24, 40, 0.97) !important;
+  border: 1px solid rgba(100, 116, 139, 0.32) !important;
+  box-shadow: 0 12px 36px rgba(2, 6, 23, 0.56) !important;
+}
+
+.dark-theme .ant-dropdown-menu-item {
+  color: #cbd5e1 !important;
+}
+
+.dark-theme .ant-dropdown-menu-item:hover {
+  background: rgba(45, 212, 191, 0.12) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Dark theme — select dropdown */
+.dark-theme .ant-select-dropdown {
+  background: rgba(14, 24, 40, 0.97) !important;
+  border: 1px solid rgba(100, 116, 139, 0.32) !important;
+  box-shadow: 0 12px 36px rgba(2, 6, 23, 0.56) !important;
+}
+
+.dark-theme .ant-select-item {
+  color: #cbd5e1 !important;
+}
+
+.dark-theme .ant-select-item-option-active:not(.ant-select-item-option-disabled),
+.dark-theme .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: rgba(45, 212, 191, 0.14) !important;
+}
+
+/* Dark theme — table filter panel */
+.dark-theme .ant-table-filter-dropdown {
+  background: rgba(14, 24, 40, 0.97) !important;
+  border: 1px solid rgba(100, 116, 139, 0.32) !important;
+  box-shadow: 0 12px 36px rgba(2, 6, 23, 0.56) !important;
+}
+
+.dark-theme .ant-table-filter-dropdown .ant-dropdown-menu {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.dark-theme .ant-table-filter-dropdown .ant-checkbox-wrapper,
+.dark-theme .ant-table-filter-dropdown .ant-radio-wrapper {
+  color: #cbd5e1 !important;
+}
+
+/* Dark theme — popover */
+.dark-theme .ant-popover-inner {
+  background: rgba(14, 24, 40, 0.97) !important;
+  border: 1px solid rgba(100, 116, 139, 0.32) !important;
+  box-shadow: 0 12px 36px rgba(2, 6, 23, 0.56) !important;
+}
+
+.dark-theme .ant-popover-title {
+  color: #e2e8f0 !important;
+  border-bottom-color: rgba(100, 116, 139, 0.24) !important;
+}
+
+.dark-theme .ant-popover-inner-content,
+.dark-theme .ant-popover-content {
+  color: #cbd5e1 !important;
+}
+
+/* Dark theme — date picker dropdown */
+.dark-theme .ant-picker-dropdown {
+  background: transparent;
+}
+
+.dark-theme .ant-picker-panel-container {
+  background: rgba(14, 24, 40, 0.97) !important;
+  border: 1px solid rgba(100, 116, 139, 0.32) !important;
+  box-shadow: 0 12px 36px rgba(2, 6, 23, 0.56) !important;
+}
+
+.dark-theme .ant-picker-cell {
+  color: #94a3b8 !important;
+}
+
+.dark-theme .ant-picker-cell-in-view {
+  color: #cbd5e1 !important;
+}
+
+.dark-theme .ant-picker-cell-selected .ant-picker-cell-inner,
+.dark-theme .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner {
+  background: #0f766e !important;
+}
+
+.dark-theme .ant-picker-header {
+  color: #e2e8f0 !important;
+  border-bottom-color: rgba(100, 116, 139, 0.24) !important;
+}
+
+.dark-theme .ant-picker-header button {
+  color: #94a3b8 !important;
+}
+
+/* Dark theme — collapsed sidebar menu tooltips */
+.dark-theme .ant-menu-inline-collapsed-tooltip .ant-tooltip-inner {
+  background: rgba(20, 30, 50, 0.98) !important;
+  color: #cfe3ff !important;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   User profile Drawer menu styles
+   ────────────────────────────────────────────────────────────── */
+.sf-user-menu-item {
+  cursor: pointer;
+  border-radius: 8px;
+  margin: 4px 8px;
+  padding: 10px 16px !important;
+  transition: background 0.2s ease, color 0.2s ease;
+  border-bottom: none !important;
+}
+
+.sf-user-menu-item:hover {
+  background: rgba(15, 118, 110, 0.08) !important;
+}
+
+.dark-theme .sf-user-menu-item:hover {
+  background: rgba(45, 212, 191, 0.12) !important;
+  color: #e2e8f0;
+}
+
+.sf-user-menu-item-danger:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #ef4444 !important;
+}
+
+.dark-theme .sf-user-menu-item-danger:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #f87171 !important;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Misc fixes
+   ────────────────────────────────────────────────────────────── */
+
+/* Fix collapsed menu item icon alignment */
+.ant-menu-inline-collapsed > .ant-menu-item {
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  padding-inline: 0 !important;
+}
+
+/* Ensure modals always above everything */
+.ant-modal-wrap,
+.ant-modal-mask {
+  z-index: 9200 !important;
+}
+
+/* Notification on top */
+.ant-notification {
+  z-index: 9500 !important;
+}
+
+/* Message on top */
+.ant-message {
+  z-index: 9500 !important;
+}
+
+/* Dark form inputs */
+.dark-theme .ant-input,
+.dark-theme .ant-input-affix-wrapper,
+.dark-theme .ant-input-number,
+.dark-theme .ant-picker,
+.dark-theme .ant-select-selector {
+  background: rgba(10, 20, 36, 0.86) !important;
+  border-color: rgba(100, 116, 139, 0.36) !important;
+  color: #dbe7f3 !important;
+}
+
+.dark-theme .ant-input::placeholder,
+.dark-theme .ant-input-affix-wrapper input::placeholder {
+  color: rgba(148, 163, 184, 0.6) !important;
+}
+
+.dark-theme .ant-input:focus,
+.dark-theme .ant-input-affix-wrapper-focused,
+.dark-theme .ant-input-number-focused,
+.dark-theme .ant-picker-focused,
+.dark-theme .ant-select-focused .ant-select-selector {
+  border-color: rgba(45, 212, 191, 0.5) !important;
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.14) !important;
+}
+
+/* Dark modal */
+.dark-theme .ant-modal-header {
+  background: rgba(11, 18, 32, 0.97) !important;
+  border-bottom-color: rgba(100, 116, 139, 0.24) !important;
+}
+
+.dark-theme .ant-modal-title {
+  color: #e2e8f0 !important;
+}
+
+.dark-theme .ant-modal-close {
+  color: #94a3b8 !important;
+}
+
+.dark-theme .ant-modal-close:hover {
+  color: #e2e8f0 !important;
+  background: rgba(148, 163, 184, 0.1) !important;
+}
+
+.dark-theme .ant-modal-footer {
+  border-top-color: rgba(100, 116, 139, 0.24) !important;
+  background: rgba(11, 18, 32, 0.97) !important;
+}
+
+/* Dark form labels */
+.dark-theme .ant-form-item-label > label {
+  color: #94a3b8 !important;
+}
+
+/* Dark radio / checkbox */
+.dark-theme .ant-radio-wrapper,
+.dark-theme .ant-checkbox-wrapper {
+  color: #cbd5e1 !important;
+}

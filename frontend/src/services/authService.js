@@ -15,8 +15,6 @@ class AuthService {
    */
   async loginLocal(username, password) {
     try {
-      console.log('Attempting local login for user:', username);
-      
       const response = await this.apiService.request('/auth/login', {
         method: 'POST',
         headers: {
@@ -24,8 +22,6 @@ class AuthService {
         },
         body: JSON.stringify({ username, password })
       });
-
-      console.log('Login response:', response);
 
       if (response && response.authToken) {
         this._saveAuthData({
@@ -40,8 +36,6 @@ class AuthService {
             avatarUrl: response.avatarUrl || null
           }
         });
-        
-        console.log('Local login successful');
       } else {
         throw new Error('Неверный формат ответа сервера');
       }
@@ -70,11 +64,9 @@ class AuthService {
    * Выход из системы
    */
   logout() {
-    console.log('Logging out user');
     try {
       localStorage.removeItem(this.tokenKey);
       localStorage.removeItem(this.userDataKey);
-      console.log('User logged out successfully');
     } catch (error) {
       console.error('Error during logout:', error);
     }
@@ -117,7 +109,6 @@ class AuthService {
       
       // Если пользователь не аутентифицирован, прав нет
       if (!user) {
-        console.log('Permission denied: user not authenticated');
         return false;
       }
 
@@ -136,7 +127,6 @@ class AuthService {
       const permission = permissions[section];
       
       if (!permission) {
-        console.log(`No permission for section: ${section}`);
         return false;
       }
 
@@ -146,7 +136,6 @@ class AuthService {
       const userLevel = permissionLevels[permission] || 0;
       
       const hasAccess = userLevel >= requiredLevel;
-      console.log(`Permission check - Section: ${section}, Action: ${action}, Has Access: ${hasAccess}`);
       
       return hasAccess;
     } catch (error) {
@@ -173,8 +162,6 @@ class AuthService {
           JSON.stringify(userData)
         );
       }
-      
-      console.log('Auth data saved successfully');
     } catch (error) {
       console.error('Error saving auth data:', error);
       throw new Error('Ошибка сохранения данных аутентификации');

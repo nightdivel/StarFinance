@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Card, Table, Tag, Button, Space, Modal, message, Input, Tabs } from 'antd';
+import { Card, Table, Tag, Button, Space, Modal, message, Input, Tooltip, Tabs } from 'antd';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import { apiService } from '../../services/apiService';
 import { authService } from '../../services/authService';
@@ -186,9 +186,11 @@ const Requests = () => {
       ellipsis: true,
       onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
       render: (text) => (
-        <span className="d-inline-block text-truncate w-100">
-          {text}
-        </span>
+        <Tooltip title={text}>
+          <span className="d-inline-block text-truncate w-100">
+            {text}
+          </span>
+        </Tooltip>
       ),
     },
     { title: 'Кол-во', dataIndex: 'quantity', key: 'quantity', width: 100, align: 'right' },

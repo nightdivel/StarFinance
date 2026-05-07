@@ -12,6 +12,7 @@ import {
   Tag,
   Space,
   message,
+  Tooltip,
 } from 'antd';
 import { Avatar } from 'antd';
 import { Responsive, WidthProvider } from 'react-grid-layout';
@@ -258,7 +259,9 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
       sorter: (a, b) => compareDropdownStrings(getDisplayName(a, data.users || []), getDisplayName(b, data.users || [])),
       ellipsis: true,
       render: (_, record) => (
-        <span>{getDisplayName(record, data.users || [])}</span>
+        <Tooltip title={getDisplayName(record, data.users || [])}>
+          <span>{getDisplayName(record, data.users || [])}</span>
+        </Tooltip>
       ),
       filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Поиск по имени или логину" />,
       filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
@@ -294,7 +297,9 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
       width: 200,
       ellipsis: true,
       render: (email) => (
-        <span>{email || '-'}</span>
+        <Tooltip title={email || '-'}>
+          <span>{email || '-'}</span>
+        </Tooltip>
       ),
       filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Поиск по email" />,
       filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,

@@ -14,6 +14,7 @@ import {
   message,
   Row,
   Col,
+  Tooltip,
 } from 'antd';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -334,7 +335,9 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       width: 200,
       ellipsis: true,
       render: (text) => (
-        <span>{text}</span>
+        <Tooltip title={text}>
+          <span>{text}</span>
+        </Tooltip>
       ),
       filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Поиск по названию" />,
       filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
@@ -445,28 +448,30 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       render: (text, record) => {
         const val = text || record?.meta?.desc || '-';
         return (
-          <div style={{
-            whiteSpace: 'normal',
-            wordBreak: 'break-word',
-            lineHeight: '1.4',
-            maxHeight: '60px',
-            overflow: 'hidden',
-            position: 'relative'
-          }}>
-            {val}
-            {val.length > 100 && (
-              <div style={{
-                position: 'absolute',
-                bottom: 0,
-                right: 0,
-                background: 'linear-gradient(to right, transparent, var(--ant-color-bg-container))',
-                paddingLeft: '20px',
-                color: 'var(--ant-color-primary)'
-              }}>
-                ...
-              </div>
-            )}
-          </div>
+          <Tooltip title={val} placement="topLeft">
+            <div style={{
+              whiteSpace: 'normal',
+              wordBreak: 'break-word',
+              lineHeight: '1.4',
+              maxHeight: '60px',
+              overflow: 'hidden',
+              position: 'relative'
+            }}>
+              {val}
+              {val.length > 100 && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  right: 0,
+                  background: 'linear-gradient(to right, transparent, var(--ant-color-bg-container))',
+                  paddingLeft: '20px',
+                  color: 'var(--ant-color-primary)'
+                }}>
+                  ...
+                </div>
+              )}
+            </div>
+          </Tooltip>
         );
       },
     },

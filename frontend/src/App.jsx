@@ -125,15 +125,12 @@ function App() {
     const errDesc = params.get('desc');
     const targetHash = window.location.hash || localStorage.getItem('pendingRedirect') || '';
     const urlParams = { token: !!urlToken, authStatus, err: errCode || null, desc: errDesc || null, targetHash };
-    console.log('URL Params:', urlParams);
     
     if (urlToken) {
-      console.log('Found token in URL, attempting authentication...');
       
       // Сохраняем токен
       try { 
         localStorage.setItem('authToken', urlToken);
-        console.log('Token saved to localStorage');
       } catch (error) {
         console.error('Failed to save token to localStorage:', error);
       }
@@ -141,13 +138,11 @@ function App() {
       // Сохраняем целевой hash для перенаправления после успешной авторизации
       if (targetHash && targetHash !== '#/') {
         localStorage.setItem('authRedirect', targetHash);
-        console.log('Saved redirect target:', targetHash);
         localStorage.removeItem('pendingRedirect');
       }
       
       // Получаем профиль пользователя
       const profileUrl = `${API_BASE_URL ? API_BASE_URL : ''}/auth/profile`;
-      console.log('Fetching profile from:', profileUrl);
       
       fetch(profileUrl, { 
         headers: { 
@@ -156,7 +151,6 @@ function App() {
         }
       })
       .then(async (response) => {
-        console.log('Profile response status:', response.status);
         const responseText = await response.text();
         
         if (!response.ok) {
@@ -172,8 +166,6 @@ function App() {
         }
       })
       .then((profile) => {
-        console.log('Profile data received:', profile);
-        
         if (!profile || !profile.username) {
           throw new Error('Неверный формат профиля пользователя');
         }
@@ -186,13 +178,11 @@ function App() {
           avatarUrl: profile.avatarUrl || null,
         };
         
-        console.log('Setting user data and authentication state');
         setIsAuthenticated(true);
         setUserData(user);
         
         try { 
           localStorage.setItem('userData', JSON.stringify(user));
-          console.log('User data saved to localStorage');
         } catch (error) {
           console.error('Failed to save user data to localStorage:', error);
         }
@@ -200,7 +190,6 @@ function App() {
         // Перенаправляем на целевую страницу после успешной авторизации
         const savedRedirect = localStorage.getItem('authRedirect');
         if (savedRedirect && savedRedirect !== '#/') {
-          console.log('Redirecting to saved target:', savedRedirect);
           localStorage.removeItem('authRedirect');
           setTimeout(() => {
             window.location.hash = savedRedirect;
@@ -216,11 +205,9 @@ function App() {
       })
       .finally(() => {
         setIsAuthInitializing(false);
-        // Очищаем URL от параметров аутентификации
         const url = new URL(window.location.href);
         url.search = '';
         window.history.replaceState({}, document.title, url.toString());
-        console.log('URL cleaned up');
       });
     } else if (authStatus === 'error') {
       // Обработка ошибки аутентификации
@@ -245,11 +232,9 @@ function App() {
       const savedUserData = localStorage.getItem('userData');
       
       if (token && savedUserData) {
-        console.log('Restoring session from localStorage');
         try {
           const user = JSON.parse(savedUserData);
           
-          // Проверяем валидность токена через API
           const profileUrl = `${API_BASE_URL ? API_BASE_URL : ''}/auth/profile`;
           fetch(profileUrl, { 
             headers: { 
@@ -274,7 +259,6 @@ function App() {
                 offline: false,
                 avatarUrl: profile.avatarUrl || null,
               });
-              console.log('Session restored and validated successfully');
             } else {
               throw new Error('Invalid profile data');
             }
@@ -301,7 +285,6 @@ function App() {
           setIsAuthInitializing(false);
         }
       } else {
-        console.log('No active session found');
         setIsAuthInitializing(false);
       }
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Menu, Button, Avatar, Space, Typography, Card, Tag, Skeleton, Drawer, Grid, List } from 'antd';
+import { Layout, Menu, Button, Avatar, Space, Typography, Card, Tag, Skeleton, Drawer, Grid, List, Tooltip } from 'antd';
 import {
   UserOutlined,
   SettingOutlined,
@@ -372,6 +372,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
                     theme={darkMode ? 'dark' : 'light'}
                     mode="inline"
                     inlineIndent={16}
+                    inlineCollapsed={collapsed}
                     selectedKeys={[selectedKey]}
                     onClick={({ key }) => onSelectMenuKey(key)}
                     items={[{
@@ -411,13 +412,15 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
             ))}
           </div>
           <Space>
-            <Button
-              type="text"
-              aria-label={darkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}
-              icon={darkMode ? <MoonOutlined /> : <SunOutlined />}
-              onClick={() => onToggleTheme(!darkMode)}
-              className={`h-auto px-2 py-1 sf-theme-toggle ${darkMode ? 'text-primary' : 'text-warning'}`}
-            />
+            <Tooltip title={darkMode ? 'Тёмная тема' : 'Светлая тема'} placement="bottom">
+              <Button
+                type="text"
+                aria-label={darkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}
+                icon={darkMode ? <MoonOutlined /> : <SunOutlined />}
+                onClick={() => onToggleTheme(!darkMode)}
+                className={`h-auto px-2 py-1 sf-theme-toggle ${darkMode ? 'text-primary' : 'text-warning'}`}
+              />
+            </Tooltip>
             <Button
               type="text"
               className="h-auto py-1 px-2 sf-user-trigger"

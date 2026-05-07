@@ -10,6 +10,7 @@ import {
   Tag,
   message,
   Grid,
+  Tooltip,
 } from 'antd';
 import { PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, ExpandAltOutlined } from '@ant-design/icons';
 import TableWithFullscreen from '../common/TableWithFullscreen';
@@ -525,7 +526,9 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       render: (text, record) => {
         const val = text || record?.meta?.desc || record?.meta?.itemName || '';
         return (
-          <span>{val}</span>
+          <Tooltip title={val}>
+            <span>{val}</span>
+          </Tooltip>
         );
       },
     },
@@ -541,52 +544,51 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
             type="text"
             icon={<EditOutlined />}
             onClick={() => {
-                setEditingTx(record);
-                setTransactionModalVisible(true);
-                const effectiveType = record._typeForMe || record.type;
-                const cp = effectiveType === 'income' ? (record.from_user || null) : (record.to_user || null);
-                isPrefillingTxFormRef.current = true;
-                // Resolve counterparty to username when possible (store should keep username)
-                const cpUser = (data.users || []).find((u) => String(u.id) === String(cp) || String(u.username) === String(cp));
-                const cpUsername = cpUser ? cpUser.username : (cp || null);
-                const recUser = (data.users || []).find((u) => String(u.id) === String(record.to_user || '') || String(u.username) === String(record.to_user || ''));
-                const recipientUsername = recUser ? recUser.username : (record.to_user || null);
-                transactionForm.setFieldsValue({
-                  type: effectiveType,
-                  amount: record.amount,
-                  currency: record.currency,
-                  counterparty: cpUsername,
-                  recipient: effectiveType === 'income' ? recipientUsername : null,
-                  desc: record.desc || '',
-                });
-              }}
-              disabled={!authService.hasPermission('finance', 'write')}
-            />
+              setEditingTx(record);
+              setTransactionModalVisible(true);
+              const effectiveType = record._typeForMe || record.type;
+              const cp = effectiveType === 'income' ? (record.from_user || null) : (record.to_user || null);
+              isPrefillingTxFormRef.current = true;
+              const cpUser = (data.users || []).find((u) => String(u.id) === String(cp) || String(u.username) === String(cp));
+              const cpUsername = cpUser ? cpUser.username : (cp || null);
+              const recUser = (data.users || []).find((u) => String(u.id) === String(record.to_user || '') || String(u.username) === String(record.to_user || ''));
+              const recipientUsername = recUser ? recUser.username : (record.to_user || null);
+              transactionForm.setFieldsValue({
+                type: effectiveType,
+                amount: record.amount,
+                currency: record.currency,
+                counterparty: cpUsername,
+                recipient: effectiveType === 'income' ? recipientUsername : null,
+                desc: record.desc || '',
+              });
+            }}
+            disabled={!authService.hasPermission('finance', 'write')}
+          />
           <Button
             size="small"
             type="text"
             icon={<DeleteOutlined />}
             danger
-              onClick={() => {
-                Modal.confirm({
-                  title: 'Удалить транзакцию?',
-                  content: 'Это действие нельзя отменить.',
-                  okText: 'Удалить',
-                  okType: 'danger',
-                  cancelText: 'Отмена',
-                  onOk: async () => {
-                    try {
-                      await apiService.deleteTransaction(record.id);
-                      message.success('Транзакция удалена');
-                      await queryClient.invalidateQueries({ queryKey: APP_DATA_QUERY_KEY });
-                    } catch (e) {
-                      message.error('Ошибка удаления транзакции');
-                    }
-                  },
-                });
-              }}
-              disabled={!authService.hasPermission('finance', 'write')}
-            />
+            onClick={() => {
+              Modal.confirm({
+                title: 'Удалить транзакцию?',
+                content: 'Это действие нельзя отменить.',
+                okText: 'Удалить',
+                okType: 'danger',
+                cancelText: 'Отмена',
+                onOk: async () => {
+                  try {
+                    await apiService.deleteTransaction(record.id);
+                    message.success('Транзакция удалена');
+                    await queryClient.invalidateQueries({ queryKey: APP_DATA_QUERY_KEY });
+                  } catch (e) {
+                    message.error('Ошибка удаления транзакции');
+                  }
+                },
+              });
+            }}
+            disabled={!authService.hasPermission('finance', 'write')}
+          />
         </div>
       ),
     },
