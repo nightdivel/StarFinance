@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Card, Button, Modal, Input, Space, Radio } from 'antd';
+import { Card, Button, Modal, Input, Space } from 'antd';
 import { Table } from 'antd';
 import { ExpandAltOutlined, CompressOutlined, FilterOutlined } from '@ant-design/icons';
+import ModalSelect from './ModalSelect';
 
 const isEmptyFilter = (value) => {
   if (value === null || value === undefined) return true;
@@ -279,16 +280,13 @@ const TableWithFullscreen = ({
               <div key={key} className="d-flex flex-column gap-1">
                 <span style={{ fontWeight: 600 }}>{label}</span>
                 {options ? (
-                  <Radio.Group
-                    value={draftFilters[key] || undefined}
-                    onChange={(e) => setDraftFilters((prev) => ({ ...prev, [key]: e.target.value }))}
-                  >
-                    <Space direction="vertical" size="small">
-                      {options.map((opt) => (
-                        <Radio key={String(opt.value)} value={opt.value}>{opt.label}</Radio>
-                      ))}
-                    </Space>
-                  </Radio.Group>
+                  <ModalSelect
+                    allowClear
+                    placeholder={`Выберите: ${label}`}
+                    value={draftFilters[key]}
+                    options={options}
+                    onChange={(value) => setDraftFilters((prev) => ({ ...prev, [key]: value }))}
+                  />
                 ) : (
                   <Input
                     allowClear

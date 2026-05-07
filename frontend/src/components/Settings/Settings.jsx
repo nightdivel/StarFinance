@@ -19,7 +19,6 @@ import {
   Modal,
   Upload,
   Checkbox,
-  Radio,
 } from 'antd';
 import { compareDropdownStrings } from '../../utils/helpers';
 import { PERMISSIONS } from '../../config/appConfig';
@@ -1620,16 +1619,16 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                 >
                   <Form layout="vertical">
                     <Form.Item label="Scope">
-                      <Radio.Group
-                        value={scopeFiltersDraft.scope || undefined}
-                        onChange={(e) => setScopeFiltersDraft((prev) => ({ ...prev, scope: e.target.value }))}
+                      <ModalSelect
+                        allowClear
+                        placeholder="Выберите scope"
+                        value={scopeFiltersDraft.scope}
+                        onChange={(value) => setScopeFiltersDraft((prev) => ({ ...prev, scope: value }))}
                       >
-                        <Space direction="vertical" size="small">
-                          {(discordScopes || []).map((scope) => (
-                            <Radio key={scope} value={scope}>{scope}</Radio>
-                          ))}
-                        </Space>
-                      </Radio.Group>
+                        {(discordScopes || []).map((scope) => (
+                          <ModalSelect.Option key={scope} value={scope}>{scope}</ModalSelect.Option>
+                        ))}
+                      </ModalSelect>
                     </Form.Item>
                     <Form.Item label="Значение">
                       <Input
@@ -1639,16 +1638,16 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                       />
                     </Form.Item>
                     <Form.Item label="Тип учетной записи">
-                      <Radio.Group
-                        value={scopeFiltersDraft.account_type || undefined}
-                        onChange={(e) => setScopeFiltersDraft((prev) => ({ ...prev, account_type: e.target.value }))}
+                      <ModalSelect
+                        allowClear
+                        placeholder="Выберите тип"
+                        value={scopeFiltersDraft.account_type}
+                        onChange={(value) => setScopeFiltersDraft((prev) => ({ ...prev, account_type: value }))}
                       >
-                        <Space direction="vertical" size="small">
-                          {(Array.isArray(data?.directories?.accountTypes) ? data.directories.accountTypes : []).map((t) => (
-                            <Radio key={t.name} value={t.name}>{t.name}</Radio>
-                          ))}
-                        </Space>
-                      </Radio.Group>
+                        {(Array.isArray(data?.directories?.accountTypes) ? data.directories.accountTypes : []).map((t) => (
+                          <ModalSelect.Option key={t.name} value={t.name}>{t.name}</ModalSelect.Option>
+                        ))}
+                      </ModalSelect>
                     </Form.Item>
                     <Button
                       onClick={() => setScopeFiltersDraft({})}
