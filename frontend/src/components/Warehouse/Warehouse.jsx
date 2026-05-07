@@ -25,6 +25,7 @@ import {
   DeleteOutlined,
   EyeOutlined,
   EyeInvisibleOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import ModalSelect from '../common/ModalSelect';
