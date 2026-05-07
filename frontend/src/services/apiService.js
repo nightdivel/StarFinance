@@ -111,7 +111,11 @@ class ApiService {
           }
         } catch {}
 
-        this.handleAuthExpired(response.status);
+        // Не вызываем handleAuthExpired для ошибок входа — это нормальная ошибка 401
+        const isLoginEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/discord');
+        if (!isLoginEndpoint) {
+          this.handleAuthExpired(response.status);
+        }
 
         // Улучшенная обработка ошибок с детальной информацией
         const errorMessage = bodyJson?.error || bodyJson?.details || `HTTP error! status: ${response.status}`;
