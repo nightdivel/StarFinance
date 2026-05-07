@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import ModalTableFilter from '../common/ModalTableFilter';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   Form,
@@ -25,7 +24,7 @@ import { compareDropdownStrings } from '../../utils/helpers';
 import { PERMISSIONS } from '../../config/appConfig';
 import ModalSelect from '../common/ModalSelect';
 
-import { SettingOutlined, EditOutlined, DeleteOutlined, HolderOutlined, SearchOutlined } from '@ant-design/icons';
+import { SettingOutlined, EditOutlined, DeleteOutlined, HolderOutlined, FilterOutlined } from '@ant-design/icons';
 
 // Services
 import { apiService } from '../../services/apiService';
@@ -86,7 +85,23 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
   // Guild mappings UI removed
   const [scopeModalOpen, setScopeModalOpen] = useState(false);
   const [scopeEditingIndex, setScopeEditingIndex] = useState(null);
-  
+  const [scopeFiltersModalOpen, setScopeFiltersModalOpen] = useState(false);
+  const [scopeFiltersDraft, setScopeFiltersDraft] = useState({});
+  const [scopeFiltersApplied, setScopeFiltersApplied] = useState({});
+
+  const filteredScopeMappings = useMemo(() => {
+    const scopeFilter = String(scopeFiltersApplied.scope || '').trim().toLowerCase();
+    const valueFilter = String(scopeFiltersApplied.value || '').trim().toLowerCase();
+    const accountTypeFilter = String(scopeFiltersApplied.account_type || '').trim();
+
+    return scopeMappings.filter((row) => {
+      if (scopeFilter && String(row.scope || '').toLowerCase() !== scopeFilter) return false;
+      if (valueFilter && !String(row.value || '').toLowerCase().includes(valueFilter)) return false;
+      if (accountTypeFilter && String(row.account_type || '') !== accountTypeFilter) return false;
+      return true;
+    });
+  }, [scopeMappings, scopeFiltersApplied]);
+
   // Auth background state
   const [authBgUrl, setAuthBgUrl] = useState(null);
   const [authBgLoading, setAuthBgLoading] = useState(false);
@@ -1466,7 +1481,30 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                 Настройте назначение типа учетной записи по наличию выданных приложению Discord
                 прав (scope). Поле «Значение» — необязательно.
               </Text>
-              <div className="mt-3">
+              <Space className="mt-2" wrap>
+                <Button
+                  size="small"
+                  icon={<FilterOutlined />}
+                  onClick={() => {
+                    setScopeFiltersDraft(scopeFiltersApplied);
+                    setScopeFiltersModalOpen(true);
+                  }}
+                  type={Object.values(scopeFiltersApplied).some((v) => String(v || '').trim() !== '') ? 'primary' : 'default'}
+                >
+                  Фильтры
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setScopeFiltersApplied({});
+                    setScopeFiltersDraft({});
+                  }}
+                  disabled={!Object.values(scopeFiltersApplied).some((v) => String(v || '').trim() !== '')}
+                >
+                  Сбросить фильтры
+                </Button>
+              </Space>
+              <div className="mt-2">
                 <Table
                   size="small"
                   tableLayout="auto"
@@ -1479,96 +1517,146 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     },
                     {
                       title: 'Scope', dataIndex: 'scope', key: 'scope', width: 240,
-                      filters: (discordScopes || []).map((s) => ({ text: s, value: s })),
-                      onFilter: (val, r) => r.scope === val,
                     },
                     {
                       title: 'Значение', dataIndex: 'value', key: 'value', width: 220,
-                      filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Фильтр по значению" />,
-                      filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
-                      onFilter: (v, r) => (r.value || '').toLowerCase().includes(String(v).toLowerCase()),
                     },
                     {
                       title: 'Тип учетной записи', dataIndex: 'account_type', key: 'account_type', width: 240,
-                      filters: (Array.isArray(data?.directories?.accountTypes) ? data.directories.accountTypes : []).map((t) => ({ text: t.name, value: t.name })),
-                      onFilter: (v, r) => r.account_type === v,
                     },
                     {
                       title: 'Действия', key: 'actions', width: 200, fixed: 'right',
-                      render: (_, m, idx) => (
-                        <Space>
-                          <Button size="small" onClick={async () => {
-                            if (idx <= 0) return;
-                            try {
-                              const token = localStorage.getItem('authToken');
-                              const headers = token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
-                              const above = scopeMappings[idx - 1];
-                              const cur = scopeMappings[idx];
-                              // используем текущий визуальный порядок как базовый, если позиция не задана на сервере
-                              const posAbove = above.position ?? idx;      // элемент выше (idx-1) должен иметь позицию idx (1-базная нумерация)
-                              const posCur = cur.position ?? (idx + 1);    // текущий элемент (idx) имеет позицию idx+1
-                              // swap positions by upserting both
-                              await apiService.request('/api/discord/scope-mappings', { method: 'POST', headers, body: JSON.stringify({ scope: cur.scope, value: cur.value ?? null, accountType: cur.account_type, position: posAbove }) });
-                              await apiService.request('/api/discord/scope-mappings', { method: 'POST', headers, body: JSON.stringify({ scope: above.scope, value: above.value ?? null, accountType: above.account_type, position: posCur }) });
-                              // update local state
-                              setScopeMappings((prev) => {
-                                const next = [...prev];
-                                next[idx - 1] = { ...above, position: posCur };
-                                next[idx] = { ...cur, position: posAbove };
-                                next.sort((x, y) => (x.position ?? Number.MAX_SAFE_INTEGER) - (y.position ?? Number.MAX_SAFE_INTEGER));
-                                return next;
+                      render: (_, m) => {
+                        const realIndex = scopeMappings.findIndex((x) =>
+                          x.scope === m.scope &&
+                          (x.value ?? null) === (m.value ?? null) &&
+                          x.account_type === m.account_type
+                        );
+                        const canMoveUp = realIndex > 0;
+                        const canMoveDown = realIndex >= 0 && realIndex < scopeMappings.length - 1;
+
+                        return (
+                          <Space>
+                            <Button size="small" onClick={async () => {
+                              if (!canMoveUp) return;
+                              try {
+                                const token = localStorage.getItem('authToken');
+                                const headers = token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+                                const above = scopeMappings[realIndex - 1];
+                                const cur = scopeMappings[realIndex];
+                                const posAbove = above.position ?? realIndex;
+                                const posCur = cur.position ?? (realIndex + 1);
+                                await apiService.request('/api/discord/scope-mappings', { method: 'POST', headers, body: JSON.stringify({ scope: cur.scope, value: cur.value ?? null, accountType: cur.account_type, position: posAbove }) });
+                                await apiService.request('/api/discord/scope-mappings', { method: 'POST', headers, body: JSON.stringify({ scope: above.scope, value: above.value ?? null, accountType: above.account_type, position: posCur }) });
+                                setScopeMappings((prev) => {
+                                  const next = [...prev];
+                                  next[realIndex - 1] = { ...above, position: posCur };
+                                  next[realIndex] = { ...cur, position: posAbove };
+                                  next.sort((x, y) => (x.position ?? Number.MAX_SAFE_INTEGER) - (y.position ?? Number.MAX_SAFE_INTEGER));
+                                  return next;
+                                });
+                              } catch (_) { message.error('Не удалось изменить порядок'); }
+                            }} disabled={!canWrite || !canMoveUp}>Вверх</Button>
+                            <Button size="small" onClick={async () => {
+                              if (!canMoveDown) return;
+                              try {
+                                const token = localStorage.getItem('authToken');
+                                const headers = token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+                                const below = scopeMappings[realIndex + 1];
+                                const cur = scopeMappings[realIndex];
+                                const posCur = cur.position ?? (realIndex + 1);
+                                const posBelow = below.position ?? (realIndex + 2);
+                                await apiService.request('/api/discord/scope-mappings', { method: 'POST', headers, body: JSON.stringify({ scope: cur.scope, value: cur.value ?? null, accountType: cur.account_type, position: posBelow }) });
+                                await apiService.request('/api/discord/scope-mappings', { method: 'POST', headers, body: JSON.stringify({ scope: below.scope, value: below.value ?? null, accountType: below.account_type, position: posCur }) });
+                                setScopeMappings((prev) => {
+                                  const next = [...prev];
+                                  next[realIndex] = { ...cur, position: posBelow };
+                                  next[realIndex + 1] = { ...below, position: posCur };
+                                  next.sort((x, y) => (x.position ?? Number.MAX_SAFE_INTEGER) - (y.position ?? Number.MAX_SAFE_INTEGER));
+                                  return next;
+                                });
+                              } catch (_) { message.error('Не удалось изменить порядок'); }
+                            }} disabled={!canWrite || !canMoveDown}>Вниз</Button>
+                            <Button size="small" type="text" icon={<EditOutlined />} onClick={() => { setScopeEditingIndex(realIndex); setScopeModalOpen(true); }} disabled={!canWrite || realIndex < 0} />
+                            <Button size="small" type="text" danger icon={<DeleteOutlined />} disabled={!canWrite || realIndex < 0} onClick={async () => {
+                              Modal.confirm({
+                                title: 'Удалить правило?',
+                                content: 'Это действие нельзя отменить.',
+                                okText: 'Удалить',
+                                okType: 'danger',
+                                cancelText: 'Отмена',
+                                onOk: async () => {
+                                  try {
+                                    const token = localStorage.getItem('authToken');
+                                    const headers = token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+                                    const params = new URLSearchParams({ scope: m.scope });
+                                    if (m.value) params.append('value', m.value);
+                                    await apiService.request(`/api/discord/scope-mappings?${params.toString()}`, { method: 'DELETE', headers });
+                                    setScopeMappings((prev) => prev.filter((_, i) => i !== realIndex));
+                                    message.success('Правило удалено');
+                                  } catch (e) { message.error('Не удалось удалить правило'); }
+                                }
                               });
-                            } catch (_) { message.error('Не удалось изменить порядок'); }
-                          }} disabled={!canWrite || idx === 0}>Вверх</Button>
-                          <Button size="small" onClick={async () => {
-                            if (idx >= scopeMappings.length - 1) return;
-                            try {
-                              const token = localStorage.getItem('authToken');
-                              const headers = token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
-                              const below = scopeMappings[idx + 1];
-                              const cur = scopeMappings[idx];
-                              // используем текущий визуальный порядок как базовый, если позиция не задана на сервере
-                              const posCur = cur.position ?? (idx + 1);      // текущий элемент (idx) имеет позицию idx+1
-                              const posBelow = below.position ?? (idx + 2);  // нижний элемент (idx+1) имеет позицию idx+2
-                              await apiService.request('/api/discord/scope-mappings', { method: 'POST', headers, body: JSON.stringify({ scope: cur.scope, value: cur.value ?? null, accountType: cur.account_type, position: posBelow }) });
-                              await apiService.request('/api/discord/scope-mappings', { method: 'POST', headers, body: JSON.stringify({ scope: below.scope, value: below.value ?? null, accountType: below.account_type, position: posCur }) });
-                              setScopeMappings((prev) => {
-                                const next = [...prev];
-                                next[idx] = { ...cur, position: posBelow };
-                                next[idx + 1] = { ...below, position: posCur };
-                                next.sort((x, y) => (x.position ?? Number.MAX_SAFE_INTEGER) - (y.position ?? Number.MAX_SAFE_INTEGER));
-                                return next;
-                              });
-                            } catch (_) { message.error('Не удалось изменить порядок'); }
-                          }} disabled={!canWrite || idx === scopeMappings.length - 1}>Вниз</Button>
-                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => { setScopeEditingIndex(idx); setScopeModalOpen(true); }} disabled={!canWrite} />
-                          <Button size="small" type="text" danger icon={<DeleteOutlined />} disabled={!canWrite} onClick={async () => {
-                            Modal.confirm({
-                              title: 'Удалить правило?',
-                              content: 'Это действие нельзя отменить.',
-                              okText: 'Удалить',
-                              okType: 'danger',
-                              cancelText: 'Отмена',
-                              onOk: async () => {
-                                try {
-                                  const token = localStorage.getItem('authToken');
-                                  const headers = token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
-                                  const params = new URLSearchParams({ scope: m.scope });
-                                  if (m.value) params.append('value', m.value);
-                                  await apiService.request(`/api/discord/scope-mappings?${params.toString()}`, { method: 'DELETE', headers });
-                                  setScopeMappings((prev) => prev.filter((_, i) => i !== idx));
-                                  message.success('Правило удалено');
-                                } catch (e) { message.error('Не удалось удалить правило'); }
-                              }
-                            });
-                          }} />
-                        </Space>
-                      ),
+                            }} />
+                          </Space>
+                        );
+                      },
                     }
                   ]}
-                  dataSource={scopeMappings}
+                  dataSource={filteredScopeMappings}
                   pagination={{ pageSize: 10, showSizeChanger: true }}
                 />
+                <Modal
+                  title="Фильтры scope-правил"
+                  open={scopeFiltersModalOpen}
+                  onCancel={() => setScopeFiltersModalOpen(false)}
+                  onOk={() => {
+                    setScopeFiltersApplied(scopeFiltersDraft);
+                    setScopeFiltersModalOpen(false);
+                  }}
+                  okText="Применить"
+                  cancelText="Закрыть"
+                >
+                  <Form layout="vertical">
+                    <Form.Item label="Scope">
+                      <ModalSelect
+                        allowClear
+                        placeholder="Выберите scope"
+                        value={scopeFiltersDraft.scope}
+                        onChange={(value) => setScopeFiltersDraft((prev) => ({ ...prev, scope: value }))}
+                      >
+                        {(discordScopes || []).map((scope) => (
+                          <Option key={scope} value={scope}>{scope}</Option>
+                        ))}
+                      </ModalSelect>
+                    </Form.Item>
+                    <Form.Item label="Значение">
+                      <Input
+                        placeholder="Поиск по значению"
+                        value={scopeFiltersDraft.value || ''}
+                        onChange={(e) => setScopeFiltersDraft((prev) => ({ ...prev, value: e.target.value }))}
+                      />
+                    </Form.Item>
+                    <Form.Item label="Тип учетной записи">
+                      <ModalSelect
+                        allowClear
+                        placeholder="Выберите тип"
+                        value={scopeFiltersDraft.account_type}
+                        onChange={(value) => setScopeFiltersDraft((prev) => ({ ...prev, account_type: value }))}
+                      >
+                        {(Array.isArray(data?.directories?.accountTypes) ? data.directories.accountTypes : []).map((t) => (
+                          <Option key={t.name} value={t.name}>{t.name}</Option>
+                        ))}
+                      </ModalSelect>
+                    </Form.Item>
+                    <Button
+                      onClick={() => setScopeFiltersDraft({})}
+                      disabled={!Object.values(scopeFiltersDraft).some((v) => String(v || '').trim() !== '')}
+                    >
+                      Очистить поля
+                    </Button>
+                  </Form>
+                </Modal>
                 <Space className="mt-2">
                   <Button onClick={async () => {
                     try {
