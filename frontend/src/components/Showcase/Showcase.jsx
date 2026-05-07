@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
+import ModalTableFilter from '../common/ModalTableFilter';
 import debounce from 'lodash.debounce';
 import { Table, Card, Input, Tag, Row, Col, Statistic, Divider, Button, Space, Tooltip, InputNumber, message } from 'antd';
 import TableWithFullscreen from '../common/TableWithFullscreen';
@@ -65,31 +66,8 @@ const Showcase = ({ data, userData }) => {
           <span>{text}</span>
         </Tooltip>
       ),
-      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-        <div className="p-2" onKeyDown={(e) => e.stopPropagation()}>
-          <Input
-            placeholder="Поиск по названию"
-            value={selectedKeys[0]}
-            onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-            onPressEnter={() => confirm()}
-            className="mb-2 block"
-          />
-          <Space>
-            <Button type="primary" size="small" onClick={() => confirm()}>
-              Найти
-            </Button>
-            <Button
-              size="small"
-              onClick={() => {
-                clearFilters?.();
-                confirm();
-              }}
-            >
-              Сбросить
-            </Button>
-          </Space>
-        </div>
-      ),
+      filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Поиск по названию" />,
+      filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
       onFilter: (value, record) => (record.name || '').toLowerCase().includes(String(value).toLowerCase()),
     },
     {

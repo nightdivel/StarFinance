@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
+import ModalTableFilter from '../common/ModalTableFilter';
 import debounce from 'lodash.debounce';
 import {
   Table,
@@ -24,6 +25,7 @@ import {
   UserOutlined,
   MailOutlined,
   LockOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import ModalSelect from '../common/ModalSelect';
@@ -261,23 +263,8 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
           <span>{getDisplayName(record, data.users || [])}</span>
         </Tooltip>
       ),
-      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-        <div className="p-2" onKeyDown={(e) => e.stopPropagation()}>
-          <Input
-            placeholder="Поиск по имени или логину"
-            value={selectedKeys[0]}
-            onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-            onPressEnter={() => confirm()}
-            className="mb-2 block"
-          />
-          <Space>
-            <Button type="primary" size="small" onClick={() => confirm()}>
-              Найти
-            </Button>
-            <Button size="small" onClick={() => { clearFilters?.(); confirm(); }}>Сбросить</Button>
-          </Space>
-        </div>
-      ),
+      filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Поиск по имени или логину" />,
+      filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
       onFilter: (value, record) => {
         const display = getDisplayName(record, data.users || []).toLowerCase();
         return display.includes(String(value).toLowerCase());
@@ -314,23 +301,8 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
           <span>{email || '-'}</span>
         </Tooltip>
       ),
-      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-        <div className="p-2" onKeyDown={(e) => e.stopPropagation()}>
-          <Input
-            placeholder="Поиск по email"
-            value={selectedKeys[0]}
-            onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-            onPressEnter={() => confirm()}
-            className="mb-2 block"
-          />
-          <Space>
-            <Button type="primary" size="small" onClick={() => confirm()}>
-              Найти
-            </Button>
-            <Button size="small" onClick={() => { clearFilters?.(); confirm(); }}>Сбросить</Button>
-          </Space>
-        </div>
-      ),
+      filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Поиск по email" />,
+      filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
       onFilter: (value, record) => (record.email || '').toLowerCase().includes(String(value).toLowerCase()),
     },
     {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ModalTableFilter from '../common/ModalTableFilter';
 import {
   Card,
   Form,
@@ -24,7 +25,7 @@ import { compareDropdownStrings } from '../../utils/helpers';
 import { PERMISSIONS } from '../../config/appConfig';
 import ModalSelect from '../common/ModalSelect';
 
-import { SettingOutlined, EditOutlined, DeleteOutlined, HolderOutlined } from '@ant-design/icons';
+import { SettingOutlined, EditOutlined, DeleteOutlined, HolderOutlined, SearchOutlined } from '@ant-design/icons';
 
 // Services
 import { apiService } from '../../services/apiService';
@@ -1483,21 +1484,8 @@ const Settings = ({ data, onDataUpdate, onRefresh }) => {
                     },
                     {
                       title: 'Значение', dataIndex: 'value', key: 'value', width: 220,
-                      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-                        <div className="p-2" onKeyDown={(e) => e.stopPropagation()}>
-                          <Input
-                            placeholder="Фильтр по значению"
-                            value={selectedKeys[0]}
-                            onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-                            onPressEnter={() => confirm()}
-                            className="mb-2 block"
-                          />
-                          <Space>
-                            <Button type="primary" size="small" onClick={() => confirm()}>Найти</Button>
-                            <Button size="small" onClick={() => { clearFilters?.(); confirm(); }}>Сбросить</Button>
-                          </Space>
-                        </div>
-                      ),
+                      filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Фильтр по значению" />,
+                      filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
                       onFilter: (v, r) => (r.value || '').toLowerCase().includes(String(v).toLowerCase()),
                     },
                     {
