@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import ModalTableFilter from '../common/ModalTableFilter';
 import debounce from 'lodash.debounce';
-import { Table, Card, Input, Tag, Row, Col, Statistic, Divider, Button, Space, Tooltip, InputNumber, message } from 'antd';
+import { Table, Card, Input, Tag, Row, Col, Statistic, Divider, Button, Space, InputNumber, message } from 'antd';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import { SearchOutlined, ShopOutlined } from '@ant-design/icons';
 import { Responsive, WidthProvider } from 'react-grid-layout';
@@ -62,9 +62,7 @@ const Showcase = ({ data, userData }) => {
       sorter: (a, b) => a.name.localeCompare(b.name),
       ellipsis: true,
       render: (text) => (
-        <Tooltip title={text}>
-          <span>{text}</span>
-        </Tooltip>
+        <span>{text}</span>
       ),
       filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Поиск по названию" />,
       filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
@@ -155,30 +153,28 @@ const Showcase = ({ data, userData }) => {
       render: (text, record) => {
         const val = text || record?.meta?.desc || '-';
         return (
-          <Tooltip title={val} placement="topLeft">
-            <div style={{
-              whiteSpace: 'normal',
-              wordBreak: 'break-word',
-              lineHeight: '1.4',
-              maxHeight: '60px',
-              overflow: 'hidden',
-              position: 'relative'
-            }}>
-              {val}
-              {val.length > 100 && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  right: 0,
-                  background: 'linear-gradient(to right, transparent, var(--ant-color-bg-container))',
-                  paddingLeft: '20px',
-                  color: 'var(--ant-color-primary)'
-                }}>
-                  ...
-                </div>
-              )}
-            </div>
-          </Tooltip>
+          <div style={{
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
+            lineHeight: '1.4',
+            maxHeight: '60px',
+            overflow: 'hidden',
+            position: 'relative'
+          }}>
+            {val}
+            {val.length > 100 && (
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                background: 'linear-gradient(to right, transparent, var(--ant-color-bg-container))',
+                paddingLeft: '20px',
+                color: 'var(--ant-color-primary)'
+              }}>
+                ...
+              </div>
+            )}
+          </div>
         );
       },
     },

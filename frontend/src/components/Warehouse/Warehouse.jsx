@@ -15,7 +15,6 @@ import {
   Row,
   Col,
 } from 'antd';
-import { Tooltip } from 'antd';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -335,9 +334,7 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       width: 200,
       ellipsis: true,
       render: (text) => (
-        <Tooltip title={text}>
-          <span>{text}</span>
-        </Tooltip>
+        <span>{text}</span>
       ),
       filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Поиск по названию" />,
       filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
@@ -448,30 +445,28 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       render: (text, record) => {
         const val = text || record?.meta?.desc || '-';
         return (
-          <Tooltip title={val} placement="topLeft">
-            <div style={{
-              whiteSpace: 'normal',
-              wordBreak: 'break-word',
-              lineHeight: '1.4',
-              maxHeight: '60px',
-              overflow: 'hidden',
-              position: 'relative'
-            }}>
-              {val}
-              {val.length > 100 && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  right: 0,
-                  background: 'linear-gradient(to right, transparent, var(--ant-color-bg-container))',
-                  paddingLeft: '20px',
-                  color: 'var(--ant-color-primary)'
-                }}>
-                  ...
-                </div>
-              )}
-            </div>
-          </Tooltip>
+          <div style={{
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
+            lineHeight: '1.4',
+            maxHeight: '60px',
+            overflow: 'hidden',
+            position: 'relative'
+          }}>
+            {val}
+            {val.length > 100 && (
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                background: 'linear-gradient(to right, transparent, var(--ant-color-bg-container))',
+                paddingLeft: '20px',
+                color: 'var(--ant-color-primary)'
+              }}>
+                ...
+              </div>
+            )}
+          </div>
         );
       },
     },
@@ -494,15 +489,9 @@ const Warehouse = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) =
       fixed: 'right',
       render: (_, record) => (
         <Space>
-          <Tooltip title="Редактировать">
-            <Button size="small" type="text" icon={<EditOutlined />} onClick={() => editProduct(record)} disabled={!canModifyItem(record)} />
-          </Tooltip>
-          <Tooltip title="Удалить">
-            <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => deleteProduct(record.id)} disabled={!canModifyItem(record)} />
-          </Tooltip>
-          <Tooltip title={record.showcaseStatus === 'На витрине' ? 'Скрыть с витрины' : 'Показать на витрине'}>
-            <Button size="small" type="text" icon={record.showcaseStatus === 'На витрине' ? <EyeInvisibleOutlined /> : <EyeOutlined />} onClick={() => toggleShowcaseStatus(record.id)} disabled={!canModifyItem(record)} />
-          </Tooltip>
+          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => editProduct(record)} disabled={!canModifyItem(record)} />
+          <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => deleteProduct(record.id)} disabled={!canModifyItem(record)} />
+          <Button size="small" type="text" icon={record.showcaseStatus === 'На витрине' ? <EyeInvisibleOutlined /> : <EyeOutlined />} onClick={() => toggleShowcaseStatus(record.id)} disabled={!canModifyItem(record)} />
         </Space>
       ),
     },

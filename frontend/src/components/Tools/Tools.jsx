@@ -20,7 +20,6 @@ import {
   Table,
   Tabs,
   Tag,
-  Tooltip,
   Typography,
   Upload,
   message,
@@ -677,9 +676,9 @@ function renderInfoLabel(label, tooltip) {
   return (
     <Space size={4}>
       <span>{label}</span>
-      <Tooltip title={tooltip}>
-        <InfoCircleOutlined />
-      </Tooltip>
+      <Popover content={tooltip} trigger="click">
+        <InfoCircleOutlined style={{ cursor: 'pointer' }} />
+      </Popover>
     </Space>
   );
 }
@@ -1040,9 +1039,7 @@ function Tools({ userData, onRefresh }) {
       dataIndex: 'toolTitle',
       key: 'toolTitle',
       render: (value, record) => (
-        <Tooltip title="Какой инструмент был выполнен и для какого действия использовался этот запуск.">
-          <span>{value || record.toolId}</span>
-        </Tooltip>
+        <span>{value || record.toolId}</span>
       ),
     },
     {
@@ -1071,9 +1068,7 @@ function Tools({ userData, onRefresh }) {
       dataIndex: 'errorMessage',
       key: 'errorMessage',
       render: (value) => (
-        <Tooltip title={value || 'Ошибок нет'}>
-          <span>{value ? String(value).slice(0, 48) : '-'}</span>
-        </Tooltip>
+        <span>{value ? String(value).slice(0, 48) : '-'}</span>
       ),
     },
   ];
@@ -1122,16 +1117,12 @@ function Tools({ userData, onRefresh }) {
                   renderItem={(tool) => (
                     <List.Item
                       actions={[
-                        <Tooltip key="edit" title="Редактировать конфигурацию инструмента">
-                          <Button icon={<EditOutlined />} onClick={() => openEditModal(tool)}>
+                        <Button icon={<EditOutlined />} onClick={() => openEditModal(tool)}>
                             Изменить
-                          </Button>
-                        </Tooltip>,
-                        <Tooltip key="delete" title="Удалить инструмент из каталога">
-                          <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(tool)}>
+                          </Button>,
+                        <Button key="delete" danger icon={<DeleteOutlined />} onClick={() => handleDelete(tool)}>
                             Удалить
-                          </Button>
-                        </Tooltip>,
+                          </Button>,
                       ]}
                     >
                       <List.Item.Meta
@@ -1155,8 +1146,7 @@ function Tools({ userData, onRefresh }) {
           <Space direction="vertical" style={{ width: '100%' }}>
             <Space style={{ justifyContent: 'space-between', width: '100%' }}>
               <span>История запусков инструментов</span>
-              <Tooltip title={canWrite ? 'Очистить историю' : 'Недостаточно прав'}>
-                <Button danger icon={<DeleteOutlined />} onClick={async () => {
+              <Button danger icon={<DeleteOutlined />} onClick={async () => {
                   try {
                     await apiService.deleteToolRuns();
                     message.success('История запусков очищена');
@@ -1165,7 +1155,6 @@ function Tools({ userData, onRefresh }) {
                     message.error('Ошибка при очистке истории');
                   }
                 }} disabled={!canWrite}>Очистить историю</Button>
-              </Tooltip>
             </Space>
             <Table rowKey="id" loading={runsLoading} columns={runColumns} dataSource={runs} pagination={{ pageSize: 8 }} />
           </Space>
@@ -1183,20 +1172,18 @@ function Tools({ userData, onRefresh }) {
               <Title level={3} style={{ margin: 0 }}>
                 <ToolOutlined /> Инструменты
               </Title>
-              <Tooltip title="Раздел для кастомных кнопок: быстрые переходы, API-вызовы и отправка сообщений во внешние каналы. При наведении на карточки и элементы формы показываются пояснения, что именно делает каждая настройка.">
-                <InfoCircleOutlined />
-              </Tooltip>
+              <Popover content="Раздел для кастомных кнопок: быстрые переходы, API-вызовы и отправка сообщений во внешние каналы." trigger="click">
+                <InfoCircleOutlined style={{ cursor: 'pointer' }} />
+              </Popover>
             </Space>
             <Text type="secondary">
               Каталог операционных действий с описанием, иконкой, безопасным запуском и историей.
             </Text>
           </div>
           {canWrite ? (
-            <Tooltip title="Создать новую кнопку-инструмент с описанием, иконкой и сценарием запуска.">
-              <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-                Добавить инструмент
-              </Button>
-            </Tooltip>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+              Добавить инструмент
+            </Button>
           ) : null}
         </Space>
       </Card>

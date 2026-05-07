@@ -11,7 +11,6 @@ import {
   message,
   Breadcrumb,
   Avatar,
-  Tooltip,
   Pagination,
   Empty,
   Spin,
@@ -420,16 +419,14 @@ const News = ({ userData, darkMode }) => {
                 const sourceConfig = sourceMeta[source] || sourceMeta.local;
                 const cardActions = isAdmin
                   ? [
-                      <Tooltip key="edit" title="Редактировать">
-                        <EditOutlined
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditModal(news);
-                          }}
-                        />
-                      </Tooltip>,
-                      <Tooltip key="delete" title="Удалить">
-                        <span className="news-action-hitbox" onClick={(e) => e.stopPropagation()}>
+                      <EditOutlined
+                        key="edit"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditModal(news);
+                        }}
+                      />,
+                      <span key="delete" className="news-action-hitbox" onClick={(e) => e.stopPropagation()}>
                           <Popconfirm
                             title="Удалить новость?"
                             onConfirm={() => deleteNews(news.id)}
@@ -441,7 +438,7 @@ const News = ({ userData, darkMode }) => {
                             </span>
                           </Popconfirm>
                         </span>
-                      </Tooltip>,
+
                     ]
                   : undefined;
 
@@ -647,12 +644,11 @@ const News = ({ userData, darkMode }) => {
               ) : (
                 <div className="d-flex flex-wrap gap-2">
                   {readUsers.map((user) => (
-                    <Tooltip key={user.id} title={`Ознакомился: ${formatServerDate(user.readAt)}`}>
-                      <div className="d-flex align-items-center gap-1">
-                        <Avatar size="small" icon={<UserOutlined />} src={user.avatar} />
-                        <span className={darkMode ? 'text-white' : 'text-dark'}>{getDisplayName(user)}</span>
-                      </div>
-                    </Tooltip>
+                    <div key={user.id} className="d-flex align-items-center gap-1">
+                      <Avatar size="small" icon={<UserOutlined />} src={user.avatar} />
+                      <span className={darkMode ? 'text-white' : 'text-dark'}>{getDisplayName(user)}</span>
+                      <span className="text-muted" style={{ fontSize: '0.75em' }}>({formatServerDate(user.readAt)})</span>
+                    </div>
                   ))}
                 </div>
               )}

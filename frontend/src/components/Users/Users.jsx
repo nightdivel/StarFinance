@@ -13,7 +13,6 @@ import {
   Space,
   message,
 } from 'antd';
-import { Tooltip } from 'antd';
 import { Avatar } from 'antd';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -259,9 +258,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
       sorter: (a, b) => compareDropdownStrings(getDisplayName(a, data.users || []), getDisplayName(b, data.users || [])),
       ellipsis: true,
       render: (_, record) => (
-        <Tooltip title={getDisplayName(record, data.users || [])}>
-          <span>{getDisplayName(record, data.users || [])}</span>
-        </Tooltip>
+        <span>{getDisplayName(record, data.users || [])}</span>
       ),
       filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Поиск по имени или логину" />,
       filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
@@ -297,9 +294,7 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
       width: 200,
       ellipsis: true,
       render: (email) => (
-        <Tooltip title={email || '-'}>
-          <span>{email || '-'}</span>
-        </Tooltip>
+        <span>{email || '-'}</span>
       ),
       filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Поиск по email" />,
       filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
@@ -348,17 +343,11 @@ const Users = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => {
       fixed: 'right',
       render: (_, record) => (
         <Space>
-          <Tooltip title="Редактировать">
-            <Button size="small" type="text" icon={<EditOutlined />} onClick={() => editUser(record)} disabled={!canModifyUser(record)} />
-          </Tooltip>
+          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => editUser(record)} disabled={!canModifyUser(record)} />
           {record.authType === 'local' && (
-            <Tooltip title="Сменить пароль">
-              <Button size="small" type="text" icon={<LockOutlined />} onClick={() => { setPwdTarget(record); setPwdModalOpen(true); }} disabled={!canModifyUser(record)} />
-            </Tooltip>
+            <Button size="small" type="text" icon={<LockOutlined />} onClick={() => { setPwdTarget(record); setPwdModalOpen(true); }} disabled={!canModifyUser(record)} />
           )}
-          <Tooltip title="Удалить">
-            <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => deleteUser(record.id)} disabled={!canModifyUser(record)} />
-          </Tooltip>
+          <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => deleteUser(record.id)} disabled={!canModifyUser(record)} />
         </Space>
       ),
     },

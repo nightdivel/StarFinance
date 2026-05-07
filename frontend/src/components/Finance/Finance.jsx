@@ -11,7 +11,6 @@ import {
   message,
   Grid,
 } from 'antd';
-import { Tooltip } from 'antd';
 import { PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, ExpandAltOutlined } from '@ant-design/icons';
 import TableWithFullscreen from '../common/TableWithFullscreen';
 import { Responsive, WidthProvider } from 'react-grid-layout';
@@ -526,9 +525,7 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       render: (text, record) => {
         const val = text || record?.meta?.desc || record?.meta?.itemName || '';
         return (
-          <Tooltip title={val}>
-            <span>{val}</span>
-          </Tooltip>
+          <span>{val}</span>
         );
       },
     },
@@ -539,12 +536,11 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
       align: 'center',
       render: (_, record) => (
         <div className="d-flex gap-2">
-          <Tooltip title="Редактировать">
-            <Button
-              size="small"
-              type="text"
-              icon={<EditOutlined />}
-              onClick={() => {
+          <Button
+            size="small"
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => {
                 setEditingTx(record);
                 setTransactionModalVisible(true);
                 const effectiveType = record._typeForMe || record.type;
@@ -566,13 +562,11 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
               }}
               disabled={!authService.hasPermission('finance', 'write')}
             />
-          </Tooltip>
-          <Tooltip title="Удалить">
-            <Button
-              size="small"
-              type="text"
-              icon={<DeleteOutlined />}
-              danger
+          <Button
+            size="small"
+            type="text"
+            icon={<DeleteOutlined />}
+            danger
               onClick={() => {
                 Modal.confirm({
                   title: 'Удалить транзакцию?',
@@ -593,7 +587,6 @@ const Finance = ({ data, onDataUpdate: _onDataUpdate, onRefresh, userData }) => 
               }}
               disabled={!authService.hasPermission('finance', 'write')}
             />
-          </Tooltip>
         </div>
       ),
     },
