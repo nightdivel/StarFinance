@@ -11,7 +11,6 @@ const { Title, Text } = Typography;
 const Auth = ({ onLogin, appTitle }) => {
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState(null);
-  const [isAuthPreparing, setIsAuthPreparing] = useState(true);
   const [serverDiscordEnabled, setServerDiscordEnabled] = useState(false);
   const [discordLoginUrl, setDiscordLoginUrl] = useState('');
   const defaultAuthBgUrl = `${import.meta.env.BASE_URL}star-citizen-drake-corsair-ucox3arcnaxkfrdm.webp`;
@@ -26,7 +25,6 @@ const Auth = ({ onLogin, appTitle }) => {
     let cancelled = false;
 
     (async () => {
-      const startedAt = Date.now();
       try {
         await Promise.allSettled([
           (async () => {
@@ -61,12 +59,7 @@ const Auth = ({ onLogin, appTitle }) => {
           })(),
         ]);
       } finally {
-        const elapsed = Date.now() - startedAt;
-        const minDelayMs = 550;
-        if (elapsed < minDelayMs) {
-          await new Promise((resolve) => setTimeout(resolve, minDelayMs - elapsed));
-        }
-        if (!cancelled) setIsAuthPreparing(false);
+        // No artificial delay needed — show form immediately
       }
     })();
 
@@ -119,13 +112,7 @@ const Auth = ({ onLogin, appTitle }) => {
 
   return (
     <div className="auth-container" style={authBgUrl ? { backgroundImage: `url(${authBgUrl})` } : undefined}>
-      {isAuthPreparing ? (
-        <div className="auth-preloader" aria-live="polite">
-          <div className="auth-preloader-caption">Подготовка формы авторизации...</div>
-        </div>
-      ) : null}
-
-      <Card className={`auth-card ${isAuthPreparing ? 'auth-card-hidden' : 'auth-card-ready'}`}>
+      <Card className="auth-card">
         <div className="auth-header">
           {authIconUrl && (
             <div className="mb-3">

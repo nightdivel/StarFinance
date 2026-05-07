@@ -417,20 +417,14 @@ function App() {
       username: loginData.username,
       accountType: loginData.accountType,
       permissions: loginData.permissions || {},
-      
     });
     
-    // Immediately load and apply server theme after login
-    const before = !!darkMode;
+    // Загружаем и применяем тему пользователя без перезагрузки страницы
     const applied = await loadUserTheme();
-    try {
-      const guardKey = 'theme.reload.once';
-      const already = sessionStorage.getItem(guardKey) === '1';
-      if (!already && typeof applied === 'boolean' && applied !== before) {
-        sessionStorage.setItem(guardKey, '1');
-        window.location.reload();
-      }
-    } catch (_) {}
+    if (typeof applied === 'boolean') {
+      setDarkMode(applied);
+      applyThemeClasses(applied);
+    }
   };
 
   // Сохранение темы на сервере
