@@ -1,9 +1,9 @@
 import React, { useRef, useEffect } from 'react';
-import { Modal, Input, Button, Space } from 'antd';
+import { Input, Button, Space } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 
 /**
- * Замена стандартного filterDropdown AntD таблицы на модальное окно поиска.
+ * Кастомный filterDropdown для AntD таблицы — инлайн-панель поиска.
  *
  * Использование в column:
  *   filterDropdown: (props) => <ModalTableFilter {...props} placeholder="Поиск..." />,
@@ -35,15 +35,7 @@ const ModalTableFilter = ({
   };
 
   return (
-    <Modal
-      open={visible}
-      title={null}
-      footer={null}
-      closable={false}
-      width={320}
-      styles={{ body: { padding: '16px' } }}
-      onCancel={handleReset}
-    >
+    <div style={{ padding: '10px 12px', minWidth: '220px' }}>
       <Input
         ref={inputRef}
         prefix={<SearchOutlined />}
@@ -52,16 +44,15 @@ const ModalTableFilter = ({
         onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
         onPressEnter={handleSearch}
         allowClear
-        size="large"
-        style={{ marginBottom: 12 }}
+        style={{ marginBottom: 8, display: 'block' }}
       />
       <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-        <Button onClick={handleReset}>Сбросить</Button>
-        <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+        <Button size="small" onClick={handleReset}>Сбросить</Button>
+        <Button type="primary" size="small" icon={<SearchOutlined />} onClick={handleSearch}>
           Найти
         </Button>
       </Space>
-    </Modal>
+    </div>
   );
 };
 

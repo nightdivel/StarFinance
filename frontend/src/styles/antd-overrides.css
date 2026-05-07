@@ -385,7 +385,7 @@
 }
 
 .ant-table-wrapper .ant-table-container {
-  overflow: hidden;
+  overflow: visible;
   border-radius: inherit;
 }
 
