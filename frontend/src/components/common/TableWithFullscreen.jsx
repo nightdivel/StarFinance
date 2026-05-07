@@ -14,6 +14,7 @@ const TableWithFullscreen = ({
   const [open, setOpen] = useState(false);
   const [limit, setLimit] = useState(batchSize);
   const sentinelRef = useRef(null);
+  const cardRef = useRef(null);
 
   const {
     className: cardClassName,
@@ -91,6 +92,7 @@ const TableWithFullscreen = ({
 
   return (
     <>
+      <div ref={cardRef}>
       <Card
         title={title}
         extra={toolbar}
@@ -105,6 +107,7 @@ const TableWithFullscreen = ({
             sticky: tableProps?.sticky ?? false,
             scroll: tableProps?.scroll,
             pagination: false,
+            getPopupContainer: () => document.body,
             ...tableProps,
             columns: normalizedColumns ?? tableProps?.columns,
             dataSource: slicedData,
@@ -114,6 +117,7 @@ const TableWithFullscreen = ({
           <div ref={sentinelRef} className="h-px" />
         )}
       </Card>
+      </div>
 
       <Modal
         open={open}
