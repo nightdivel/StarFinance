@@ -365,7 +365,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
                     type: 'spring',
                     stiffness: 120,
                   }}
-                  style={{ marginBottom: 2 }}
+                  style={{ marginBottom: 2, width: '100%' }}
                 >
                   <Menu
                     className="sf-side-menu"
