@@ -632,6 +632,34 @@
   min-height: 0;
 }
 
+/* Center icons and labels when sidebar is collapsed */
+.sf-side-menu {
+  width: 100%;
+}
+
+.sf-side-menu .ant-menu-inline-collapsed > .ant-menu-item,
+.sf-side-menu .ant-menu-inline-collapsed > .ant-menu-submenu {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+/* Ensure the icon is centered and not shifted by text spacing */
+.sf-side-menu .ant-menu-item .anticon,
+.sf-side-menu .ant-menu-submenu .anticon {
+  display: block !important;
+  margin: 0 auto !important;
+  line-height: 1 !important;
+}
+
+/* Slightly reduce icon vertical position to visually center inside the sider */
+.sf-main-sider .ant-menu-item,
+.sf-main-sider .ant-menu-submenu {
+  align-items: center;
+}
+
 
 
 
@@ -1175,7 +1203,7 @@
 
 /* ──────────────────────────────────────────────────────────────
    Tooltip / Popover / Dropdown overlay fixes
-   Гарантируем видимость всплывающих элементов в обоих темах
+   Оптимизированные стили для производительности и единого дизайна
    ────────────────────────────────────────────────────────────── */
 
 /* Ensure AntD overlays are always on top of layout content */
@@ -1184,8 +1212,10 @@
 .ant-dropdown,
 .ant-select-dropdown,
 .ant-picker-dropdown,
-.ant-color-picker-dropdown {
+.ant-color-picker-dropdown,
+.ant-menu {
   z-index: 9100 !important;
+  will-change: transform, opacity;
 }
 
 /* Table filter panel */
@@ -1193,36 +1223,55 @@
   z-index: 9100 !important;
 }
 
-/* Dark theme — tooltip background */
-.dark-theme .ant-tooltip .ant-tooltip-inner {
-  background: rgba(20, 30, 50, 0.96);
-  color: #e2e8f0;
-  border: 1px solid rgba(100, 116, 139, 0.32);
-  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.52);
+/* Optimize tooltip rendering */
+.ant-tooltip-inner {
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
-.dark-theme .ant-tooltip .ant-tooltip-arrow::before,
-.dark-theme .ant-tooltip .ant-tooltip-arrow-content {
-  background: rgba(20, 30, 50, 0.96);
+/* Dark theme — tooltip with unified design */
+.dark-theme .ant-tooltip-inner {
+  background: rgba(15, 23, 42, 0.95) !important;
+  color: #e2e8f0 !important;
+  border: 1px solid rgba(100, 116, 139, 0.28) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48) !important;
+  font-size: 13px !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
 }
 
-/* Light theme — tooltip */
-.light-theme .ant-tooltip .ant-tooltip-inner {
-  background: rgba(15, 23, 42, 0.92);
-  color: #f1f5f9;
-  border: none;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.22);
+.dark-theme .ant-tooltip-arrow::before,
+.dark-theme .ant-tooltip-arrow-content {
+  background-color: rgba(15, 23, 42, 0.95) !important;
 }
 
-/* Dark theme — dropdown menu */
+/* Light theme — tooltip with unified design */
+.light-theme .ant-tooltip-inner {
+  background: rgba(30, 41, 59, 0.96) !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(100, 116, 139, 0.16) !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16) !important;
+  font-size: 13px !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+}
+
+.light-theme .ant-tooltip-arrow::before,
+.light-theme .ant-tooltip-arrow-content {
+  background-color: rgba(30, 41, 59, 0.96) !important;
+}
+
+/* Dark theme — dropdown menu with unified design */
 .dark-theme .ant-dropdown-menu {
-  background: rgba(14, 24, 40, 0.97) !important;
-  border: 1px solid rgba(100, 116, 139, 0.32) !important;
-  box-shadow: 0 12px 36px rgba(2, 6, 23, 0.56) !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(100, 116, 139, 0.28) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48) !important;
+  border-radius: 6px !important;
 }
 
 .dark-theme .ant-dropdown-menu-item {
   color: #cbd5e1 !important;
+  font-size: 13px !important;
 }
 
 .dark-theme .ant-dropdown-menu-item:hover {
@@ -1230,20 +1279,84 @@
   color: #e2e8f0 !important;
 }
 
-/* Dark theme — select dropdown */
+.dark-theme .ant-dropdown-menu-item-danger {
+  color: #f87171 !important;
+}
+
+.dark-theme .ant-dropdown-menu-item-danger:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+}
+
+/* Light theme — dropdown menu with unified design */
+.light-theme .ant-dropdown-menu {
+  background: rgba(248, 250, 252, 0.98) !important;
+  border: 1px solid rgba(100, 116, 139, 0.16) !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12) !important;
+  border-radius: 6px !important;
+}
+
+.light-theme .ant-dropdown-menu-item {
+  color: #475569 !important;
+  font-size: 13px !important;
+}
+
+.light-theme .ant-dropdown-menu-item:hover {
+  background: rgba(15, 118, 110, 0.08) !important;
+  color: #1e293b !important;
+}
+
+.light-theme .ant-dropdown-menu-item-danger {
+  color: #dc2626 !important;
+}
+
+.light-theme .ant-dropdown-menu-item-danger:hover {
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+
+/* Dark theme — select dropdown with unified design */
 .dark-theme .ant-select-dropdown {
-  background: rgba(14, 24, 40, 0.97) !important;
-  border: 1px solid rgba(100, 116, 139, 0.32) !important;
-  box-shadow: 0 12px 36px rgba(2, 6, 23, 0.56) !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(100, 116, 139, 0.28) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48) !important;
+  border-radius: 6px !important;
 }
 
 .dark-theme .ant-select-item {
   color: #cbd5e1 !important;
+  font-size: 13px !important;
 }
 
 .dark-theme .ant-select-item-option-active:not(.ant-select-item-option-disabled),
 .dark-theme .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
   background: rgba(45, 212, 191, 0.14) !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-theme .ant-select-item-option:hover {
+  background: rgba(45, 212, 191, 0.08) !important;
+}
+
+/* Light theme — select dropdown with unified design */
+.light-theme .ant-select-dropdown {
+  background: rgba(248, 250, 252, 0.98) !important;
+  border: 1px solid rgba(100, 116, 139, 0.16) !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12) !important;
+  border-radius: 6px !important;
+}
+
+.light-theme .ant-select-item {
+  color: #475569 !important;
+  font-size: 13px !important;
+}
+
+.light-theme .ant-select-item-option-active:not(.ant-select-item-option-disabled),
+.light-theme .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: rgba(15, 118, 110, 0.1) !important;
+  color: #1e293b !important;
+}
+
+.light-theme .ant-select-item-option:hover {
+  background: rgba(15, 118, 110, 0.06) !important;
 }
 
 /* Dark theme — table filter panel */
@@ -1264,21 +1377,52 @@
   color: #cbd5e1 !important;
 }
 
-/* Dark theme — popover */
+/* Dark theme — popover with unified design */
 .dark-theme .ant-popover-inner {
-  background: rgba(14, 24, 40, 0.97) !important;
-  border: 1px solid rgba(100, 116, 139, 0.32) !important;
-  box-shadow: 0 12px 36px rgba(2, 6, 23, 0.56) !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(100, 116, 139, 0.28) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48) !important;
 }
 
 .dark-theme .ant-popover-title {
   color: #e2e8f0 !important;
   border-bottom-color: rgba(100, 116, 139, 0.24) !important;
+  font-weight: 600 !important;
 }
 
 .dark-theme .ant-popover-inner-content,
 .dark-theme .ant-popover-content {
   color: #cbd5e1 !important;
+}
+
+.dark-theme .ant-popover-arrow-content {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  border-right-color: rgba(100, 116, 139, 0.28) !important;
+  border-bottom-color: rgba(100, 116, 139, 0.28) !important;
+}
+
+/* Light theme — popover with unified design */
+.light-theme .ant-popover-inner {
+  background: rgba(248, 250, 252, 0.98) !important;
+  border: 1px solid rgba(100, 116, 139, 0.16) !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12) !important;
+}
+
+.light-theme .ant-popover-title {
+  color: #1e293b !important;
+  border-bottom-color: rgba(100, 116, 139, 0.12) !important;
+  font-weight: 600 !important;
+}
+
+.light-theme .ant-popover-inner-content,
+.light-theme .ant-popover-content {
+  color: #475569 !important;
+}
+
+.light-theme .ant-popover-arrow-content {
+  background-color: rgba(248, 250, 252, 0.98) !important;
+  border-right-color: rgba(100, 116, 139, 0.16) !important;
+  border-bottom-color: rgba(100, 116, 139, 0.16) !important;
 }
 
 /* Dark theme — date picker dropdown */
