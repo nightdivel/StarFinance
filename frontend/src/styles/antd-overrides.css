@@ -632,26 +632,11 @@
   min-height: 0;
 }
 
-/* Center icons when sidebar is collapsed */
+/* Collapsed sidebar: use AntD default left-aligned layout, just kill hover translateX */
 .sf-side-menu {
   width: 100%;
 }
 
-/* When collapsed: zero out padding and center icon via text-align */
-.sf-main-sider .ant-menu-inline-collapsed .ant-menu-item {
-  padding-inline: 0 !important;
-  text-align: center !important;
-}
-
-/* Remove icon right-margin so it stays centered */
-.sf-main-sider .ant-menu-inline-collapsed .ant-menu-item .ant-menu-item-icon,
-.sf-main-sider .ant-menu-inline-collapsed .ant-menu-item .anticon {
-  margin-inline-end: 0 !important;
-  font-size: 18px;
-}
-
-/* No hover translateX when collapsed */
-.sf-main-sider .ant-menu-inline-collapsed .ant-menu-item,
 .sf-main-sider .ant-menu-inline-collapsed .ant-menu-item:not(.ant-menu-item-selected):hover {
   transform: none !important;
 }
