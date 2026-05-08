@@ -330,28 +330,15 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
       {!isMobile && (
         <Sider
           trigger={null}
-          collapsible
-          collapsed={collapsed}
           theme={darkMode ? 'dark' : 'light'}
           className="position-relative d-flex flex-column sf-main-sider sf-sider-glass"
         >
-          <div
-            className={`${collapsed ? 'px-2 py-3' : 'px-4 py-4'} text-center border-bottom sf-sider-brand`}
-          >
+          <div className="px-4 py-4 text-center border-bottom sf-sider-brand">
             <Title level={4} className="m-0 sf-sider-title">
-              {collapsed ? compactTitle : effectiveAppTitle}
+              {effectiveAppTitle}
             </Title>
-            <div className="mt-2">
-              <Button
-                type="text"
-                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                onClick={() => setCollapsed(!collapsed)}
-                shape={collapsed ? 'circle' : undefined}
-                className={`mx-auto d-block sf-sider-toggle ${collapsed ? 'sf-w-36' : 'sf-w-48'}`}
-              />
-            </div>
           </div>
-          <div className={`border-end-0 flex-grow-1 pt-2 ${collapsed ? 'px-0' : 'px-2'}`}>
+          <div className="border-end-0 flex-grow-1 pt-2 px-2">
             <AnimatePresence initial={true}>
               {menuItems.map((mi, idx) => (
                 <motion.div
@@ -372,7 +359,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
                     theme={darkMode ? 'dark' : 'light'}
                     mode="inline"
                     inlineIndent={16}
-                    inlineCollapsed={collapsed}
+                    inlineCollapsed={false}
                     selectedKeys={[selectedKey]}
                     onClick={({ key }) => onSelectMenuKey(key)}
                     items={[{
