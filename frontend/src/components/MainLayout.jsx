@@ -351,7 +351,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
               />
             </div>
           </div>
-          <div className="border-end-0 flex-grow-1 px-2 pt-2">
+          <div className={`border-end-0 flex-grow-1 pt-2 ${collapsed ? 'px-0' : 'px-2'}`}>
             <AnimatePresence initial={true}>
               {menuItems.map((mi, idx) => (
                 <motion.div

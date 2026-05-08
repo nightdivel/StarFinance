@@ -637,27 +637,33 @@
   width: 100%;
 }
 
-.sf-side-menu .ant-menu-inline-collapsed > .ant-menu-item,
-.sf-side-menu .ant-menu-inline-collapsed > .ant-menu-submenu {
+/* Ant Design v5: inline-collapsed items use padding-inline, override for centering */
+.sf-side-menu.ant-menu-inline-collapsed > .ant-menu-item,
+.sf-side-menu .ant-menu-inline-collapsed > .ant-menu-item {
+  padding-inline: 0 !important;
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
-  padding-top: 6px !important;
-  padding-bottom: 6px !important;
 }
 
-/* Ensure the icon is centered and not shifted by text spacing */
-.sf-side-menu .ant-menu-item .anticon,
-.sf-side-menu .ant-menu-submenu .anticon {
-  display: block !important;
-  margin: 0 auto !important;
-  line-height: 1 !important;
+/* In v5, collapsedWidth items have padding-inline-start calculated via CSS var — reset it */
+.sf-main-sider .ant-menu-inline-collapsed .ant-menu-item {
+  padding-inline: 0 !important;
+  padding-inline-start: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
 }
 
-/* Slightly reduce icon vertical position to visually center inside the sider */
-.sf-main-sider .ant-menu-item,
-.sf-main-sider .ant-menu-submenu {
-  align-items: center;
+.sf-main-sider .ant-menu-inline-collapsed .ant-menu-item .ant-menu-item-icon,
+.sf-main-sider .ant-menu-inline-collapsed .ant-menu-item .anticon {
+  margin-inline-end: 0 !important;
+  font-size: 18px;
+}
+
+/* Disable hover shift when collapsed (translateX looks off with centered icon) */
+.sf-main-sider .ant-menu-inline-collapsed .ant-menu-item:hover {
+  transform: none !important;
 }
 
 
