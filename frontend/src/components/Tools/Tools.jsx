@@ -13,7 +13,6 @@ import {
   InputNumber,
   List,
   Modal,
-  Popover,
   Row,
   Space,
   Switch,
@@ -24,6 +23,7 @@ import {
   Upload,
   message,
 } from 'antd';
+import ModalFieldToggle from '../common/ModalFieldToggle';
 import {
   DeleteOutlined,
   EditOutlined,
@@ -235,29 +235,24 @@ function TableViewer({ data }) {
     </Space>
   );
 
-  // ── Field toggle popover content ──
+  // ── Field toggle modal content ──
+  const [toggleModal, setToggleModal] = useState({ open: false, fields: [], label: '', cb: null });
   const fieldToggle = (fields, label) => {
-    const content = (
-      <div style={{ maxHeight: 300, overflowY: 'auto', minWidth: 160 }}>
-        {fields.map(f => (
-          <div key={f} style={{ padding: '3px 0' }}>
-            <Checkbox
-              checked={!hidden.has(f)}
-              onChange={() => toggleField(f)}
-            >
-              <span style={{ fontSize: 12 }}>{String(f)}</span>
-            </Checkbox>
-          </div>
-        ))}
-      </div>
-    );
     const visible = fields.filter(f => !hidden.has(f)).length;
     return (
-      <Popover content={content} title={label} trigger="click" placement="bottomLeft">
-        <Button size="small" style={{ marginBottom: 6 }}>
+      <>
+        <Button size="small" style={{ marginBottom: 6 }} onClick={() => setToggleModal({ open: true, fields, label, cb: toggleField })}>
           {label} ({visible}/{fields.length}) ▾
         </Button>
-      </Popover>
+        <ModalFieldToggle
+          open={toggleModal.open && toggleModal.label === label}
+          onClose={() => setToggleModal({ open: false, fields: [], label: '', cb: null })}
+          fields={toggleModal.fields}
+          hidden={hidden}
+          onToggleField={toggleModal.cb || (() => {})}
+          label={toggleModal.label}
+        />
+      </>
     );
   };
 
