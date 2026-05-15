@@ -10,34 +10,6 @@ function Tools() {
 }
 
 export default Tools;
-        <div style={{ paddingLeft: 16 }}>
-          {entries.map(([k, v], i) => (
-            <div key={k} style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 0 }}>
-              <span style={{ color: JC.key, flexShrink: 0 }}>{'"'}{k}{'"'}</span>
-              <span style={{ color: JC.meta, flexShrink: 0, margin: '0 4px 0 0' }}>:</span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <JValue value={v} isLast={i === entries.length - 1} depth={depth + 1} />
-              </span>
-            </div>
-          ))}
-        </div>
-        <span style={{ color: JC.bracket }}>{'}'}</span>{comma}
-      </span>
-    );
-  }
-
-  return <span style={{ color: JC.str }}>{String(value)}</span>;
-}
-
-function JsonTreeViewer({ data }) {
-  if (!data) return null;
-  const output = data?.output ?? data;
-  const status = data?.status;
-  const errorMsg = data?.error;
-  const isEmpty = !output ||
-    (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
-
-  return (
     <Space direction="vertical" style={{ width: '100%' }} size={8}>
       {status && (
         <Space>
