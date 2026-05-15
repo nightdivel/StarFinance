@@ -1,8 +1,4 @@
 import React from 'react';
-  );
-const { Title, Text, Paragraph } = Typography;
-
-import React from 'react';
 
 function Tools() {
   return (
@@ -14,10 +10,6 @@ function Tools() {
 }
 
 export default Tools;
-    );
-    return (
-      <span>
-        <span style={{ cursor: 'pointer', color: JC.bracket, userSelect: 'none' }} onClick={() => setOpen(false)}>▼ {'{'}</span>
         <div style={{ paddingLeft: 16 }}>
           {entries.map(([k, v], i) => (
             <div key={k} style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 0 }}>
