@@ -1,3 +1,336 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  Avatar,
+  Button,
+  Card,
+  Checkbox,
+  Col,
+  Dropdown,
+  Empty,
+  Form,
+  Input,
+  InputNumber,
+  List,
+  Modal,
+  Row,
+  Space,
+  Switch,
+  Table,
+  Tabs,
+  Tag,
+  Typography,
+  Upload,
+  message,
+} from 'antd';
+import ModalFieldToggle from '../common/ModalFieldToggle';
+import {
+  DeleteOutlined,
+  EditOutlined,
+  InfoCircleOutlined,
+  LinkOutlined,
+  PlusOutlined,
+  PlayCircleOutlined,
+  SendOutlined,
+  CheckOutlined,
+  ToolOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
+import Draggable from 'react-draggable';
+import { apiService } from '../../services/apiService';
+import { authService } from '../../services/authService';
+
+const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
+
+// ──────────────────────────────────────────────────────────────────
+// Postman-style collapsible JSON tree with syntax highlighting
+// ──────────────────────────────────────────────────────────────────
+const JC = {
+  key:     '#66d9e8',
+  str:     '#a6e22e',
+  num:     '#fd971f',
+  bool:    '#ae81ff',
+  nil:     '#f92672',
+  bracket: '#f8f8f2',
+  meta:    '#75715e',
+};
+
+const MAX_STR_LEN = 300;
+
+function JValue({ value, isLast, depth }) {
+  const [open, setOpen] = useState(depth < 2);
+  const comma = !isLast ? <span style={{ color: JC.meta }}>,</span> : null;
+
+  if (value === null || value === undefined)
+    return <span><span style={{ color: JC.nil }}>null</span>{comma}</span>;
+  if (typeof value === 'boolean')
+    return <span><span style={{ color: JC.bool }}>{String(value)}</span>{comma}</span>;
+  if (typeof value === 'number')
+    return <span><span style={{ color: JC.num }}>{value}</span>{comma}</span>;
+  if (typeof value === 'string') {
+    const display = value.length > MAX_STR_LEN ? value.slice(0, MAX_STR_LEN) + '…' : value;
+    return <span><span style={{ color: JC.str }}>{'"'}{display}{'"'}</span>{comma}</span>;
+  }
+
+  if (Array.isArray(value)) {
+    if (!open) return (
+      <span>
+        <span title="Развернуть" style={{ cursor: 'pointer', color: JC.meta, userSelect: 'none' }} onClick={() => setOpen(true)}>
+          ▶ [<span style={{ color: JC.num }}>{value.length}</span>]
+        </span>{comma}
+      </span>
+    );
+    return (
+      <span>
+        <span style={{ cursor: 'pointer', color: JC.bracket, userSelect: 'none' }} onClick={() => setOpen(false)}>▼ [</span>
+        <div style={{ paddingLeft: 16 }}>
+          {value.map((item, i) => (
+            <div key={i}><JValue value={item} isLast={i === value.length - 1} depth={depth + 1} /></div>
+          ))}
+        </div>
+        <span style={{ color: JC.bracket }}>]</span>{comma}
+      </span>
+    );
+  }
+
+  if (typeof value === 'object') {
+    const entries = Object.entries(value);
+    if (!open) return (
+      <span>
+        <span title="Развернуть" style={{ cursor: 'pointer', color: JC.meta, userSelect: 'none' }} onClick={() => setOpen(true)}>
+          ▶ {'{'}<span style={{ color: JC.num }}>{entries.length}</span>{'}'}
+        </span>{comma}
+      </span>
+    );
+    return (
+      <span>
+        <span style={{ cursor: 'pointer', color: JC.bracket, userSelect: 'none' }} onClick={() => setOpen(false)}>▼ {'{'}</span>
+        <div style={{ paddingLeft: 16 }}>
+          {entries.map(([k, v], i) => (
+            <div key={k} style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 0 }}>
+              <span style={{ color: JC.key, flexShrink: 0 }}>{'"'}{k}{'"'}</span>
+              <span style={{ color: JC.meta, flexShrink: 0, margin: '0 4px 0 0' }}>:</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <JValue value={v} isLast={i === entries.length - 1} depth={depth + 1} />
+              </span>
+            </div>
+          ))}
+        </div>
+        <span style={{ color: JC.bracket }}>{'}'}</span>{comma}
+      </span>
+    );
+  }
+
+  return <span style={{ color: JC.str }}>{String(value)}</span>;
+}
+
+function JsonTreeViewer({ data }) {
+  if (!data) return null;
+  const output = data?.output ?? data;
+  const status = data?.status;
+  const errorMsg = data?.error;
+  const isEmpty = !output ||
+    (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
+
+  return (
+    <Space direction="vertical" style={{ width: '100%' }} size={8}>
+      {status && (
+        <Space>
+          <Tag color={status === 'success' ? 'success' : 'error'}>{status}</Tag>
+          {errorMsg && <Text type="danger">{errorMsg}</Text>}
+        </Space>
+      )}
+      {!errorMsg && !isEmpty && (
+        <div style={{
+          background: '#1b1e2e',
+          borderRadius: 6,
+          padding: '10px 14px',
+          fontFamily: '"Fira Mono","Cascadia Code","Consolas",monospace',
+          fontSize: 12,
+          lineHeight: '1.7',
+          overflow: 'auto',
+          maxHeight: 520,
+          color: JC.bracket,
+          border: '1px solid #2e3250',
+        }}>
+          <JValue value={output} isLast depth={0} />
+        </div>
+      )}
+      {isEmpty && !errorMsg && <Text type="secondary">Ответ пуст</Text>}
+    </Space>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// TableViewer: drill-down table with column/row visibility toggles
+// ──────────────────────────────────────────────────────────────────
+function TableViewer({ data }) {
+  const output = useMemo(() => data?.output ?? data, [data]);
+  const [path, setPath] = useState([]);
+  // hiddenFields keyed by serialised path → Set of hidden field names/indices
+  const [hiddenFields, setHiddenFields] = useState({});
+
+  // Reset when data changes (modal re-opened for different tool)
+  useEffect(() => { setPath([]); setHiddenFields({}); }, [data]);
+
+  const current = useMemo(() => {
+    let node = output;
+    for (const step of path) node = node?.[step];
+    return node;
+  }, [output, path]);
+
+  const pathKey = path.join('\0');
+  const hidden = hiddenFields[pathKey] ?? new Set();
+
+  const toggleField = (field) => {
+    setHiddenFields(prev => {
+      const cur = new Set(prev[pathKey] ?? []);
+      cur.has(field) ? cur.delete(field) : cur.add(field);
+      return { ...prev, [pathKey]: new Set(cur) };
+    });
+  };
+
+  const drillDown = (...keys) => setPath(p => [...p, ...keys]);
+
+  const renderCell = (val, ...drillKeys) => {
+    if (val === null || val === undefined) return <span style={{ color: '#888' }}>—</span>;
+    if (typeof val === 'boolean')
+      return <Tag color={val ? 'success' : 'default'} style={{ fontSize: 11 }}>{String(val)}</Tag>;
+    if (typeof val !== 'object') {
+      const s = String(val);
+      return <Text style={{ fontSize: 12 }}>{s.length > 120 ? s.slice(0, 120) + '…' : s}</Text>;
+    }
+    const count = Array.isArray(val) ? val.length : Object.keys(val).length;
+    const label = Array.isArray(val) ? `[${count}]` : `{${count}}`;
+    return (
+      <Button
+        size="small" type="link"
+        style={{ padding: 0, fontSize: 11, height: 'auto', lineHeight: '20px' }}
+        onClick={() => drillDown(...drillKeys)}
+      >
+        {label}
+      </Button>
+    );
+  };
+
+  // ── Breadcrumb ──
+  const breadcrumb = (
+    <Space size={2} wrap style={{ marginBottom: 6 }}>
+      <Button size="small" type={path.length === 0 ? 'primary' : 'default'} onClick={() => setPath([])}>
+        root
+      </Button>
+      {path.map((step, i) => (
+        <React.Fragment key={i}>
+          <Text type="secondary" style={{ fontSize: 12 }}>/</Text>
+          <Button
+            size="small"
+            type={i === path.length - 1 ? 'primary' : 'default'}
+            onClick={() => setPath(path.slice(0, i + 1))}
+          >
+            {String(step)}
+          </Button>
+        </React.Fragment>
+      ))}
+    </Space>
+  );
+
+  // ── Field toggle modal content ──
+  const [toggleModal, setToggleModal] = useState({ open: false, fields: [], label: '', cb: null });
+  const fieldToggle = (fields, label) => {
+    const visible = fields.filter(f => !hidden.has(f)).length;
+    return (
+      <>
+        <Button size="small" style={{ marginBottom: 6 }} onClick={() => setToggleModal({ open: true, fields, label, cb: toggleField })}>
+          {label} ({visible}/{fields.length}) ▾
+        </Button>
+        <ModalFieldToggle
+          open={toggleModal.open && toggleModal.label === label}
+          onClose={() => setToggleModal({ open: false, fields: [], label: '', cb: null })}
+          fields={toggleModal.fields}
+          hidden={hidden}
+          onToggleField={toggleModal.cb || (() => {})}
+          label={toggleModal.label}
+        />
+      </>
+    );
+  };
+
+  if (current === null || current === undefined)
+    return <Space direction="vertical" style={{ width: '100%' }} size={4}>{breadcrumb}<Text type="secondary">null</Text></Space>;
+
+  if (typeof current !== 'object')
+    return <Space direction="vertical" style={{ width: '100%' }} size={4}>{breadcrumb}<Text copyable style={{ fontSize: 13 }}>{String(current)}</Text></Space>;
+
+  // ── Array of objects → column-per-key table ──
+  if (Array.isArray(current) && current.length > 0 &&
+    current.some(v => v !== null && typeof v === 'object' && !Array.isArray(v))) {
+    const allKeys = Array.from(new Set(
+      current.flatMap(item => (item !== null && typeof item === 'object' ? Object.keys(item) : []))
+    ));
+    const visibleKeys = allKeys.filter(k => !hidden.has(k));
+
+    const columns = [
+      {
+        key: '_i', title: '#', width: 48, fixed: 'left',
+        render: (_, row) => <Text type="secondary" style={{ fontSize: 11 }}>{row._rowIdx}</Text>,
+      },
+      ...visibleKeys.map(k => ({
+        key: k,
+        title: <span style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{k}</span>,
+        dataIndex: k,
+        ellipsis: true,
+        width: 150,
+        render: (val, row) => renderCell(val, row._rowIdx, k),
+      })),
+    ];
+
+    return (
+      <Space direction="vertical" style={{ width: '100%' }} size={4}>
+        {breadcrumb}
+        {fieldToggle(allKeys, 'Столбцы')}
+        <Table
+          size="small"
+          dataSource={current.map((row, i) => ({
+            ...(row !== null && typeof row === 'object' ? row : { value: row }),
+            _rowKey: `r${i}`,
+            _rowIdx: i,
+          }))}
+          rowKey="_rowKey"
+          columns={columns}
+          pagination={current.length > 50 ? { pageSize: 50, size: 'small', showSizeChanger: false } : false}
+          scroll={{ x: visibleKeys.length * 150 + 48, y: 400 }}
+        />
+      </Space>
+    );
+  }
+
+  // ── Array of primitives or mixed ──
+  if (Array.isArray(current)) {
+    const allIndexes = current.map((_, i) => String(i));
+    const visibleData = current
+      .map((val, i) => ({ key: String(i), idx: i, val }))
+      .filter(row => !hidden.has(String(row.idx)));
+
+    const columns = [
+      { key: 'idx', dataIndex: 'idx', title: '#', width: 60 },
+      { key: 'val', dataIndex: 'val', title: 'Значение', render: (val, row) => renderCell(val, row.idx) },
+    ];
+
+    return (
+      <Space direction="vertical" style={{ width: '100%' }} size={4}>
+        {breadcrumb}
+        {fieldToggle(allIndexes, 'Строки')}
+        <Table size="small" dataSource={visibleData} columns={columns}
+          pagination={visibleData.length > 100 ? { pageSize: 100, size: 'small' } : false}
+          scroll={{ y: 400 }} />
+      </Space>
+    );
+  }
+
+  // ── Plain object → key / value rows ──
+  const allKeys = Object.keys(current);
+  const visibleKeys = allKeys.filter(k => !hidden.has(k));
   const tableData = visibleKeys.map(k => ({ key: k, field: k, value: current[k] }));
   const columns = [
     {
@@ -18,7 +351,6 @@
         pagination={false} scroll={{ y: 420 }} />
     </Space>
   );
-}
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -49,7 +381,7 @@ function DraggableResizableModal({ title, open, onClose, children }) {
       if (!resizing.current) return;
       const dw = ev.clientX - resizeStart.current.x;
       const dh = ev.clientY - resizeStart.current.y;
-      useEffect(() => { loadTools(); loadRuns(); }, []);
+      setSize({
         w: Math.max(400, resizeStart.current.w + dw),
         h: Math.max(300, resizeStart.current.h + dh),
       });
@@ -158,7 +490,6 @@ const ACTION_META = {
     tooltip: 'Вызывает внешний API endpoint. Используйте для интеграций, синхронизаций и служебных команд.',
   },
   telegram_send: {
-
     label: 'Telegram',
     color: 'cyan',
     icon: <SendOutlined />,
