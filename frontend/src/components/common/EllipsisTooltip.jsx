@@ -38,3 +38,4 @@ const EllipsisTooltip = ({ text, placement = 'topLeft', maxWidth = '100%', child
 };
 
 export default EllipsisTooltip;
+export const EllipsisTooltipHeader = EllipsisTooltip;

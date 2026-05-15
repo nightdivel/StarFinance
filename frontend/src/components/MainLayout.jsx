@@ -39,7 +39,7 @@ const Requests = lazy(() => import('./Requests/Requests'));
 const UEX = lazy(() => import('./UEX/UEX'));
 const News = lazy(() => import('./News/News'));
 const NewsDetail = lazy(() => import('./News/NewsDetail'));
-const Tools = lazy(() => import('./Tools/Tools'));
+const Tools2 = lazy(() => import('./Tools/Tools'));
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Title } = Typography;
@@ -315,7 +315,7 @@ const MainLayout = ({ userData, onLogout, onUpdateUser, darkMode, onToggleTheme,
           <Route path="/showcase" element={<Showcase data={data} onRefresh={refreshData} userData={userData} />} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/uex" element={<UEX />} />
-          <Route path="/tools" element={<Tools data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
+          <Route path="/tools" element={<Tools2 data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
           <Route path="/settings" element={<Settings data={data} onDataUpdate={onDataUpdate} onRefresh={refreshData} userData={userData} />} />
           <Route path="/profile" element={<Profile userData={userData} onUpdateUser={onUpdateUser} data={data} onDataUpdate={onDataUpdate} />} />
           <Route path="/cart" element={<Cart />} />
