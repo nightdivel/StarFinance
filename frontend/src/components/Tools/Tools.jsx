@@ -1,107 +1,19 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Avatar,
-  Button,
-  Card,
-  Checkbox,
-  Col,
-  Dropdown,
-  Empty,
-  Form,
-  Input,
-  InputNumber,
-  List,
-  Modal,
-  Row,
-  Space,
-  Switch,
-  Table,
-  Tabs,
-  Tag,
-  Typography,
-  Upload,
-  message,
-} from 'antd';
-import ModalFieldToggle from '../common/ModalFieldToggle';
-import {
-  DeleteOutlined,
-  EditOutlined,
-  InfoCircleOutlined,
-  LinkOutlined,
-  PlusOutlined,
-  PlayCircleOutlined,
-  SendOutlined,
-  CheckOutlined,
-  ToolOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
-import Draggable from 'react-draggable';
-import { apiService } from '../../services/apiService';
-import { authService } from '../../services/authService';
-
+import React from 'react';
+  );
 const { Title, Text, Paragraph } = Typography;
-const { TextArea } = Input;
 
-// ──────────────────────────────────────────────────────────────────
-// Postman-style collapsible JSON tree with syntax highlighting
-// ──────────────────────────────────────────────────────────────────
-const JC = {
-  key:     '#66d9e8',
-  str:     '#a6e22e',
-  num:     '#fd971f',
-  bool:    '#ae81ff',
-  nil:     '#f92672',
-  bracket: '#f8f8f2',
-  meta:    '#75715e',
-};
+import React from 'react';
 
-const MAX_STR_LEN = 300;
+function Tools() {
+  return (
+    <div>
+      <h2>Tools</h2>
+      <p>Минимальный компонент Tools работает корректно.</p>
+    </div>
+  );
+}
 
-function JValue({ value, isLast, depth }) {
-  const [open, setOpen] = useState(depth < 2);
-  const comma = !isLast ? <span style={{ color: JC.meta }}>,</span> : null;
-
-  if (value === null || value === undefined)
-    return <span><span style={{ color: JC.nil }}>null</span>{comma}</span>;
-  if (typeof value === 'boolean')
-    return <span><span style={{ color: JC.bool }}>{String(value)}</span>{comma}</span>;
-  if (typeof value === 'number')
-    return <span><span style={{ color: JC.num }}>{value}</span>{comma}</span>;
-  if (typeof value === 'string') {
-    const display = value.length > MAX_STR_LEN ? value.slice(0, MAX_STR_LEN) + '…' : value;
-    return <span><span style={{ color: JC.str }}>{'"'}{display}{'"'}</span>{comma}</span>;
-  }
-
-  if (Array.isArray(value)) {
-    if (!open) return (
-      <span>
-        <span title="Развернуть" style={{ cursor: 'pointer', color: JC.meta, userSelect: 'none' }} onClick={() => setOpen(true)}>
-          ▶ [<span style={{ color: JC.num }}>{value.length}</span>]
-        </span>{comma}
-      </span>
-    );
-    return (
-      <span>
-        <span style={{ cursor: 'pointer', color: JC.bracket, userSelect: 'none' }} onClick={() => setOpen(false)}>▼ [</span>
-        <div style={{ paddingLeft: 16 }}>
-          {value.map((item, i) => (
-            <div key={i}><JValue value={item} isLast={i === value.length - 1} depth={depth + 1} /></div>
-          ))}
-        </div>
-        <span style={{ color: JC.bracket }}>]</span>{comma}
-      </span>
-    );
-  }
-
-  if (typeof value === 'object') {
-    const entries = Object.entries(value);
-    if (!open) return (
-      <span>
-        <span title="Развернуть" style={{ cursor: 'pointer', color: JC.meta, userSelect: 'none' }} onClick={() => setOpen(true)}>
-          ▶ {'{'}<span style={{ color: JC.num }}>{entries.length}</span>{'}'}
-        </span>{comma}
-      </span>
+export default Tools;
     );
     return (
       <span>
